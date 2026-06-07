@@ -1,0 +1,16 @@
+{
+  "name": "Phoenix Adventures",
+  "short_name": "Phoenix",
+  "description": "Curated treks and camping experiences across Sahyadri and the Himalayas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#D4AF37",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

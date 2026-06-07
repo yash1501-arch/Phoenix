@@ -1,0 +1,21 @@
+Now with Convex, bookings update instantly.
+
+User Flow:
+
+Browse Activities
+   ↓
+Live Slot Availability
+   ↓
+Add to Cart
+   ↓
+Real-time Cart Update
+   ↓
+Checkout
+
+Admin Flow:
+
+Admin Dashboard
+   ↓
+Add Activity
+   ↓
+Users instantly see new activity (real-time)

@@ -1,0 +1,30 @@
+/* Page transition wrapper */
+.page-fade-enter {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.page-fade-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Scroll progress bar */
+.scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(to right, #D4AF37, #F0E68C);
+    z-index: 60;
+    transition: width 0.1s linear;
+    pointer-events: none;
+}

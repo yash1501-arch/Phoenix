@@ -1,0 +1,117 @@
+Product Name
+
+Phoenix Adventures – Trekking & Tour Booking Platform
+
+🎯 Objective
+
+Build a secure, scalable full-stack web application that:
+
+Allows users to browse & book trekking/tour activities
+
+Allows admins to manage activities, bookings, blogs, and users
+
+Supports secure online payments
+
+Provides analytics & reporting
+
+👥 User Roles
+1️⃣ User (Customer)
+
+Register / Login
+
+Browse activities
+
+Filter by location, difficulty, price
+
+View activity details
+
+Add to cart
+
+Checkout & pay
+
+View booking history
+
+Cancel bookings
+
+Write reviews
+
+Read blogs
+
+2️⃣ Admin
+
+Secure login (2FA enabled)
+
+Add/Edit/Delete activities
+
+Upload images
+
+Manage bookings
+
+View active users
+
+Manage blogs
+
+Refund processing
+
+Dashboard analytics (Revenue, bookings, users)
+
+🧩 Core Features
+🔹 Activity Module
+
+Title
+
+Description
+
+Images
+
+Location
+
+Duration
+
+Difficulty Level
+
+Price
+
+Available Dates
+
+Slots Available
+
+🔹 Booking Module
+
+Cart system
+
+Order confirmation
+
+Payment integration
+
+Booking status tracking
+
+🔹 Blog Module
+
+Admin creates blogs
+
+SEO friendly URLs
+
+🔹 Analytics Dashboard
+
+Total revenue
+
+Monthly bookings
+
+Active users
+
+Top activities
+
+🚀 Non-Functional Requirements
+
+Secure authentication (JWT + Refresh tokens)
+
+SSL enabled
+
+Responsive design
+
+99% uptime
+
+Payment PCI compliant
+
+Scalable architecture

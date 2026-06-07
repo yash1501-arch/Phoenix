@@ -1,0 +1,47 @@
+Convex replaces REST APIs with:
+
+query() → Read
+
+mutation() → Write
+
+action() → External calls
+
+🔐 Auth (Using Clerk + Convex)
+
+Clerk handles authentication
+
+Convex uses ctx.auth.getUserIdentity()
+
+🎒 Activity Functions
+📖 Get all activities
+export const getActivities = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("activities").collect();
+  },
+});
+
+➕ Add Activity (Admin)
+export const addActivity = mutation({
+  args: { title: v.string(), price: v.number() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    // check admin role
+    return await ctx.db.insert("activities", args);
+  },
+});
+
+🛒 Cart Mutation
+export const addToCart = mutation({
+  args: { activityId: v.id("activities") },
+  handler: async (ctx, args) => {
+    const user = await ctx.auth.getUserIdentity();
+    // add logic
+  },
+});
+
+💳 Payment (Using Action)
+export const createPayment = action({
+  handler: async (ctx, args) => {
+    // Call Stripe API
+  },
+});

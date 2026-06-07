@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/src/assets/logo_icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Phoenix Adventures - Your premier destination for thrilling outdoor adventures, treks, camping, and nature exploration in India. Book your next adventure today!" />
+    <meta name="keywords" content="adventures, trekking, camping, outdoor activities, India tourism, adventure travel, hiking, mountain climbing, outdoor experiences" />
+    <meta name="author" content="Phoenix Adventures" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#D4AF37" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="canonical" href="https://www.phoenixadventures.in/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.phoenixadventures.in/" />
+    <meta property="og:title" content="Phoenix Adventures - Premier Outdoor Adventures in India" />
+    <meta property="og:description" content="Discover thrilling outdoor adventures, treks, camping, and nature exploration with Phoenix Adventures. Book your next adventure today!" />
+    <meta property="og:image" content="/src/assets/logo.jpg" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://www.phoenixadventures.in/" />
+    <meta property="twitter:title" content="Phoenix Adventures - Premier Outdoor Adventures in India" />
+    <meta property="twitter:description" content="Discover thrilling outdoor adventures, treks, camping, and nature exploration with Phoenix Adventures. Book your next adventure today!" />
+    <meta property="twitter:image" content="/src/assets/logo.jpg" />
+    
+    <title>Phoenix Adventures - Premier Outdoor Adventures in India</title>
+    
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TouristTrip",
+      "name": "Phoenix Adventures",
+      "description": "Premier outdoor adventures, treks, camping, and nature exploration in India",
+      "url": "https://www.phoenixadventures.in/",
+      "offers": {
+        "@type": "OfferCatalog",
+        "name": "Adventure Packages",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Trekking Adventures"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Camping Experiences"
+            }
+          }
+        ]
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "Phoenix Adventures",
+        "url": "https://www.phoenixadventures.in/",
+        "logo": "/src/assets/logo.jpg",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+91-98765-43210",
+          "contactType": "customer service",
+          "areaServed": "IN",
+          "availableLanguage": ["en", "hi"]
+        }
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
