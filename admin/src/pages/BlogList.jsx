@@ -62,23 +62,28 @@ const BlogList = () => {
           <h1 className="page-title">Blog</h1>
           <p className="page-subtitle">Write and publish stories for the Trail Journal</p>
         </div>
-        <Link to="/blog/new" className="btn btn-primary">
-          <Plus size={16} /> New post
-        </Link>
+        <div className="page-actions">
+          <Link to="/blog/new" className="btn-primary">
+            <Plus size={16} /> New post
+          </Link>
+        </div>
       </div>
 
-      <div className="filters-section" style={{ marginBottom: 20 }}>
+      <div className="tab-bar" role="tablist" aria-label="Filter posts">
         {['all', 'published', 'draft'].map((f) => (
           <button
             key={f}
+            type="button"
+            role="tab"
+            aria-selected={filter === f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 text-sm font-semibold rounded transition-colors ${
-              filter === f
-                ? 'bg-[var(--secondary)] text-white'
-                : 'bg-white text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
-            }`}
+            className={`tab-btn ${filter === f ? 'is-active' : ''}`}
           >
-            {f === 'all' ? `All (${posts.length})` : f === 'published' ? `Published (${posts.filter(p => p.published).length})` : `Drafts (${posts.filter(p => !p.published).length})`}
+            {f === 'all'
+              ? `All (${posts.length})`
+              : f === 'published'
+                ? `Published (${posts.filter((p) => p.published).length})`
+                : `Drafts (${posts.filter((p) => !p.published).length})`}
           </button>
         ))}
       </div>
@@ -90,42 +95,45 @@ const BlogList = () => {
           <Plus size={48} />
           <h3>No posts yet</h3>
           <p>Write your first story to fill the Trail Journal.</p>
-          <Link to="/blog/new" className="btn btn-primary" style={{ marginTop: 12 }}>
+          <Link to="/blog/new" className="btn-primary">
             <Plus size={16} /> Create post
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="list-stack">
           {filtered.map((post) => (
-            <article key={post._id} className="bg-white rounded-xl border border-[var(--border-color)] p-5 flex items-start gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <span className={`status-badge ${post.published ? 'confirmed' : 'pending'}`}>
-                    {post.published ? 'Published' : 'Draft'}
-                  </span>
-                  <span className="badge badge-blue">{CATEGORY_LABELS[post.category] || post.category}</span>
-                  <span className="text-xs text-[var(--text-light)]">{post.read_time || 5} min read</span>
+            <article key={post._id} className="list-card">
+              <div className="list-card-layout">
+                <div className="list-card-main">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span className={`status-badge ${post.published ? 'confirmed' : 'pending'}`}>
+                      {post.published ? 'Published' : 'Draft'}
+                    </span>
+                    <span className="badge badge-blue">{CATEGORY_LABELS[post.category] || post.category}</span>
+                    <span className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>{post.read_time || 5} min read</span>
+                  </div>
+                  <h3 style={{ margin: '0 0 0.35rem', fontSize: 'var(--text-lg)', fontWeight: 700, lineHeight: 1.3 }}>{post.title}</h3>
+                  <p style={{ margin: '0 0 0.5rem', fontSize: 'var(--text-sm)', color: 'var(--ink-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.excerpt}</p>
+                  <p className="text-muted" style={{ margin: 0, fontSize: 'var(--text-xs)' }}>
+                    By {post.author} · {new Date(post.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
-                <h3 className="font-bold text-lg text-[var(--text-main)] leading-snug">{post.title}</h3>
-                <p className="text-sm text-[var(--text-muted)] line-clamp-2 mt-1">{post.excerpt}</p>
-                <p className="text-xs text-[var(--text-light)] mt-2">
-                  By {post.author} · {new Date(post.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </p>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => togglePublish(post)}
-                  className="action-btn edit"
-                  title={post.published ? 'Unpublish' : 'Publish'}
-                >
-                  {post.published ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-                <Link to={`/blog/edit/${post._id}`} className="action-btn edit" title="Edit">
-                  <Edit2 size={16} />
-                </Link>
-                <button onClick={() => onDelete(post)} className="action-btn cancel" title="Delete">
-                  <Trash2 size={16} />
-                </button>
+                <div className="list-card-actions">
+                  <button
+                    type="button"
+                    onClick={() => togglePublish(post)}
+                    className="action-btn"
+                    title={post.published ? 'Unpublish' : 'Publish'}
+                  >
+                    {post.published ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                  <Link to={`/blog/edit/${post._id}`} className="action-btn" title="Edit">
+                    <Edit2 size={16} />
+                  </Link>
+                  <button type="button" onClick={() => onDelete(post)} className="action-btn danger" title="Delete">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             </article>
           ))}

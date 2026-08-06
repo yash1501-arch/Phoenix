@@ -7,44 +7,46 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Editorial admin palette — matches frontend branding
+                forest: {
+                    DEFAULT: '#2f4a3d',
+                    soft: '#3a5a4b',
+                },
+                mist: {
+                    DEFAULT: '#faf7f1',
+                    muted: '#ebe4d8',
+                },
+                ember: {
+                    DEFAULT: '#c1622d',
+                    hover: '#d4783f',
+                    pressed: '#a04e22',
+                },
                 ink: {
-                    DEFAULT: '#0e0d0b',
-                    soft: '#1a1815',
+                    DEFAULT: '#2b2b26',
+                    muted: '#5c5a52',
+                    faint: '#8a8578',
+                },
+                // Legacy aliases
+                primary: {
+                    DEFAULT: '#c1622d',
+                    dark: '#a04e22',
+                    light: '#e8d9b0',
+                },
+                accent: {
+                    DEFAULT: '#2f4a3d',
+                    light: '#3f6353',
                 },
                 paper: {
                     DEFAULT: '#faf7f2',
                     soft: '#f4f0e8',
                 },
-                primary: {
-                    DEFAULT: '#c9a961',
-                    glow: 'rgba(201, 169, 97, 0.4)',
-                    dark: '#9c7c3c',
-                    light: '#e8d9b0',
-                },
-                accent: {
-                    DEFAULT: '#2f4a3e',
-                    light: '#3f6353',
-                },
-                copper: '#b8734a',
-                secondary: '#0e0d0b',
-                // Legacy aliases
-                surface: '#F9FAFB',
-                warm: '#faf7f2',
             },
             fontFamily: {
-                sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-                display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
-            },
-            boxShadow: {
-                'card': '0 1px 2px rgba(14, 13, 11, 0.05)',
-                'card-hover': '0 8px 24px rgba(14, 13, 11, 0.08)',
-                'glow': '0 0 20px rgba(201, 169, 97, 0.3)',
+                sans: ['Karla', 'ui-sans-serif', 'system-ui', 'sans-serif'],
             },
             borderRadius: {
-                'editorial': '2px',
+                admin: '8px',
             },
         },
     },
     plugins: [],
-}
+};

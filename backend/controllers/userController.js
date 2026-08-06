@@ -1,5 +1,6 @@
 const { getConvexClient } = require('../utils/convexClient');
 const { sanitizeUser } = require('../utils/sanitizeUser');
+const { isDbAdmin } = require('../middleware/auth');
 const logger = require('../utils/logger');
 require('dotenv').config();
 
@@ -35,7 +36,7 @@ const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        if (req.user.id !== id && req.user.role !== 'admin') {
+        if (req.user.id !== id && !(await isDbAdmin(req.user.id))) {
             return res.status(403).json({ success: false, message: 'Not authorized to view this user' });
         }
 
@@ -60,7 +61,7 @@ const updateUser = async (req, res) => {
         const { id } = req.params;
 
         // IDOR protection: users can only update their own profile unless admin
-        if (req.user.id !== id && req.user.role !== 'admin') {
+        if (req.user.id !== id && !(await isDbAdmin(req.user.id))) {
             return res.status(403).json({ success: false, message: 'Not authorized to update this user' });
         }
 
@@ -92,7 +93,7 @@ const uploadAvatar = async (req, res) => {
     try {
         const { id } = req.params;
 
-        if (req.user.id !== id && req.user.role !== 'admin') {
+        if (req.user.id !== id && !(await isDbAdmin(req.user.id))) {
             return res.status(403).json({ success: false, message: 'Not authorized to update this avatar' });
         }
 

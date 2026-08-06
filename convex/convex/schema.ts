@@ -11,6 +11,17 @@ export default defineSchema({
     difficulty: v.string(),
     category: v.optional(v.string()), // 'trek', 'camping', 'tour', 'general'
     endurance_level: v.optional(v.string()),
+    base_village: v.optional(v.string()),
+    elevation: v.optional(v.string()),
+    region: v.optional(v.string()),
+    price_note: v.optional(v.string()),
+    things_to_carry: v.optional(v.array(v.string())),
+    pickup_mumbai: v.optional(v.array(v.string())),
+    pickup_pune: v.optional(v.array(v.string())),
+    dos: v.optional(v.array(v.string())),
+    donts: v.optional(v.array(v.string())),
+    trek_guidelines: v.optional(v.array(v.string())),
+    confirmation_pdf_url: v.optional(v.string()),
     image_url: v.optional(v.string()),
     status: v.string(), // 'active', 'inactive'
     max_participants: v.optional(v.number()),
@@ -45,6 +56,7 @@ export default defineSchema({
     avatar_url: v.optional(v.string()),
     totp_secret: v.optional(v.string()),
     totp_enabled: v.optional(v.boolean()),
+    session_version: v.optional(v.number()),
     created_at: v.string(), // ISO string
     updated_at: v.optional(v.string()), // ISO string
   }).index("email", ["email"]),

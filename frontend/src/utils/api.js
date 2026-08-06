@@ -2,6 +2,11 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
 const api = axios.create({
     baseURL: `${API_BASE_URL}/api`,
     headers: {
@@ -10,9 +15,25 @@ const api = axios.create({
     withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+    const method = config.method?.toLowerCase();
+    if (method && ['post', 'put', 'patch', 'delete'].includes(method)) {
+        const csrf = getCsrfToken();
+        if (csrf) {
+            config.headers['X-CSRF-Token'] = csrf;
+        }
+    }
+    return config;
+});
+
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        if (error.response?.status === 503 && error.response?.data?.maintenance) {
+            window.dispatchEvent(new CustomEvent('maintenance:activated', {
+                detail: error.response.data,
+            }));
+        }
         if (error.response?.status === 401) {
             window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         }
@@ -122,3 +143,6 @@ export const publicSettingsAPI = {
 };
 
 export default api;
+
+// Bootstrap CSRF cookie before any mutating requests
+api.get('/settings/public').catch(() => {});

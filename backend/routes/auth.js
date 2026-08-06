@@ -8,15 +8,8 @@ const { getConvexClient } = require('../utils/convexClient');
 const { sendPasswordReset } = require('../services/emailService');
 const { setAuthCookie, clearAuthCookie } = require('../utils/authCookie');
 const { sanitizeUser } = require('../utils/sanitizeUser');
+const { getJwtSecret, signAuthToken } = require('../utils/jwtHelpers');
 const logger = require('../utils/logger');
-
-const getJwtSecret = () => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-        throw new Error('JWT_SECRET environment variable is not configured');
-    }
-    return secret;
-};
 
 // Helper function to find user by email (case-insensitive: stores + queries lowercase)
 async function findUserByEmail(email) {
@@ -62,18 +55,17 @@ router.post('/register', [
             created_at: new Date().toISOString()
         });
 
-        const payload = {
+        const token = signAuthToken(newUser);
+        setAuthCookie(res, token, 'user');
+        res.json({
+            success: true,
             user: {
-                id: newUser._id, // Convex uses _id for the primary key
-                name: name,
+                id: newUser._id,
+                name,
                 email: normalizedEmail,
-                role: 'user'
-            }
-        };
-
-        const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
-        setAuthCookie(res, token);
-        res.json({ success: true, user: payload.user });
+                role: 'user',
+            },
+        });
 
     } catch (err) {
         logger.error('Register error:', err.response?.data || err.stack || err.message);
@@ -114,7 +106,8 @@ router.post('/login', [
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                session_version: user.session_version ?? 0,
             }
         };
 
@@ -131,9 +124,13 @@ router.post('/login', [
             });
         }
 
-        const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
-        setAuthCookie(res, token);
-        res.json({ success: true, user: payload.user });
+        const token = signAuthToken(user);
+        setAuthCookie(res, token, user.role);
+        res.json({
+            success: true,
+            user: payload.user,
+            requires2faSetup: user.role === 'admin' && !(user.totp_enabled && user.totp_secret),
+        });
 
     } catch (err) {
         logger.error('Login error:', err.response?.data || err.stack || err.message);
@@ -171,18 +168,9 @@ router.post('/forgot-password', [
                 await sendPasswordReset(user.email, user.name, resetLink);
             } catch (mailErr) {
                 logger.error('Password reset email failed:', mailErr.message || mailErr);
-                // Dev-only fallback so local testing still works without blocking
                 if (process.env.NODE_ENV !== 'production') {
-                    return res.json({
-                        success: true,
-                        message: 'If that email exists, a reset link has been sent',
-                        devResetLink: resetLink,
-                        emailError: mailErr.code === 'SMTP_NOT_CONFIGURED'
-                            ? 'SMTP not configured'
-                            : 'Email send failed — check SMTP credentials',
-                    });
+                    logger.info(`[PASSWORD RESET] Dev reset link for ${email}: ${resetLink}`);
                 }
-                // Production: still return generic success (no enumeration); ops see logs
             }
         }
         res.json({ success: true, message: 'If that email exists, a reset link has been sent' });
@@ -261,10 +249,11 @@ router.post('/2fa/verify-login', [
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                session_version: user.session_version ?? 0,
             },
         };
-        const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
-        setAuthCookie(res, token);
+        const token = signAuthToken(user);
+        setAuthCookie(res, token, user.role);
         return res.json({ success: true, user: payload.user });
     } catch (err) {
         if (err.name === 'TokenExpiredError') {
@@ -392,8 +381,11 @@ router.get('/me', auth, async (req, res) => {
         }
 
         const safeUser = sanitizeUser(user);
+        const requires2faSetup =
+            safeUser.role === 'admin' && !(user.totp_enabled && user.totp_secret);
         res.json({
             ...safeUser,
+            requires2faSetup,
             user: {
                 id: safeUser.id,
                 name: safeUser.name,

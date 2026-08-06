@@ -40,6 +40,7 @@ import NotFound from './pages/NotFound';
 import Wishlist from './pages/Wishlist';
 import SearchResults from './pages/SearchResults';
 import BookingPayment from './pages/BookingPayment';
+import MaintenanceGate from './components/MaintenanceGate';
 
 function App() {
   return (
@@ -68,6 +69,7 @@ function App() {
         <LanguageProvider>
           <AuthProvider>
               <WishlistProvider>
+                <MaintenanceGate>
                 <PageTransition>
                 <Routes>
                 <Route path="/" element={<Landing />} />
@@ -98,6 +100,7 @@ function App() {
                 <Route path="*" element={<NotFound />} />
                 </Routes>
                 </PageTransition>
+                </MaintenanceGate>
                 <MobileTabBar />
               </WishlistProvider>
           </AuthProvider>

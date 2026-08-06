@@ -1,4 +1,5 @@
 const { getConvexClient } = require('../utils/convexClient');
+const { isDbAdmin } = require('../middleware/auth');
 
 const safeJson = (input, fallback = null) => {
     if (input === null || input === undefined) return fallback;
@@ -75,7 +76,7 @@ exports.getUserReviews = async (req, res) => {
         const { userId } = req.params;
         
         // IDOR protection: users can only view their own reviews unless admin
-        if (req.user.id !== userId && req.user.role !== 'admin') {
+        if (req.user.id !== userId && !(await isDbAdmin(req.user.id))) {
             return res.status(403).json({ success: false, message: 'Not authorized to view these reviews' });
         }
         

@@ -1,5 +1,7 @@
 const aiService = require('../services/aiService');
 const { getConvexClient } = require('../utils/convexClient');
+const { applyBrochureFields } = require('../utils/parseBrochureFields');
+const { pickAdventureFields } = require('../utils/sanitizeAdventurePayload');
 const logger = require('../utils/logger');
 require('dotenv').config();
 
@@ -55,6 +57,28 @@ const attachAvailableDates = (adventure, { includeAllDates } = {}) => {
     };
 };
 
+const stripInternalFields = (adventure, isAdmin) => {
+    if (!adventure || isAdmin) return adventure;
+    const { confirmation_pdf_url, ...rest } = adventure;
+    return rest;
+};
+
+const isRequestAdmin = async (req) => {
+    if (!req.user?.id) return false;
+    const dbUser = await getConvexClient().getUserById(req.user.id);
+    return dbUser?.role === 'admin';
+};
+
+const applyConfirmationPdf = (adventureData, req) => {
+    if (req.confirmationPdf?.secure_url) {
+        adventureData.confirmation_pdf_url = req.confirmationPdf.secure_url;
+    }
+    if (adventureData.remove_confirmation_pdf === 'true') {
+        adventureData.confirmation_pdf_url = null;
+    }
+    delete adventureData.remove_confirmation_pdf;
+};
+
 /**
  * Get all adventures with pagination and filters
  */
@@ -66,9 +90,12 @@ const getAdventures = async (req, res) => {
 
         const convexFilters = { page: parseInt(page), limit: parseInt(limit), status: effectiveStatus, difficulty, location, category };
         const result = await getConvexClient().getAdventures(convexFilters);
+        const isAdmin = await isRequestAdmin(req);
 
         if (result && Array.isArray(result.data)) {
-            result.data = result.data.map((a) => attachAvailableDates(a, { includeAllDates: includeAll }));
+            result.data = result.data
+                .map((a) => attachAvailableDates(a, { includeAllDates: includeAll }))
+                .map((a) => stripInternalFields(a, isAdmin));
 
             if (search) {
                 const lower = search.toLowerCase();
@@ -101,17 +128,19 @@ const getAdventureById = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
 
-        const isAdmin = await (async () => {
-            if (!req.user?.id) return false;
-            const dbUser = await getConvexClient().getUserById(req.user.id);
-            return dbUser?.role === 'admin';
-        })();
+        const isAdmin = await isRequestAdmin(req);
 
         if (result.status !== 'active' && !isAdmin) {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
 
-        res.json({ success: true, data: attachAvailableDates(result, { includeAllDates: includeAll }) });
+        res.json({
+            success: true,
+            data: stripInternalFields(
+                attachAvailableDates(result, { includeAllDates: includeAll }),
+                isAdmin
+            ),
+        });
     } catch (error) {
         logger.error('Error fetching adventure:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch adventure' });
@@ -128,6 +157,8 @@ const createAdventure = async (req, res) => {
         if (req.file) {
             adventureData.image_url = req.file.secure_url || req.file.path;
         }
+
+        applyConfirmationPdf(adventureData, req);
 
         if (adventureData.included !== undefined) {
             adventureData.included = safeJsonParse(adventureData.included, []);
@@ -149,6 +180,8 @@ const createAdventure = async (req, res) => {
             }
             adventureData.available_dates = normalized;
         }
+
+        applyBrochureFields(adventureData);
 
         if (adventureData.price !== undefined && adventureData.price !== '') {
             const price = Number(adventureData.price);
@@ -173,11 +206,15 @@ const createAdventure = async (req, res) => {
 
         if (adventureData.category === '') delete adventureData.category;
         if (adventureData.endurance_level === '') delete adventureData.endurance_level;
+        if (adventureData.base_village === '') delete adventureData.base_village;
+        if (adventureData.elevation === '') delete adventureData.elevation;
+        if (adventureData.region === '') delete adventureData.region;
+        if (adventureData.price_note === '') delete adventureData.price_note;
         if (!adventureData.image_url) delete adventureData.image_url;
         if (adventureData.rating === '') delete adventureData.rating;
         if (adventureData.reviews_count === '') delete adventureData.reviews_count;
 
-        const result = await getConvexClient().createAdventure(adventureData);
+        const result = await getConvexClient().createAdventure(pickAdventureFields(adventureData));
 
         res.status(201).json({
             success: true,
@@ -205,6 +242,8 @@ const updateAdventure = async (req, res) => {
             adventureData.image_url = req.file.secure_url || req.file.path;
         }
 
+        applyConfirmationPdf(adventureData, req);
+
         if (adventureData.included !== undefined) {
             adventureData.included = safeJsonParse(adventureData.included, undefined);
         }
@@ -225,6 +264,8 @@ const updateAdventure = async (req, res) => {
                 adventureData.available_dates = normalizeAvailableDates(parsed);
             }
         }
+
+        applyBrochureFields(adventureData);
 
         if (adventureData.price !== undefined && adventureData.price !== '') {
             const price = Number(adventureData.price);
@@ -247,9 +288,13 @@ const updateAdventure = async (req, res) => {
 
         if (adventureData.category === '') delete adventureData.category;
         if (adventureData.endurance_level === '') delete adventureData.endurance_level;
+        if (adventureData.base_village === '') delete adventureData.base_village;
+        if (adventureData.elevation === '') delete adventureData.elevation;
+        if (adventureData.region === '') delete adventureData.region;
+        if (adventureData.price_note === '') delete adventureData.price_note;
         if (adventureData.image_url === '') delete adventureData.image_url;
 
-        const result = await getConvexClient().updateAdventure(id, adventureData);
+        const result = await getConvexClient().updateAdventure(id, pickAdventureFields(adventureData));
 
         if (!result) {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
@@ -262,7 +307,8 @@ const updateAdventure = async (req, res) => {
         });
     } catch (error) {
         logger.error('Error updating adventure:', error);
-        res.status(500).json({ success: false, message: 'Failed to update adventure' });
+        const message = error?.message || 'Failed to update adventure';
+        res.status(500).json({ success: false, message });
     }
 };
 
@@ -304,7 +350,15 @@ const extractFromPDF = async (req, res) => {
         }
         const pdfBuffer = req.file.buffer;
         const extractedData = await aiService.extractFromPDF(pdfBuffer);
-        res.json({ success: true, data: extractedData });
+        const { _parser, _warning, ...data } = extractedData;
+        res.json({
+            success: true,
+            data,
+            meta: {
+                parser: _parser || 'unknown',
+                warning: _warning || null,
+            },
+        });
     } catch (error) {
         logger.error('Error extracting from PDF:', error);
         res.status(500).json({ success: false, message: error.message });

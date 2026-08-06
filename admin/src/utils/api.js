@@ -2,6 +2,11 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
 const api = axios.create({
     baseURL: `${API_BASE_URL}/api`,
     headers: {
@@ -10,12 +15,26 @@ const api = axios.create({
     withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+    const method = config.method?.toLowerCase();
+    if (method && ['post', 'put', 'patch', 'delete'].includes(method)) {
+        const csrf = getCsrfToken();
+        if (csrf) {
+            config.headers['X-CSRF-Token'] = csrf;
+        }
+    }
+    return config;
+});
+
 // Response interceptor for handling errors
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
             window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        }
+        if (error.response?.status === 403 && error.response?.data?.requires2faSetup) {
+            window.dispatchEvent(new CustomEvent('auth:requires2faSetup'));
         }
         return Promise.reject(error);
     }
@@ -57,7 +76,8 @@ export const adventuresAPI = {
     // AI features
     optimizeItinerary: (data) => api.post('/adventures/ai/optimize-itinerary', data),
     extractFromPDF: (formData) => api.post('/adventures/ai/extract-pdf', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
     }),
     generateDescription: (data) => api.post('/adventures/ai/generate-description', data),
     uploadImages: (formData) => api.post('/adventures/upload/images', formData, {
@@ -116,4 +136,23 @@ export const twoFactorAPI = {
     disable: (code, password) => api.post('/auth/2fa/disable', { code, password }),
 };
 
+export const dashboardAPI = {
+    getOverview: () => api.get('/dashboard/overview'),
+};
+
+export const newsletterAdminAPI = {
+    getAll: () => api.get('/newsletter'),
+};
+
+export const auditAdminAPI = {
+    getAll: (params) => api.get('/audit', { params }),
+};
+
+export const usersAdminAPI = {
+    getAll: (params) => api.get('/users', { params }),
+};
+
 export default api;
+
+// Bootstrap CSRF cookie before any mutating requests
+api.get('/auth/me').catch(() => {});

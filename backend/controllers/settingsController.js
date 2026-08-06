@@ -1,5 +1,25 @@
 const { getConvexClient } = require('../utils/convexClient');
 
+// Public keys (also writable by admin)
+const PUBLIC_KEYS = new Set([
+    'instagram_posts', 'instagram_handle', 'instagram_url', 'instagram',
+    'facebook_url', 'youtube_url',
+    'google_maps_url', 'google_place_id', 'google_lat', 'google_lng',
+    'google_rating', 'google_review_count', 'google_reviews',
+    'site_name', 'site_tagline', 'tagline', 'contact_email', 'contact_phone',
+    'contact_phone_secondary', 'contact_address', 'contact_hours', 'whatsapp',
+    'maps_url', 'established', 'cancellation_window_days', 'advance_per_person',
+    'upi_id', 'upi_payee_name', 'seat_hold_minutes',
+]);
+
+// Admin-only keys (not exposed via public read)
+const ADMIN_ONLY_KEYS = new Set([
+    'maintenance_mode',
+    'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
+]);
+
+const ALLOWED_WRITE_KEYS = new Set([...PUBLIC_KEYS, ...ADMIN_ONLY_KEYS]);
+
 exports.getAll = async (req, res) => {
     try {
         const data = await getConvexClient().getSettings();
@@ -13,6 +33,9 @@ exports.set = async (req, res) => {
     try {
         const { key, value } = req.body;
         if (!key) return res.status(400).json({ success: false, message: 'key is required' });
+        if (!ALLOWED_WRITE_KEYS.has(key)) {
+            return res.status(400).json({ success: false, message: `Setting key "${key}" is not allowed` });
+        }
         await getConvexClient().setSetting(key, String(value ?? ''));
         return res.json({ success: true });
     } catch (error) {
@@ -20,26 +43,10 @@ exports.set = async (req, res) => {
     }
 };
 
-// Public read for a single whitelisted key. No auth required.
-const PUBLIC_KEYS = new Set([
-    'instagram_posts', 'instagram_handle', 'instagram_url',
-    'facebook_url', 'youtube_url',
-    'google_maps_url', 'google_place_id', 'google_lat', 'google_lng',
-    'google_rating', 'google_review_count',
-    'site_name', 'site_tagline', 'tagline', 'contact_email', 'contact_phone',
-    'contact_phone_secondary', 'contact_address', 'contact_hours', 'whatsapp',
-    'maps_url', 'established', 'cancellation_window_days', 'advance_per_person',
-    'upi_id', 'upi_payee_name', 'seat_hold_minutes',
-    // Curated Google reviews JSON (4–5★). Admin-editable; seed from verified GBP quotes.
-    // TODO: refresh via Places Details API when GOOGLE_MAPS_API_KEY is available.
-    'google_reviews',
-]);
-
 exports.getPublic = async (req, res) => {
     try {
         const { key } = req.query;
         if (!key) {
-            // Return the whole public set (useful for the footer/SEO components)
             const all = await getConvexClient().getSettings();
             const filtered = {};
             for (const k of PUBLIC_KEYS) {
@@ -57,3 +64,6 @@ exports.getPublic = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to fetch public setting' });
     }
 };
+
+exports.PUBLIC_KEYS = PUBLIC_KEYS;
+exports.ALLOWED_WRITE_KEYS = ALLOWED_WRITE_KEYS;

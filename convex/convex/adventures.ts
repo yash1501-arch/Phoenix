@@ -89,6 +89,17 @@ export const create = internalMutation({
     difficulty: v.string(),
     category: v.optional(v.string()),
     endurance_level: v.optional(v.string()),
+    base_village: v.optional(v.string()),
+    elevation: v.optional(v.string()),
+    region: v.optional(v.string()),
+    price_note: v.optional(v.string()),
+    things_to_carry: v.optional(v.array(v.string())),
+    pickup_mumbai: v.optional(v.array(v.string())),
+    pickup_pune: v.optional(v.array(v.string())),
+    dos: v.optional(v.array(v.string())),
+    donts: v.optional(v.array(v.string())),
+    trek_guidelines: v.optional(v.array(v.string())),
+    confirmation_pdf_url: v.optional(v.string()),
     image_url: v.optional(v.string()),
     status: v.string(),
     max_participants: v.optional(v.number()),
@@ -131,6 +142,17 @@ export const update = internalMutation({
     difficulty: v.optional(v.string()),
     category: v.optional(v.string()),
     endurance_level: v.optional(v.string()),
+    base_village: v.optional(v.string()),
+    elevation: v.optional(v.string()),
+    region: v.optional(v.string()),
+    price_note: v.optional(v.string()),
+    things_to_carry: v.optional(v.array(v.string())),
+    pickup_mumbai: v.optional(v.array(v.string())),
+    pickup_pune: v.optional(v.array(v.string())),
+    dos: v.optional(v.array(v.string())),
+    donts: v.optional(v.array(v.string())),
+    trek_guidelines: v.optional(v.array(v.string())),
+    confirmation_pdf_url: v.optional(v.union(v.string(), v.null())),
     image_url: v.optional(v.string()),
     status: v.optional(v.string()),
     max_participants: v.optional(v.number()),
@@ -153,10 +175,12 @@ export const update = internalMutation({
     const { id, ...updateFields } = args;
     const now = new Date().toISOString();
 
-    await ctx.db.patch(id, {
-      ...updateFields,
-      updated_at: now,
-    });
+    const patch: Record<string, unknown> = { ...updateFields, updated_at: now };
+    if (patch.confirmation_pdf_url === null) {
+      patch.confirmation_pdf_url = undefined;
+    }
+
+    await ctx.db.patch(id, patch);
 
     return id;
   },

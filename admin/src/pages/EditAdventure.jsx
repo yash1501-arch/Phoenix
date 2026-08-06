@@ -4,8 +4,6 @@ import toast from 'react-hot-toast';
 import {
     Save,
     Upload,
-    FileText,
-    Sparkles,
     Plus,
     X,
     MapPin,
@@ -18,19 +16,21 @@ import {
     CalendarDays
 } from 'lucide-react';
 import { adventuresAPI } from '../utils/api';
+import BrochureFields from '../components/BrochureFields';
+import { BrochurePdfImport, ConfirmationPdfField } from '../components/AdventurePdfFields';
+import { asStringList } from '../utils/brochure';
+import { mergeExtractedPdfData } from '../utils/pdfExtract';
 import './AddAdventure.css'; // Reusing the same styles
 
 const EditAdventure = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const imageInputRef = useRef(null);
-    const pdfInputRef = useRef(null);
     const galleryInputRef = useRef(null);
 
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
-    const [aiLoading, setAiLoading] = useState(false);
-    const [pdfLoading, setPdfLoading] = useState(false);
+    const [brochureLoading, setBrochureLoading] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -39,6 +39,17 @@ const EditAdventure = () => {
         duration: '',
         difficulty: 'Moderate',
         category: '',
+        endurance_level: '',
+        base_village: '',
+        elevation: '',
+        region: '',
+        price_note: '',
+        things_to_carry: [],
+        pickup_mumbai: [],
+        pickup_pune: [],
+        dos: [],
+        donts: [],
+        trek_guidelines: [],
         price: '',
         max_participants: '',
         image: null,
@@ -50,12 +61,15 @@ const EditAdventure = () => {
         excluded: [],
         itinerary: [],
         available_dates: [],
-        status: 'active'
+        status: 'active',
+        confirmation_pdf: null,
+        confirmation_pdf_name: '',
+        existing_confirmation_pdf_url: '',
+        remove_confirmation_pdf: false,
     });
 
     const [includedInput, setIncludedInput] = useState('');
     const [excludedInput, setExcludedInput] = useState('');
-    const [itineraryInput, setItineraryInput] = useState('');
     const [dateInput, setDateInput] = useState('');
 
     useEffect(() => {
@@ -99,6 +113,17 @@ const EditAdventure = () => {
                 duration: adventure.duration || '',
                 difficulty: adventure.difficulty || 'Moderate',
                 category: adventure.category || '',
+                endurance_level: adventure.endurance_level || '',
+                base_village: adventure.base_village || '',
+                elevation: adventure.elevation || '',
+                region: adventure.region || '',
+                price_note: adventure.price_note || '',
+                things_to_carry: asStringList(adventure.things_to_carry),
+                pickup_mumbai: asStringList(adventure.pickup_mumbai),
+                pickup_pune: asStringList(adventure.pickup_pune),
+                dos: asStringList(adventure.dos),
+                donts: asStringList(adventure.donts),
+                trek_guidelines: asStringList(adventure.trek_guidelines),
                 price: adventure.price || '',
                 max_participants: adventure.max_participants || '',
                 image: null,
@@ -110,7 +135,11 @@ const EditAdventure = () => {
                 excluded: Array.isArray(excluded) ? excluded : [],
                 itinerary: Array.isArray(itinerary) ? itinerary : [],
                 available_dates: availableDates,
-                status: adventure.status || 'active'
+                status: adventure.status || 'active',
+                confirmation_pdf: null,
+                confirmation_pdf_name: adventure.confirmation_pdf_url ? 'Current confirmation PDF' : '',
+                existing_confirmation_pdf_url: adventure.confirmation_pdf_url || '',
+                remove_confirmation_pdf: false,
             });
         } catch (error) {
             console.error('Error fetching adventure:', error);
@@ -230,101 +259,56 @@ const EditAdventure = () => {
         return iso < today.toISOString().slice(0, 10);
     };
 
-    const handlePDFUpload = async (e) => {
+    const handleBrochurePdfUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         try {
-            setPdfLoading(true);
+            setBrochureLoading(true);
             const formDataPDF = new FormData();
             formDataPDF.append('pdf', file);
 
             const response = await adventuresAPI.extractFromPDF(formDataPDF);
             const extractedData = response.data.data;
+            const warning = response.data.meta?.warning;
 
-            setFormData(prev => ({
-                ...prev,
-                title: extractedData.title || prev.title,
-                description: extractedData.description || prev.description,
-                location: extractedData.location || prev.location,
-                duration: extractedData.duration || prev.duration,
-                difficulty: extractedData.difficulty || prev.difficulty,
-                price: extractedData.price || prev.price,
-                max_participants: extractedData.maxParticipants || prev.max_participants,
-                included: extractedData.included || prev.included,
-                excluded: extractedData.excluded || prev.excluded,
-                itinerary: extractedData.itinerary || prev.itinerary
-            }));
-
-            toast.success('✨ PDF processed successfully! Form updated with extracted data.');
+            setFormData(prev => mergeExtractedPdfData(prev, extractedData));
+            if (warning) {
+                toast.success('Form updated (basic parsing). Review fields and fill any gaps.');
+                toast(warning, { icon: '⚠️', duration: 6000 });
+            } else {
+                toast.success('Brochure PDF processed — form fields updated.');
+            }
         } catch (error) {
             console.error('Error processing PDF:', error);
-            toast.error('Failed to process PDF. Please try again.');
+            const serverMsg = error.response?.data?.message;
+            toast.error(serverMsg || 'Failed to read brochure PDF. Please try again.');
         } finally {
-            setPdfLoading(false);
-            if (pdfInputRef.current) pdfInputRef.current.value = '';
+            setBrochureLoading(false);
+            e.target.value = '';
         }
     };
 
-    const handleOptimizeItinerary = async () => {
-        if (!itineraryInput.trim()) {
-            toast.error('Please enter itinerary details to optimize');
-            return;
-        }
-
-        try {
-            setAiLoading(true);
-            const response = await adventuresAPI.optimizeItinerary({
-                rawItinerary: itineraryInput,
-                adventureDetails: {
-                    title: formData.title,
-                    location: formData.location,
-                    duration: formData.duration,
-                    difficulty: formData.difficulty
-                }
-            });
-
-            const optimizedItinerary = response.data.data;
-            setFormData(prev => ({
-                ...prev,
-                itinerary: Array.isArray(optimizedItinerary) ? optimizedItinerary : []
-            }));
-            setItineraryInput('');
-            toast.success('✨ Itinerary optimized successfully!');
-        } catch (error) {
-            console.error('Error optimizing itinerary:', error);
-            toast.error('Failed to optimize itinerary. Please try again.');
-        } finally {
-            setAiLoading(false);
-        }
+    const handleConfirmationPdfChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setFormData(prev => ({
+            ...prev,
+            confirmation_pdf: file,
+            confirmation_pdf_name: file.name,
+            remove_confirmation_pdf: false,
+        }));
+        e.target.value = '';
     };
 
-    const handleGenerateDescription = async () => {
-        if (!formData.title || !formData.location) {
-            toast.error('Please enter title and location first');
-            return;
-        }
-
-        try {
-            setAiLoading(true);
-            const response = await adventuresAPI.generateDescription({
-                title: formData.title,
-                location: formData.location,
-                duration: formData.duration,
-                difficulty: formData.difficulty
-            });
-
-            setFormData(prev => ({
-                ...prev,
-                description: response.data.data.description
-            }));
-            toast.success('✨ Description generated successfully!');
-        } catch (error) {
-            console.error('Error generating description:', error);
-            toast.error('Failed to generate description. Please try again.');
-        } finally {
-            setAiLoading(false);
-        }
+    const handleRemoveConfirmationPdf = () => {
+        setFormData(prev => ({
+            ...prev,
+            confirmation_pdf: null,
+            confirmation_pdf_name: '',
+            existing_confirmation_pdf_url: '',
+            remove_confirmation_pdf: true,
+        }));
     };
 
     const handleSubmit = async (e) => {
@@ -351,6 +335,11 @@ const EditAdventure = () => {
             submitData.append('duration', formData.duration);
             submitData.append('difficulty', formData.difficulty);
             submitData.append('category', formData.category);
+            submitData.append('endurance_level', formData.endurance_level || '');
+            submitData.append('base_village', formData.base_village || '');
+            submitData.append('elevation', formData.elevation || '');
+            submitData.append('region', formData.region || '');
+            submitData.append('price_note', formData.price_note || '');
             submitData.append('price', formData.price);
             submitData.append('max_participants', formData.max_participants);
             submitData.append('status', formData.status);
@@ -372,11 +361,23 @@ const EditAdventure = () => {
             if (formData.image) {
                 submitData.append('image', formData.image);
             }
+            if (formData.confirmation_pdf) {
+                submitData.append('confirmation_pdf', formData.confirmation_pdf);
+            }
+            if (formData.remove_confirmation_pdf) {
+                submitData.append('remove_confirmation_pdf', 'true');
+            }
 
             // Append JSON fields
             submitData.append('images', JSON.stringify(combinedGalleryUrls));
             submitData.append('included', JSON.stringify(formData.included));
             submitData.append('excluded', JSON.stringify(formData.excluded));
+            submitData.append('things_to_carry', JSON.stringify(formData.things_to_carry || []));
+            submitData.append('pickup_mumbai', JSON.stringify(formData.pickup_mumbai || []));
+            submitData.append('pickup_pune', JSON.stringify(formData.pickup_pune || []));
+            submitData.append('dos', JSON.stringify(formData.dos || []));
+            submitData.append('donts', JSON.stringify(formData.donts || []));
+            submitData.append('trek_guidelines', JSON.stringify(formData.trek_guidelines || []));
             submitData.append('itinerary', JSON.stringify(formData.itinerary));
             submitData.append('available_dates', JSON.stringify(formData.available_dates));
 
@@ -385,7 +386,7 @@ const EditAdventure = () => {
             navigate('/adventures');
         } catch (error) {
             console.error('Error updating adventure:', error);
-            toast.error('Failed to update adventure. Please try again.');
+            toast.error(error.response?.data?.message || 'Failed to update adventure. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -404,64 +405,24 @@ const EditAdventure = () => {
         <div className="add-adventure-page">
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">Edit Adventure</h1>
-                    <p className="page-subtitle">Update adventure details</p>
+                    <p className="page-subtitle" style={{ marginTop: 0 }}>Update trek details, dates, and confirmation PDF</p>
                 </div>
                 <button
+                    type="button"
                     onClick={() => navigate('/adventures')}
                     className="btn-secondary"
                 >
-                    <ArrowLeft size={20} />
-                    Back to Adventures
+                    <ArrowLeft size={18} />
+                    Back
                 </button>
             </div>
 
-            {/* AI Quick Actions */}
-            <div className="ai-actions-card">
-                <div className="ai-header">
-                    <Sparkles className="ai-icon" />
-                    <h3>AI-Powered Tools</h3>
-                </div>
-                <div className="ai-actions">
-                    <button
-                        type="button"
-                        onClick={() => pdfInputRef.current?.click()}
-                        className="ai-button"
-                        disabled={pdfLoading}
-                    >
-                        {pdfLoading ? (
-                            <>
-                                <Loader className="spinning" size={20} />
-                                Processing PDF...
-                            </>
-                        ) : (
-                            <>
-                                <FileText size={20} />
-                                Update from PDF
-                            </>
-                        )}
-                    </button>
-                    <input
-                        ref={pdfInputRef}
-                        type="file"
-                        accept=".pdf"
-                        onChange={handlePDFUpload}
-                        style={{ display: 'none' }}
-                    />
-
-                    <button
-                        type="button"
-                        onClick={handleGenerateDescription}
-                        className="ai-button"
-                        disabled={aiLoading || !formData.title || !formData.location}
-                    >
-                        <Sparkles size={20} />
-                        Regenerate Description
-                    </button>
-                </div>
-            </div>
-
             <form onSubmit={handleSubmit} className="adventure-form">
+                <BrochurePdfImport
+                    loading={brochureLoading}
+                    onUpload={handleBrochurePdfUpload}
+                />
+
                 {/* Basic Information */}
                 <div className="form-section">
                     <h2 className="section-title">Basic Information</h2>
@@ -638,8 +599,8 @@ const EditAdventure = () => {
 
                 {/* Gallery Upload */}
                 <div className="form-section">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="section-title mb-0">Gallery Images</h2>
+                    <div className="form-section-header">
+                        <h2 className="section-title">Gallery Images</h2>
                         <button 
                             type="button"
                             className="btn-secondary py-2"
@@ -650,14 +611,15 @@ const EditAdventure = () => {
                     </div>
 
                     {formData.galleryPreviews.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                        <div className="gallery-grid">
                             {formData.galleryPreviews.map((preview, index) => (
-                                <div key={index} className="relative rounded-xl overflow-hidden aspect-square border border-gray-100 group">
-                                    <img src={preview} alt={`Gallery ${index}`} className="w-full h-full object-cover" />
+                                <div key={index} className="gallery-item">
+                                    <img src={preview} alt={`Gallery ${index}`} />
                                     <button
                                         type="button"
                                         onClick={() => removeGalleryImage(index)}
-                                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg"
+                                        className="gallery-remove"
+                                        aria-label="Remove image"
                                     >
                                         <X size={14} />
                                     </button>
@@ -761,6 +723,8 @@ const EditAdventure = () => {
                     </div>
                 </div>
 
+                <BrochureFields formData={formData} setFormData={setFormData} />
+
                 {/* Available Dates */}
                 <div className="form-section">
                     <h2 className="section-title">
@@ -827,38 +791,12 @@ const EditAdventure = () => {
                 {/* Itinerary */}
                 <div className="form-section">
                     <h2 className="section-title">Itinerary</h2>
+                    <p className="form-help section-help">
+                        Upload a brochure PDF at the top to import the day-by-day schedule.
+                    </p>
 
-                    <div className="itinerary-input-section">
-                        <textarea
-                            value={itineraryInput}
-                            onChange={(e) => setItineraryInput(e.target.value)}
-                            className="form-textarea"
-                            rows="6"
-                            placeholder="Enter raw itinerary details here... AI will structure it for you!"
-                        />
-                        <button
-                            type="button"
-                            onClick={handleOptimizeItinerary}
-                            className="ai-optimize-btn"
-                            disabled={aiLoading || !itineraryInput.trim()}
-                        >
-                            {aiLoading ? (
-                                <>
-                                    <Loader className="spinning" size={20} />
-                                    Optimizing...
-                                </>
-                            ) : (
-                                <>
-                                    <Sparkles size={20} />
-                                    Optimize with AI
-                                </>
-                            )}
-                        </button>
-                    </div>
-
-                    {formData.itinerary.length > 0 && (
+                    {formData.itinerary.length > 0 ? (
                         <div className="itinerary-preview">
-                            <h3>Optimized Itinerary</h3>
                             {formData.itinerary.map((day, index) => (
                                 <div key={index} className="itinerary-day">
                                     <div className="day-header">
@@ -889,8 +827,20 @@ const EditAdventure = () => {
                                 </div>
                             ))}
                         </div>
+                    ) : (
+                        <p className="text-muted empty-hint">No itinerary yet — upload a brochure PDF to import one.</p>
                     )}
                 </div>
+
+                <ConfirmationPdfField
+                    confirmationFileName={formData.confirmation_pdf_name}
+                    existingConfirmationUrl={
+                        !formData.remove_confirmation_pdf ? formData.existing_confirmation_pdf_url : ''
+                    }
+                    removeConfirmation={formData.remove_confirmation_pdf}
+                    onConfirmationChange={handleConfirmationPdfChange}
+                    onRemoveConfirmation={handleRemoveConfirmationPdf}
+                />
 
                 {/* Submit Button */}
                 <div className="form-actions">

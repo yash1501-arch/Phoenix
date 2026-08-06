@@ -20,7 +20,6 @@ const Reviews = () => {
     const fetchAllReviews = async () => {
         try {
             const list = adventures.length > 0 ? adventures : await adventuresAPI.getAll({ limit: 200 }).then((r) => r.data?.data || []);
-            // Parallelize per-adventure requests (no more sequential N+1)
             const results = await Promise.allSettled(
                 list.map((adv) =>
                     reviewsAPI.getForAdventure(adv.id || adv._id, { approved_only: false, limit: 100 })
@@ -78,7 +77,6 @@ const Reviews = () => {
     const filtered = reviews.filter((r) => {
         if (filter.approved === 'yes' && !r.approved) return false;
         if (filter.approved === 'no' && r.approved) return false;
-        // Normalize IDs for comparison (handle both string and ObjectId-style)
         if (filter.adventure !== 'all' && String(r.adventure_id) !== String(filter.adventure)) return false;
         return true;
     });
@@ -92,13 +90,13 @@ const Reviews = () => {
                 </div>
             </div>
 
-            <div className="filters-section" style={{ marginBottom: 16 }}>
-                <select value={filter.approved} onChange={(e) => setFilter((f) => ({ ...f, approved: e.target.value }))} className="filter-select">
+            <div className="filters-section">
+                <select value={filter.approved} onChange={(e) => setFilter((f) => ({ ...f, approved: e.target.value }))} className="filter-select form-select">
                     <option value="all">All reviews</option>
                     <option value="yes">Approved only</option>
                     <option value="no">Pending only</option>
                 </select>
-                <select value={filter.adventure} onChange={(e) => setFilter((f) => ({ ...f, adventure: e.target.value }))} className="filter-select">
+                <select value={filter.adventure} onChange={(e) => setFilter((f) => ({ ...f, adventure: e.target.value }))} className="filter-select form-select">
                     <option value="all">All adventures</option>
                     {adventures.map((a) => (
                         <option key={a.id || a._id} value={a.id || a._id}>{a.title}</option>
@@ -114,40 +112,40 @@ const Reviews = () => {
                     <h3>No reviews yet</h3>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="list-stack">
                     {filtered.map((r) => (
-                        <div key={r._id} className="bg-white rounded-2xl border border-gray-200 p-5">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-bold text-gray-900">{r.user_name || 'Anonymous'}</p>
+                        <article key={r._id} className="list-card">
+                            <div className="list-card-layout">
+                                <div className="list-card-main">
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                                        <p style={{ margin: 0, fontWeight: 700 }}>{r.user_name || 'Anonymous'}</p>
                                         <span className={`status-badge ${r.approved ? 'confirmed' : 'pending'}`}>
                                             {r.approved ? 'Approved' : 'Pending'}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-gray-500 mb-2">
+                                    <p className="review-meta">
                                         {r.adventureTitle} · {new Date(r.created_at).toLocaleDateString()}
                                     </p>
-                                    <div className="flex text-[#D4AF37] mb-2">
+                                    <div className="review-stars" aria-label={`${r.rating} out of 5 stars`}>
                                         {[1, 2, 3, 4, 5].map((n) => (
-                                            <Star key={n} size={14} className={n <= r.rating ? 'fill-current' : 'text-gray-300'} />
+                                            <Star key={n} size={14} className={n <= r.rating ? '' : 'is-dim'} fill={n <= r.rating ? 'currentColor' : 'none'} />
                                         ))}
                                     </div>
-                                    {r.title && <p className="font-bold text-gray-900 mb-1">{r.title}</p>}
-                                    {r.comment && <p className="text-sm text-gray-700">{r.comment}</p>}
+                                    {r.title && <p style={{ margin: '0 0 0.35rem', fontWeight: 600 }}>{r.title}</p>}
+                                    {r.comment && <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>{r.comment}</p>}
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="list-card-actions">
                                     {!r.approved && (
-                                        <button onClick={() => onApprove(r._id)} className="action-btn confirm" title="Approve">
+                                        <button type="button" onClick={() => onApprove(r._id)} className="action-btn" title="Approve">
                                             <CheckCircle size={18} />
                                         </button>
                                     )}
-                                    <button onClick={() => onDelete(r._id)} className="action-btn cancel" title="Delete">
+                                    <button type="button" onClick={() => onDelete(r._id)} className="action-btn danger" title="Delete">
                                         <Trash2 size={18} />
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </article>
                     ))}
                 </div>
             )}

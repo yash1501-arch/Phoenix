@@ -155,6 +155,7 @@ exports.verify = async (req, res) => {
       itinerary: parseList(adv.itinerary),
       included: parseList(adv.included),
       excluded: parseList(adv.excluded),
+      confirmationPdfUrl: adv.confirmation_pdf_url || null,
     };
 
     const customerName =

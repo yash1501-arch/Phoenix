@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircle, XCircle, RefreshCw, ExternalLink, IndianRupee } from 'lucide-react';
 import { paymentsAdminAPI, bookingsAdminAPI } from '../utils/api';
+import './Payments.css';
 
 const Payments = () => {
     const [pending, setPending] = useState([]);
@@ -66,27 +67,32 @@ const Payments = () => {
 
     return (
         <div className="payments-page">
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+            <div className="page-header">
                 <div>
-                    <h1 className="page-title">Payments & Bookings</h1>
-                    <p className="page-subtitle">Verify UPI transfers manually — match bank statement, then confirm</p>
+                    <p className="page-subtitle" style={{ marginTop: 0 }}>
+                        Verify UPI transfers against your bank statement, then confirm to send the customer their trek PDF.
+                    </p>
                 </div>
                 <button type="button" className="btn-secondary" onClick={load} disabled={loading}>
-                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+                    <RefreshCw size={16} className={loading ? 'spinning' : ''} /> Refresh
                 </button>
             </div>
 
-            <div className="flex gap-2 mb-6">
+            <div className="tab-bar" role="tablist">
                 <button
                     type="button"
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === 'pending' ? 'bg-[var(--primary)] text-white' : 'bg-white border'}`}
+                    role="tab"
+                    aria-selected={tab === 'pending'}
+                    className={`tab-btn ${tab === 'pending' ? 'is-active' : ''}`}
                     onClick={() => setTab('pending')}
                 >
                     Pending ({pending.length})
                 </button>
                 <button
                     type="button"
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === 'all' ? 'bg-[var(--primary)] text-white' : 'bg-white border'}`}
+                    role="tab"
+                    aria-selected={tab === 'all'}
+                    className={`tab-btn ${tab === 'all' ? 'is-active' : ''}`}
                     onClick={() => setTab('all')}
                 >
                     All bookings
@@ -96,11 +102,11 @@ const Payments = () => {
             {loading ? (
                 <div className="loading-state"><div className="spinner" /></div>
             ) : list.length === 0 ? (
-                <div className="bg-white rounded-xl border p-10 text-center text-[var(--text-light)]">
-                    {tab === 'pending' ? 'No payments waiting for verification.' : 'No bookings yet.'}
+                <div className="empty-state">
+                    <p>{tab === 'pending' ? 'No payments waiting for verification.' : 'No bookings yet.'}</p>
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="payment-list">
                     {list.map((row) => {
                         const booking = row.booking || row;
                         const payment = row.payment || row.payment_record;
@@ -110,76 +116,86 @@ const Payments = () => {
                             || payment?.payment_status === 'submitted_by_customer';
 
                         return (
-                            <div key={bookingId} className="bg-white rounded-xl border p-5">
-                                <div className="flex flex-wrap justify-between gap-3 mb-3">
+                            <article key={bookingId} className="payment-card panel">
+                                <div className="payment-card-head">
                                     <div>
-                                        <p className="font-mono text-sm font-bold">{booking.booking_code}</p>
-                                        <p className="text-lg font-semibold" style={{ color: 'var(--text-main)' }}>
-                                            {adventure?.title || 'Adventure'}
-                                        </p>
-                                        <p className="text-sm text-[var(--text-light)]">
-                                            {booking.customer_name || booking.customer_email} · {booking.adventure_date} · {booking.number_of_seats} seat(s)
+                                        <p className="payment-code">{booking.booking_code}</p>
+                                        <h3 className="payment-title">{adventure?.title || 'Adventure'}</h3>
+                                        <p className="payment-meta">
+                                            {booking.customer_name || booking.customer_email}
+                                            {' · '}
+                                            {booking.adventure_date}
+                                            {' · '}
+                                            {booking.number_of_seats} seat(s)
                                         </p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-2xl font-bold inline-flex items-center gap-0.5" style={{ fontFamily: 'var(--font-display)' }}>
-                                            <IndianRupee size={18} />
+                                    <div className="payment-amount">
+                                        <span className="payment-amount-value">
+                                            <IndianRupee size={16} aria-hidden />
                                             {Number(booking.amount || 0).toLocaleString('en-IN')}
-                                        </p>
-                                        <p className="text-xs uppercase font-semibold mt-1">{booking.booking_status?.replace(/_/g, ' ')}</p>
+                                        </span>
+                                        <span className={`badge ${isPending ? 'badge-yellow' : booking.booking_status === 'confirmed' ? 'badge-green' : 'badge-red'}`}>
+                                            {(booking.booking_status || 'unknown').replace(/_/g, ' ')}
+                                        </span>
                                     </div>
                                 </div>
 
                                 {payment && (
-                                    <div className="grid sm:grid-cols-2 gap-3 bg-[var(--bg-secondary,#f8f6f1)] rounded-lg p-4 mb-3 text-sm">
-                                        <p><strong>UTR:</strong> <span className="font-mono">{payment.upi_reference || '—'}</span></p>
-                                        <p><strong>Payer:</strong> {payment.payer_name || '—'}</p>
-                                        {payment.payer_upi_id && <p><strong>Payer UPI:</strong> {payment.payer_upi_id}</p>}
+                                    <dl className="payment-details">
+                                        <div><dt>UTR</dt><dd className="mono">{payment.upi_reference || '—'}</dd></div>
+                                        <div><dt>Payer</dt><dd>{payment.payer_name || '—'}</dd></div>
+                                        {payment.payer_upi_id && <div><dt>Payer UPI</dt><dd>{payment.payer_upi_id}</dd></div>}
                                         {payment.screenshot_url && (
-                                            <p>
-                                                <a href={payment.screenshot_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[var(--primary-dark)] font-semibold">
-                                                    View screenshot <ExternalLink size={14} />
-                                                </a>
-                                            </p>
+                                            <div className="payment-details-wide">
+                                                <dt>Screenshot</dt>
+                                                <dd>
+                                                    <a href={payment.screenshot_url} target="_blank" rel="noreferrer" className="payment-link">
+                                                        View screenshot <ExternalLink size={13} />
+                                                    </a>
+                                                </dd>
+                                            </div>
                                         )}
                                         {payment.rejection_reason && (
-                                            <p className="sm:col-span-2 text-red-600"><strong>Rejected:</strong> {payment.rejection_reason}</p>
+                                            <div className="payment-details-wide payment-reject-note">
+                                                <dt>Rejected</dt>
+                                                <dd>{payment.rejection_reason}</dd>
+                                            </div>
                                         )}
-                                    </div>
+                                    </dl>
                                 )}
 
                                 {isPending && tab === 'pending' && (
-                                    <div className="flex flex-wrap gap-2 items-start">
+                                    <div className="payment-actions">
                                         <button
                                             type="button"
-                                            className="btn-primary inline-flex items-center gap-1.5"
+                                            className="btn-primary"
                                             disabled={busyId === bookingId}
                                             onClick={() => verify(bookingId)}
                                         >
                                             <CheckCircle size={16} /> Confirm payment
                                         </button>
                                         {rejectId === bookingId ? (
-                                            <div className="flex flex-wrap gap-2 flex-1 min-w-[220px]">
+                                            <div className="reject-form">
                                                 <input
-                                                    className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                                                    className="form-input"
                                                     placeholder="Rejection reason"
                                                     value={rejectReason}
                                                     onChange={(e) => setRejectReason(e.target.value)}
                                                 />
                                                 <button
                                                     type="button"
-                                                    className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold"
+                                                    className="btn-danger"
                                                     disabled={busyId === bookingId}
                                                     onClick={() => reject(bookingId)}
                                                 >
                                                     Reject
                                                 </button>
-                                                <button type="button" className="px-3 py-2 text-sm" onClick={() => setRejectId(null)}>Cancel</button>
+                                                <button type="button" className="btn-ghost" onClick={() => setRejectId(null)}>Cancel</button>
                                             </div>
                                         ) : (
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border text-sm font-semibold text-red-700"
+                                                className="btn-danger"
                                                 onClick={() => setRejectId(bookingId)}
                                             >
                                                 <XCircle size={16} /> Reject
@@ -187,7 +203,7 @@ const Payments = () => {
                                         )}
                                     </div>
                                 )}
-                            </div>
+                            </article>
                         );
                     })}
                 </div>

@@ -57,6 +57,7 @@ class ConvexClient {
     'contact:list',
     'bookings:getById', 'bookings:getByCode', 'bookings:getByUser',
     'bookings:getPaymentDetails', 'bookings:listPendingPayments', 'bookings:listAll',
+    'dashboard:getOverview',
   ]);
 
   getFunctionType(functionPath) {
@@ -105,6 +106,7 @@ class ConvexClient {
   async clearUserTotp(id) { return this.callFunction('users:clearTotp', { id }); }
   async deleteUser(id) { return this.callFunction('users:remove', { id }); }
   async getDashboardStats() { return this.callFunction('adventures:getDashboardStats', {}); }
+  async getDashboardOverview() { return this.callFunction('dashboard:getOverview', {}); }
 
   async addReview(data) { return this.callFunction('reviews:add', data); }
   async getReviewsForAdventure(adventureId, opts = {}) { return this.callFunction('reviews:getByAdventure', { adventure_id: adventureId, ...opts }); }

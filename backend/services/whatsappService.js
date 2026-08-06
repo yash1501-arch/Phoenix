@@ -128,6 +128,34 @@ async function sendBookingConfirmationWhatsApp(phone, userName, adventureTitle, 
     });
     const messageId = res.data?.messages?.[0]?.id;
     logger.info(`WhatsApp booking confirmation sent to ${to}${messageId ? ` (${messageId})` : ''}`);
+
+    if (bookingDetails.confirmationPdfUrl) {
+      const docPayload = {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'document',
+        document: {
+          link: bookingDetails.confirmationPdfUrl,
+          filename: 'Phoenix-Trek-Details.pdf',
+          caption: `Your trek details for ${adventureTitle || 'your adventure'}. See you on the trail!`,
+        },
+      };
+      try {
+        const docRes = await axios.post(url, docPayload, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 20000,
+        });
+        const docId = docRes.data?.messages?.[0]?.id;
+        logger.info(`WhatsApp confirmation PDF sent to ${to}${docId ? ` (${docId})` : ''}`);
+      } catch (docErr) {
+        const detail = docErr.response?.data || docErr.message;
+        logger.error('WhatsApp confirmation PDF failed:', detail);
+      }
+    }
+
     return { ok: true, to, messageId };
   } catch (error) {
     const detail = error.response?.data || error.message;

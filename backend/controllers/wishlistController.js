@@ -1,4 +1,5 @@
 const { getConvexClient } = require('../utils/convexClient');
+const { isDbAdmin } = require('../middleware/auth');
 
 exports.add = async (req, res) => {
     try {
@@ -35,7 +36,7 @@ exports.getByUser = async (req, res) => {
     try {
         const { userId } = req.params;
 
-        if (req.user.id !== userId && req.user.role !== 'admin') {
+        if (req.user.id !== userId && !(await isDbAdmin(req.user.id))) {
             return res.status(403).json({ success: false, message: 'Not authorized to view this wishlist' });
         }
 

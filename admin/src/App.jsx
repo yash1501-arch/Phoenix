@@ -14,6 +14,9 @@ import BlogList from './pages/BlogList';
 import BlogEditor from './pages/BlogEditor';
 import Messages from './pages/Messages';
 import Payments from './pages/Payments';
+import Newsletter from './pages/Newsletter';
+import AuditLog from './pages/AuditLog';
+import Users from './pages/Users';
 import Layout from './components/Layout';
 
 const ProtectedRoute = ({ children }) => {
@@ -42,16 +45,16 @@ function App() {
           position="top-center"
           toastOptions={{
             style: {
-              background: '#1a1a1a',
-              color: '#fff',
-              border: '1px solid #D4AF37',
-              fontSize: '14px',
+              background: 'var(--forest)',
+              color: '#faf7f1',
+              border: '1px solid rgba(250,247,241,0.15)',
+              fontSize: '0.875rem',
               fontWeight: 500,
-              borderRadius: '12px',
-              padding: '12px 16px',
+              borderRadius: '8px',
+              padding: '10px 14px',
             },
-            success: { iconTheme: { primary: '#D4AF37', secondary: '#000' } },
-            error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+            success: { iconTheme: { primary: '#faf7f1', secondary: '#2f4a3d' } },
+            error: { iconTheme: { primary: '#fecaca', secondary: '#7f1d1d' } },
           }}
         />
         <Routes>
@@ -120,6 +123,24 @@ function App() {
           <Route path="/payments" element={
             <ProtectedRoute>
               <Payments />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/newsletter" element={
+            <ProtectedRoute>
+              <Newsletter />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/audit" element={
+            <ProtectedRoute>
+              <AuditLog />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/users" element={
+            <ProtectedRoute>
+              <Users />
             </ProtectedRoute>
           } />
 

@@ -126,6 +126,7 @@ const writeLimiter = rateLimit({
     message: { success: false, message: 'Too many requests, please slow down.' },
 });
 app.use('/api/newsletter/subscribe', writeLimiter);
+app.use('/api/newsletter/unsubscribe', writeLimiter);
 app.use('/api/contact', writeLimiter); // contact form spam protection
 app.use('/api/reviews', writeLimiter);
 app.use('/api/wishlist', writeLimiter);
@@ -141,17 +142,25 @@ if (process.env.NODE_ENV === 'production') {
 
 // Body parsing for all other routes
 app.use(cookieParser());
+const { ensureCsrfCookie, validateCsrf } = require('./middleware/csrf');
+app.use(ensureCsrfCookie);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // XSS sanitization for all incoming requests
 app.use(sanitize);
 
+// CSRF validation for state-changing API requests
+app.use(validateCsrf);
+
 // Maintenance mode gate (admins bypass)
 app.use(require('./middleware/maintenanceMode'));
 
-// Serve static files (uploads)
-app.use('/uploads', express.static('uploads'));
+// Local uploads disabled — all media served via Cloudinary (see upload middleware)
+if (process.env.NODE_ENV !== 'production') {
+    // Dev-only fallback for legacy local files; not exposed in production
+    app.use('/uploads', express.static('uploads'));
+}
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
 
@@ -167,6 +176,7 @@ app.use('/api/blog', require('./routes/blog'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/dashboard', require('./routes/dashboard'));
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -180,6 +190,16 @@ app.get('/health', (req, res) => {
 
 // Health check — deep (verifies Convex connectivity)
 app.get('/api/health', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        try {
+            const { getConvexClient } = require('./utils/convexClient');
+            getConvexClient();
+            return res.status(200).json({ status: 'OK' });
+        } catch {
+            return res.status(503).json({ status: 'UNAVAILABLE' });
+        }
+    }
+
     const startedAt = Date.now();
     let convexOk = false;
     let convexError = null;
@@ -243,11 +263,22 @@ app.use((err, req, res, next) => {
 // ── Start Server ───────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT);
+
+server.on('listening', () => {
     logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
-    logger.info('Available routes:');
-    logger.info('  POST   /api/auth/change-password');
-    logger.info('  POST   /api/users/:id/avatar');
-    logger.info('  PUT    /api/users/:id');
-    logger.info('  GET    /api/users/:id');
+    logger.info('Press Ctrl+C to stop');
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        logger.error(
+            `Port ${PORT} is already in use. Another backend is probably still running.\n` +
+            '  Stop it with Ctrl+C in that terminal, or run in PowerShell:\n' +
+            `  Get-NetTCPConnection -LocalPort ${PORT} | Select-Object -ExpandProperty OwningProcess | Stop-Process -Force`
+        );
+    } else {
+        logger.error('Server failed to start:', err.message);
+    }
+    process.exit(1);
 });

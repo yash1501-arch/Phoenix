@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Mail, Phone, Trash2, Circle, CircleDot, CheckCheck, Archive } from 'lucide-react';
+import { Mail, Phone, Trash2, CheckCheck, Archive } from 'lucide-react';
 import { contactAdminAPI } from '../utils/api';
+import './Messages.css';
 
 const STATUS_META = {
-  new: { label: 'New', className: 'status-badge pending', icon: CircleDot },
-  read: { label: 'Read', className: 'status-badge confirmed', icon: Circle },
-  replied: { label: 'Replied', className: 'status-badge confirmed', icon: CheckCheck },
-  archived: { label: 'Archived', className: 'status-badge cancelled', icon: Archive },
+  new: { label: 'New', className: 'status-badge pending' },
+  read: { label: 'Read', className: 'status-badge active' },
+  replied: { label: 'Replied', className: 'status-badge active' },
+  archived: { label: 'Archived', className: 'status-badge cancelled' },
 };
 
 const Messages = () => {
@@ -54,26 +55,23 @@ const Messages = () => {
   const newCount = messages.filter((m) => m.status === 'new').length;
 
   return (
-    <div className="adventures-page">
+    <div className="messages-page">
       <div className="page-header">
-        <div>
-          <h1 className="page-title">Messages</h1>
-          <p className="page-subtitle">
-            Contact form enquiries {newCount > 0 && <span className="status-badge pending" style={{ marginLeft: 8 }}>{newCount} new</span>}
-          </p>
-        </div>
+        <p className="page-subtitle" style={{ marginTop: 0 }}>
+          Contact form enquiries
+          {newCount > 0 && <span className="badge badge-yellow" style={{ marginLeft: '0.5rem' }}>{newCount} new</span>}
+        </p>
       </div>
 
-      <div className="filters-section" style={{ marginBottom: 20 }}>
+      <div className="tab-bar message-filters" role="tablist">
         {['all', 'new', 'read', 'replied', 'archived'].map((f) => (
           <button
             key={f}
+            type="button"
+            role="tab"
+            aria-selected={filter === f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 text-sm font-semibold rounded capitalize transition-colors ${
-              filter === f
-                ? 'bg-[var(--secondary)] text-white'
-                : 'bg-white text-[var(--text-muted)] border border-[var(--border-color)] hover:border-[var(--primary)]'
-            }`}
+            className={`tab-btn ${filter === f ? 'is-active' : ''}`}
           >
             {f}
           </button>
@@ -81,64 +79,65 @@ const Messages = () => {
       </div>
 
       {loading ? (
-        <div className="loading-state" style={{ height: '40vh' }}><div className="spinner"></div></div>
+        <div className="loading-state"><div className="spinner" /></div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <Mail size={48} />
+          <Mail size={40} strokeWidth={1.5} />
           <h3>No messages</h3>
           <p>When someone submits the contact form, it shows up here.</p>
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="message-list">
           {filtered.map((msg) => {
             const meta = STATUS_META[msg.status] || STATUS_META.new;
             const isOpen = expanded === msg._id;
             return (
-              <article key={msg._id} className={`bg-white rounded-xl border p-5 transition-colors ${msg.status === 'new' ? 'border-[var(--primary)]' : 'border-[var(--border-color)]'}`}>
+              <article key={msg._id} className={`message-card panel ${msg.status === 'new' ? 'is-new' : ''}`}>
                 <button
-                  className="w-full text-left flex items-start justify-between gap-4"
+                  type="button"
+                  className="message-toggle"
                   onClick={() => {
                     setExpanded(isOpen ? null : msg._id);
                     if (msg.status === 'new' && !isOpen) setStatus(msg, 'read');
                   }}
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="font-bold text-[var(--text-main)]">{msg.name}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <p className="message-name">{msg.name}</p>
                       <span className={meta.className}>{meta.label}</span>
                     </div>
-                    <p className="text-sm font-medium text-[var(--text-main)]">{msg.subject}</p>
-                    <p className="text-xs text-[var(--text-light)] mt-1">
+                    <p className="message-subject">{msg.subject}</p>
+                    <p className="message-time">
                       {new Date(msg.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </button>
 
                 {isOpen && (
-                  <div className="mt-4 pt-4 border-t border-[var(--border-color)] space-y-4">
-                    <p className="text-sm text-[var(--text-main)] whitespace-pre-wrap leading-relaxed">{msg.message}</p>
-                    <div className="flex flex-wrap items-center gap-3 text-sm">
-                      <a href={`mailto:${msg.email}?subject=Re: ${encodeURIComponent(msg.subject)}`} className="inline-flex items-center gap-1.5 text-[var(--primary-dark)] font-semibold hover:underline">
+                  <div className="message-body">
+                    <p className="message-text">{msg.message}</p>
+                    <div className="message-contacts">
+                      <a href={`mailto:${msg.email}?subject=Re: ${encodeURIComponent(msg.subject)}`}>
                         <Mail size={14} /> {msg.email}
                       </a>
                       {msg.phone && (
-                        <a href={`tel:${msg.phone}`} className="inline-flex items-center gap-1.5 text-[var(--primary-dark)] font-semibold hover:underline">
+                        <a href={`tel:${msg.phone}`}>
                           <Phone size={14} /> {msg.phone}
                         </a>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-2">
+                    <div className="message-actions">
                       {msg.status !== 'replied' && (
-                        <button onClick={() => setStatus(msg, 'replied')} className="action-btn confirm !w-auto !px-3 !h-9 text-xs font-semibold">
+                        <button type="button" onClick={() => setStatus(msg, 'replied')} className="btn-secondary">
                           <CheckCheck size={14} /> Mark replied
                         </button>
                       )}
                       {msg.status !== 'archived' && (
-                        <button onClick={() => setStatus(msg, 'archived')} className="action-btn edit !w-auto !px-3 !h-9 text-xs font-semibold">
+                        <button type="button" onClick={() => setStatus(msg, 'archived')} className="btn-ghost">
                           <Archive size={14} /> Archive
                         </button>
                       )}
-                      <button onClick={() => onDelete(msg)} className="action-btn cancel !w-auto !px-3 !h-9 text-xs font-semibold">
+                      <button type="button" onClick={() => onDelete(msg)} className="btn-danger">
                         <Trash2 size={14} /> Delete
                       </button>
                     </div>

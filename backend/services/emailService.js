@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 const logger = require('../utils/logger');
 const { escapeHtml } = require('../utils/escapeHtml');
 require('dotenv').config();
@@ -11,6 +12,20 @@ const transporter = nodemailer.createTransport({
         pass: process.env.SMTP_PASS,
     },
 });
+
+async function fetchPdfAttachment(url, adventureTitle) {
+    const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 30000 });
+    const safeName = String(adventureTitle || 'trek')
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .slice(0, 80) || 'trek';
+    return {
+        filename: `${safeName}-details.pdf`,
+        content: Buffer.from(res.data),
+        contentType: 'application/pdf',
+    };
+}
 
 /**
  * Send booking confirmation after admin verifies UPI payment.
@@ -96,6 +111,12 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                     ${listHtml("What's included", included)}
                     ${listHtml('Not included', excluded)}
 
+                    ${bookingDetails.confirmationPdfUrl
+                        ? `<p style="color: #5c5a52; font-size: 14px; line-height: 1.55; margin-top: 24px;">
+                            Your trek brochure is attached to this email. Save it for pickup timings, packing list, and guidelines.
+                           </p>`
+                        : ''}
+
                     <p style="color: #5c5a52; font-size: 14px; line-height: 1.55; margin-top: 28px;">
                         Bring a valid government ID. Our team will share the exact reporting time on WhatsApp before departure.
                         Questions? Call <strong>+91 93725 06447</strong> / <strong>+91 77580 79726</strong>
@@ -111,12 +132,24 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
             </div>
         `;
 
-        await transporter.sendMail({
+        const mailOptions = {
             from: `"Phoenix Adventures" <${process.env.SMTP_USER}>`,
             to: userEmail,
             subject: `Adventure booked successfully: ${adventureTitle}`,
             html,
-        });
+        };
+
+        if (bookingDetails.confirmationPdfUrl) {
+            try {
+                mailOptions.attachments = [
+                    await fetchPdfAttachment(bookingDetails.confirmationPdfUrl, adventureTitle),
+                ];
+            } catch (attachErr) {
+                logger.warn('Could not attach confirmation PDF to email:', attachErr.message);
+            }
+        }
+
+        await transporter.sendMail(mailOptions);
 
         logger.info(`Booking confirmation email sent to ${userEmail}`);
         return { sent: true };

@@ -17,7 +17,51 @@ const extractToken = (req) => {
   return token || null;
 };
 
-const auth = (req, res, next) => {
+/**
+ * Revalidate admin role from database (do not trust JWT role alone).
+ */
+async function isDbAdmin(userId) {
+  if (!userId) return false;
+  try {
+    const dbUser = await getConvexClient().getUserById(userId);
+    return dbUser?.role === 'admin';
+  } catch (err) {
+    logger.error('isDbAdmin check failed:', err.message);
+    return false;
+  }
+}
+
+async function validateSessionUser(decoded) {
+  const userPayload = decoded.user || decoded;
+  if (!userPayload?.id) {
+    return { ok: false, status: 401, message: 'Token is not valid' };
+  }
+
+  const dbUser = await getConvexClient().getUserById(userPayload.id);
+  if (!dbUser) {
+    return { ok: false, status: 401, message: 'Token is not valid' };
+  }
+
+  const tokenVersion = userPayload.session_version ?? 0;
+  const dbVersion = dbUser.session_version ?? 0;
+  if (tokenVersion !== dbVersion) {
+    return { ok: false, status: 401, message: 'Session expired. Please sign in again.' };
+  }
+
+  return {
+    ok: true,
+    user: {
+      ...userPayload,
+      id: dbUser._id,
+      role: dbUser.role,
+      name: dbUser.name,
+      email: dbUser.email,
+      session_version: dbVersion,
+    },
+  };
+}
+
+const auth = async (req, res, next) => {
   const token = extractToken(req);
 
   if (!token) {
@@ -30,7 +74,11 @@ const auth = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.user || decoded;
+    const result = await validateSessionUser(decoded);
+    if (!result.ok) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    req.user = result.user;
     next();
   } catch (err) {
     res.status(401).json({ message: 'Token is not valid' });
@@ -40,14 +88,17 @@ const auth = (req, res, next) => {
 /**
  * Attach user when a valid token is present; continue anonymously otherwise.
  */
-const optionalAuth = (req, res, next) => {
+const optionalAuth = async (req, res, next) => {
   const token = extractToken(req);
   if (!token || !process.env.JWT_SECRET) {
     return next();
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.user || decoded;
+    const result = await validateSessionUser(decoded);
+    if (result.ok) {
+      req.user = result.user;
+    }
   } catch {
     // Invalid token on public route — ignore and proceed unauthenticated
   }
@@ -56,6 +107,7 @@ const optionalAuth = (req, res, next) => {
 
 /**
  * Admin gate — revalidates role from database so demoted admins lose access immediately.
+ * Requires 2FA to be enabled before granting admin API access.
  */
 const adminOnly = async (req, res, next) => {
   if (process.env.REQUIRE_CF_ACCESS === 'true' && process.env.NODE_ENV === 'production') {
@@ -78,6 +130,15 @@ const adminOnly = async (req, res, next) => {
     if (!dbUser || dbUser.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied: Admin only' });
     }
+
+    if (!dbUser.totp_enabled || !dbUser.totp_secret) {
+      return res.status(403).json({
+        success: false,
+        message: 'Enable two-factor authentication in Settings before accessing admin features.',
+        requires2faSetup: true,
+      });
+    }
+
     req.user = {
       ...req.user,
       role: dbUser.role,
@@ -91,4 +152,4 @@ const adminOnly = async (req, res, next) => {
   }
 };
 
-module.exports = { auth, optionalAuth, adminOnly };
+module.exports = { auth, optionalAuth, adminOnly, isDbAdmin };

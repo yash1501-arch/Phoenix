@@ -1,22 +1,26 @@
-const { authenticator } = require('otplib');
-
-authenticator.options = { window: 1 };
+const { generateSecret, generateURI, verifySync } = require('otplib');
 
 const ISSUER = 'Phoenix Adventures Admin';
 
-function generateSecret() {
-  return authenticator.generateSecret();
-}
-
 function buildOtpAuthUrl(email, secret) {
-  return authenticator.keyuri(email, ISSUER, secret);
+  return generateURI({
+    issuer: ISSUER,
+    label: email,
+    secret,
+    strategy: 'totp',
+  });
 }
 
 function verifyTotp(secret, token) {
   if (!secret || !token) return false;
   const code = String(token).replace(/\s/g, '');
   if (!/^\d{6}$/.test(code)) return false;
-  return authenticator.verify({ token: code, secret });
+  try {
+    const result = verifySync({ secret, token: code, epochTolerance: 1 });
+    return Boolean(result?.valid);
+  } catch {
+    return false;
+  }
 }
 
 module.exports = {

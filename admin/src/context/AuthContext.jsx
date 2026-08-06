@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [requires2faSetup, setRequires2faSetup] = useState(false);
 
     const hydrateSession = useCallback(async () => {
         try {
@@ -24,6 +25,7 @@ export const AuthProvider = ({ children }) => {
             if (sessionUser?.role === 'admin' && sessionUser?.id) {
                 setUser(sessionUser);
                 setIsAuthenticated(true);
+                setRequires2faSetup(Boolean(response.data?.requires2faSetup));
                 return true;
             }
         } catch {
@@ -43,9 +45,15 @@ export const AuthProvider = ({ children }) => {
         const handleUnauthorized = () => {
             setUser(null);
             setIsAuthenticated(false);
+            setRequires2faSetup(false);
         };
+        const handle2faSetup = () => setRequires2faSetup(true);
         window.addEventListener('auth:unauthorized', handleUnauthorized);
-        return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+        window.addEventListener('auth:requires2faSetup', handle2faSetup);
+        return () => {
+            window.removeEventListener('auth:unauthorized', handleUnauthorized);
+            window.removeEventListener('auth:requires2faSetup', handle2faSetup);
+        };
     }, []);
 
     const login = async (email, password) => {
@@ -61,6 +69,7 @@ export const AuthProvider = ({ children }) => {
             }
 
             let sessionUser = response.data?.user;
+            const needs2faSetup = Boolean(response.data?.requires2faSetup);
 
             if (!sessionUser?.id) {
                 const me = await api.get('/auth/me');
@@ -82,7 +91,8 @@ export const AuthProvider = ({ children }) => {
 
             setUser(sessionUser);
             setIsAuthenticated(true);
-            return { success: true };
+            setRequires2faSetup(needs2faSetup);
+            return { success: true, requires2faSetup: needs2faSetup };
         } catch (error) {
             return {
                 success: false,
@@ -100,6 +110,7 @@ export const AuthProvider = ({ children }) => {
             }
             setUser(sessionUser);
             setIsAuthenticated(true);
+            setRequires2faSetup(false);
             return { success: true };
         } catch (error) {
             return {
@@ -117,10 +128,11 @@ export const AuthProvider = ({ children }) => {
         }
         setUser(null);
         setIsAuthenticated(false);
+        setRequires2faSetup(false);
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, isAuthenticated, login, verify2faLogin, logout }}>
+        <AuthContext.Provider value={{ user, loading, isAuthenticated, requires2faSetup, setRequires2faSetup, login, verify2faLogin, logout }}>
             {children}
         </AuthContext.Provider>
     );

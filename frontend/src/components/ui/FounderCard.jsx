@@ -7,7 +7,7 @@ import { IconMotion, EASE } from './Motion';
 const fallbackImage = '/placeholder.jpg';
 
 const socialBtn =
-  'w-10 h-10 flex items-center justify-center border border-stone/15 text-stone/55 hover:text-ember hover:border-ember rounded-md transition-colors';
+  'w-10 h-10 flex items-center justify-center bg-stone text-mist hover:text-ember hover:bg-stone-soft rounded-md transition-colors';
 
 const FounderCard = ({ founder }) => {
   const [imgSrc, setImgSrc] = useState(founder.image);
@@ -55,19 +55,23 @@ const FounderCard = ({ founder }) => {
 
         {socials.length > 0 && (
           <div className="flex items-center justify-center gap-2.5">
-            {socials.map((s) => (
-              <IconMotion key={s.label} hoverScale={1.1} hoverRotate={0}>
+            {socials.map((s) => {
+              const Icon = s.icon;
+              return (
                 <a
+                  key={s.label}
                   href={s.href}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`${founder.name} on ${s.label}`}
                   className={socialBtn}
                 >
-                  <s.icon size={17} strokeWidth={2} />
+                  <IconMotion hoverScale={1.1} hoverRotate={0}>
+                    <Icon size={17} strokeWidth={2} aria-hidden />
+                  </IconMotion>
                 </a>
-              </IconMotion>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -2,12 +2,16 @@ const COOKIE_NAME = 'phoenix_token';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const getCookieOptions = () => {
+const getCookieOptions = (role) => {
+  const maxAge = role === 'admin'
+    ? 24 * 60 * 60 * 1000
+    : 7 * 24 * 60 * 60 * 1000;
+
   const options = {
     httpOnly: true,
     secure: isProduction,
     sameSite: process.env.COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax'),
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge,
     path: '/',
   };
 
@@ -18,8 +22,8 @@ const getCookieOptions = () => {
   return options;
 };
 
-const setAuthCookie = (res, token) => {
-  res.cookie(COOKIE_NAME, token, getCookieOptions());
+const setAuthCookie = (res, token, role = 'user') => {
+  res.cookie(COOKIE_NAME, token, getCookieOptions(role));
 };
 
 const clearAuthCookie = (res) => {

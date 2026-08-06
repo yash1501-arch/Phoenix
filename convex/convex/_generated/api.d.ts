@@ -14,6 +14,7 @@ import type * as blog from "../blog.js";
 import type * as bookings from "../bookings.js";
 import type * as contact from "../contact.js";
 import type * as crons from "../crons.js";
+import type * as dashboard from "../dashboard.js";
 import type * as newsletter from "../newsletter.js";
 import type * as reviews from "../reviews.js";
 import type * as settings from "../settings.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   bookings: typeof bookings;
   contact: typeof contact;
   crons: typeof crons;
+  dashboard: typeof dashboard;
   newsletter: typeof newsletter;
   reviews: typeof reviews;
   settings: typeof settings;

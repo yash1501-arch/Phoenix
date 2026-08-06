@@ -80,6 +80,21 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(data.message || 'Login failed');
             }
 
+            if (data.requires2fa) {
+                return {
+                    success: false,
+                    error: 'Admin accounts with two-factor authentication must use the admin panel to sign in.',
+                };
+            }
+
+            if (data.user?.role === 'admin') {
+                try { await authAPI.logout(); } catch { /* ignore */ }
+                return {
+                    success: false,
+                    error: 'Admin accounts must use the admin panel to sign in.',
+                };
+            }
+
             if (data.user?.id) {
                 setUser(data.user);
             } else {

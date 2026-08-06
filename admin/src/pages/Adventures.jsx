@@ -87,8 +87,7 @@ const Adventures = () => {
         <div className="adventures-page">
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">Adventures</h1>
-                    <p className="page-subtitle">Manage your adventure packages</p>
+                    <p className="page-subtitle" style={{ marginTop: 0 }}>Manage trek packages, dates, and brochure content</p>
                 </div>
                 <div className="page-actions">
                     <button onClick={onExport} className="btn-secondary" disabled={filteredAdventures.length === 0}>
@@ -178,7 +177,7 @@ const Adventures = () => {
                         <tbody>
                             {filteredAdventures.map((adv) => (
                                 <tr key={adv._id}>
-                                    <td className="td-title">
+                                    <td className="td-title" data-label="Adventure">
                                         <div className="cell-title">
                                             <div className="cell-img">
                                                 <img
@@ -196,7 +195,7 @@ const Adventures = () => {
                                             </div>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td data-label="Category">
                                         {adv.category ? (
                                             <span className={`badge ${catColors[adv.category] || 'badge-orange'}`}>
                                                 {adv.category}
@@ -205,13 +204,13 @@ const Adventures = () => {
                                             <span className="text-muted">—</span>
                                         )}
                                     </td>
-                                    <td>
+                                    <td data-label="Location">
                                         <span className="cell-location">
                                             <MapPin size={14} />
                                             {adv.location || '—'}
                                         </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Difficulty">
                                         {adv.difficulty ? (
                                             <span className={`badge ${adv.difficulty === 'Easy' ? 'badge-green' : adv.difficulty === 'Moderate' ? 'badge-yellow' : 'badge-red'}`}>
                                                 {adv.difficulty}
@@ -220,15 +219,15 @@ const Adventures = () => {
                                             <span className="text-muted">—</span>
                                         )}
                                     </td>
-                                    <td className="td-price">
+                                    <td className="td-price" data-label="Price">
                                         ₹{adv.price?.toLocaleString() || '—'}
                                     </td>
-                                    <td>
+                                    <td data-label="Status">
                                         <span className={`badge ${adv.status === 'active' ? 'badge-green' : adv.status === 'inactive' ? 'badge-red' : 'badge-yellow'}`}>
                                             {adv.status || 'draft'}
                                         </span>
                                     </td>
-                                    <td className="td-actions">
+                                    <td className="td-actions" data-label="Actions">
                                         <Link to={`/adventures/edit/${adv._id}`} className="btn-icon" title="Edit">
                                             <Edit size={16} />
                                         </Link>

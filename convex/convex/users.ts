@@ -69,6 +69,7 @@ export const create = internalMutation({
     const id = await ctx.db.insert("users", {
       ...args,
       email: args.email.toLowerCase(),
+      session_version: 0,
       updated_at: now,
     });
     return { _id: id, ...args, email: args.email.toLowerCase() };
@@ -89,12 +90,16 @@ export const update = internalMutation({
   handler: async (ctx, args) => {
     const { id, ...updateFields } = args;
     const now = new Date().toISOString();
-    
-    await ctx.db.patch(id, {
-      ...updateFields,
-      updated_at: now,
-    });
-    
+
+    const patch: Record<string, unknown> = { ...updateFields, updated_at: now };
+
+    if (updateFields.password) {
+      const existing = await ctx.db.get(id);
+      patch.session_version = (existing?.session_version ?? 0) + 1;
+    }
+
+    await ctx.db.patch(id, patch);
+
     return id;
   },
 });

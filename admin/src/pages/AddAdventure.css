@@ -1,6 +1,8 @@
 .add-adventure-page {
     animation: fadeIn 0.3s ease;
     max-width: 1200px;
+    width: 100%;
+    min-width: 0;
 }
 
 @keyframes fadeIn {
@@ -15,81 +17,115 @@
     }
 }
 
-/* AI Actions Card */
-.ai-actions-card {
-    background: linear-gradient(135deg, rgba(201, 169, 97, 0.1) 0%, rgba(255, 107, 53, 0.1) 100%);
-    border: 1px solid rgba(201, 169, 97, 0.3);
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.ai-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+.section-help {
+    margin-top: -0.75rem;
     margin-bottom: 1rem;
-}
-
-.ai-icon {
-    color: var(--primary);
-    animation: sparkle 2s ease-in-out infinite;
-}
-
-@keyframes sparkle {
-
-    0%,
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.7;
-        transform: scale(1.1);
-    }
-}
-
-.ai-header h3 {
-    color: var(--text-main);
-    margin: 0;
-    font-size: 1.125rem;
-}
-
-.ai-actions {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.ai-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    background: rgba(201, 169, 97, 0.15);
-    color: var(--primary);
-    border: 1px solid rgba(201, 169, 97, 0.3);
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.ai-button:hover:not(:disabled) {
-    background: rgba(201, 169, 97, 0.25);
-    transform: translateY(-2px);
-}
-
-.ai-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.ai-hint {
-    margin: 1rem 0 0 0;
     color: var(--text-muted);
     font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.empty-hint {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* PDF upload */
+.pdf-upload-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pdf-upload-box {
+    display: block;
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    background: var(--surface-raised);
+    cursor: pointer;
+    transition: border-color var(--duration) var(--ease-out), background var(--duration) var(--ease-out);
+}
+
+.pdf-upload-box:hover,
+.pdf-upload-box:focus-within {
+    border-color: var(--ember);
+    background: #fffaf6;
+}
+
+.pdf-upload-box.is-loading {
+    cursor: wait;
+    opacity: 0.85;
+}
+
+.pdf-upload-box--secondary {
+    border-color: rgba(47, 74, 62, 0.25);
+    background: rgba(47, 74, 62, 0.04);
+}
+
+.pdf-upload-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.pdf-upload-title {
+    font-weight: 600;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+
+.pdf-upload-hint {
+    font-size: 0.8rem;
+}
+
+.pdf-current-file {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--surface);
+}
+
+.pdf-current-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.pdf-preview-link {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.pdf-preview-link:hover {
+    text-decoration: underline;
+}
+
+.pdf-remove-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: #fff;
+    color: var(--danger);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 .spinning {
@@ -110,24 +146,26 @@
 }
 
 .form-section {
-    background: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .section-title {
-    color: var(--text-main);
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin: 0 0 1.5rem 0;
+    color: var(--ink);
+    font-size: var(--text-base);
+    font-weight: 600;
+    margin: 0 0 1rem 0;
 }
 
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
+    min-width: 0;
 }
 
 .form-group {
@@ -462,31 +500,62 @@
     margin: 0.25rem 0;
 }
 
+.form-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.form-section-header .section-title {
+    margin-bottom: 0;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.gallery-item {
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    aspect-ratio: 1;
+    border: 1px solid var(--border);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gallery-remove {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
 /* Form Actions */
 .form-actions {
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
     padding-top: 2rem;
-}
-
-.btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    background: #fff;
-    color: var(--text-main);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-    background: #f9f9f9;
-    border-color: var(--primary);
 }
 
 /* Responsive */
@@ -496,6 +565,17 @@
         overflow-x: hidden;
     }
 
+    .add-adventure-page .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .add-adventure-page .page-header .btn-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+
     .form-grid {
         grid-template-columns: 1fr;
         gap: 1rem;
@@ -503,20 +583,7 @@
 
     .form-section {
         padding: 1.25rem;
-    }
-
-    .ai-actions-card {
-        padding: 1.25rem;
-    }
-
-    .ai-actions {
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .ai-button {
-        width: 100%;
-        justify-content: center;
+        border-radius: 12px;
     }
 
     .form-actions {
@@ -545,17 +612,61 @@
     .form-select,
     .form-textarea {
         width: 100%;
-        /* Ensure inputs don't overflow */
+        max-width: 100%;
         font-size: 16px;
-        /* Prevent zoom on iOS */
     }
 
     .input-with-button {
-        flex-direction: row;
-        /* Keep inline on mobile if space permits, or column if needed */
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .input-with-button .add-btn {
+        width: 100%;
+        justify-content: center;
     }
 
     .tags-list {
         margin-top: 0.5rem;
+    }
+
+    .form-section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-section-header .btn-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .pdf-current-file {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pdf-remove-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .itinerary-day {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tag {
+        max-width: 100%;
+        word-break: break-word;
     }
 }

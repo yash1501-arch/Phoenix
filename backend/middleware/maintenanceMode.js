@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { getConvexClient } = require('../utils/convexClient');
 const { COOKIE_NAME } = require('../utils/authCookie');
+const { isDbAdmin } = require('./auth');
 const logger = require('../utils/logger');
 
 const BYPASS_PREFIXES = [
@@ -36,15 +37,13 @@ function extractToken(req) {
   return req.header('x-auth-token') || null;
 }
 
-async function isDbAdmin(req) {
+async function maintenanceAdminBypass(req) {
   const token = extractToken(req);
   if (!token || !process.env.JWT_SECRET) return false;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.user?.id || decoded.id;
-    if (!userId) return false;
-    const dbUser = await getConvexClient().getUserById(userId);
-    return dbUser?.role === 'admin';
+    return isDbAdmin(userId);
   } catch {
     return false;
   }
@@ -61,7 +60,7 @@ async function maintenanceMode(req, res, next) {
   const on = await maintenanceEnabled();
   if (!on) return next();
 
-  if (await isDbAdmin(req)) return next();
+  if (await maintenanceAdminBypass(req)) return next();
 
   return res.status(503).json({
     success: false,

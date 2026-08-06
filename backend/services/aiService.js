@@ -1,14 +1,139 @@
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
+const { parseBrochureText } = require('../utils/pdfBrochureParser');
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+let openaiClient = null;
+
+function getOpenAI() {
+    if (!process.env.OPENAI_API_KEY) return null;
+    if (!openaiClient) {
+        openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+    return openaiClient;
+}
+
+function mapOpenAIError(error) {
+    const code = error?.code || error?.error?.code;
+    const status = error?.status;
+    if (status === 429 || code === 'insufficient_quota' || code === 'rate_limit_exceeded') {
+        return 'OpenAI quota exceeded. Add credits at platform.openai.com, or we will use basic text parsing instead.';
+    }
+    if (status === 401) {
+        return 'Invalid OpenAI API key. Check OPENAI_API_KEY in backend/.env';
+    }
+    return error?.message || 'OpenAI request failed';
+}
+
+async function extractPdfText(pdfBuffer) {
+    const { PDFParse } = require('pdf-parse');
+    const parser = new PDFParse({ data: pdfBuffer });
+    try {
+        const result = await parser.getText();
+        return (result?.text || '').trim();
+    } finally {
+        if (typeof parser.destroy === 'function') {
+            try {
+                await parser.destroy();
+            } catch {
+                /* ignore */
+            }
+        }
+    }
+}
+
+async function extractWithAI(text) {
+    const openai = getOpenAI();
+    if (!openai) {
+        return { data: null, skipped: true, reason: 'no_api_key' };
+    }
+
+    const prompt = `Extract adventure/tour details from the following text and return a structured JSON object.
+
+Text:
+${text.slice(0, 28000)}
+
+Return JSON with these fields (use null or [] when missing):
+title, description, location, duration, difficulty, category, endurance_level,
+base_village, elevation, region, price (full trek price number only, ignore advance deposits),
+price_note, maxParticipants, available_dates (YYYY-MM-DD[]),
+included[], excluded[], things_to_carry[], pickup_mumbai[], pickup_pune[],
+dos[], donts[], trek_guidelines[],
+itinerary[{day,title,description,activities[],meals[],accommodation}]
+
+Ignore advance/deposit amounts.`;
+
+    const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+            {
+                role: 'system',
+                content: 'Extract structured trek brochure data. Respond with valid JSON only.',
+            },
+            { role: 'user', content: prompt },
+        ],
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    return { data: JSON.parse(content), skipped: false };
+}
 
 /**
- * Optimize and structure itinerary using AI
+ * Extract adventure details from PDF buffer.
+ * Tries OpenAI first; falls back to local text parsing.
  */
+async function extractFromPDF(pdfBuffer) {
+    const text = await extractPdfText(pdfBuffer);
+
+    if (!text || text.replace(/\s/g, '').length < 40) {
+        throw new Error(
+            'Could not read text from this PDF. It may be a scanned image PDF — export a text-based PDF from your design tool, or re-save with OCR.'
+        );
+    }
+
+    // Try AI when configured
+    if (getOpenAI()) {
+        try {
+            const ai = await extractWithAI(text);
+            if (ai.data) {
+                return { ...ai.data, _parser: 'openai' };
+            }
+        } catch (error) {
+            const hint = mapOpenAIError(error);
+            logger.warn('OpenAI PDF extract failed, using heuristic fallback:', hint);
+            const fallback = parseBrochureText(text);
+            if (fallback.title || fallback.price || fallback.available_dates?.length) {
+                return {
+                    ...fallback,
+                    _parser: 'heuristic',
+                    _warning: hint,
+                };
+            }
+            throw new Error(hint);
+        }
+    }
+
+    const fallback = parseBrochureText(text);
+    if (!fallback.title && !fallback.price && !fallback.available_dates?.length) {
+        throw new Error(
+            'Could not detect trek fields in this PDF. Try a text-based brochure PDF, or add OPENAI_API_KEY for smarter extraction.'
+        );
+    }
+
+    return {
+        ...fallback,
+        _parser: 'heuristic',
+        _warning: getOpenAI() ? undefined : 'OpenAI not configured — used basic text parsing. Some fields may need manual edits.',
+    };
+}
+
 async function optimizeItinerary(rawItinerary, adventureDetails) {
+    const openai = getOpenAI();
+    if (!openai) {
+        throw new Error('OpenAI API key is not configured');
+    }
+
     try {
         const prompt = `You are an expert travel planner. Given the following adventure details and raw itinerary, 
 please optimize and structure it into a well-formatted, engaging itinerary.
@@ -37,102 +162,33 @@ Please return a JSON array of itinerary items with the following structure:
 Make it engaging, detailed, and well-structured. Ensure proper timing and logical flow.`;
 
         const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: 'gpt-4o-mini',
             messages: [
                 {
-                    role: "system",
-                    content: "You are an expert travel planner who creates detailed, engaging itineraries. Always respond with valid JSON only."
+                    role: 'system',
+                    content: 'You are an expert travel planner who creates detailed, engaging itineraries. Always respond with valid JSON only.',
                 },
-                {
-                    role: "user",
-                    content: prompt
-                }
+                { role: 'user', content: prompt },
             ],
             temperature: 0.7,
-            response_format: { type: "json_object" }
+            response_format: { type: 'json_object' },
         });
 
         const content = response.choices[0].message.content;
         const parsed = JSON.parse(content);
-
-        // Handle different response formats
         return parsed.itinerary || parsed.items || parsed;
     } catch (error) {
         logger.error('Error optimizing itinerary:', error);
-        throw new Error('Failed to optimize itinerary with AI');
+        throw new Error(mapOpenAIError(error));
     }
 }
 
-/**
- * Extract adventure details from PDF
- */
-async function extractFromPDF(pdfBuffer) {
-    try {
-        // pdf-parse v2 exposes a class-based API
-        const { PDFParse } = require('pdf-parse');
-        const parser = new PDFParse({ data: pdfBuffer });
-        const result = await parser.getText();
-        const text = result.text;
-
-        // Use AI to extract structured information
-        const prompt = `Extract adventure/tour details from the following text and return a structured JSON object.
-
-Text:
-${text}
-
-Please extract and return the following information in JSON format:
-{
-  "title": "Adventure title",
-  "description": "Brief description",
-  "location": "Location",
-  "duration": "Duration (e.g., '5 Days, 4 Nights')",
-  "difficulty": "Easy/Moderate/Challenging",
-  "price": numeric value only,
-  "maxParticipants": numeric value,
-  "included": ["Item 1", "Item 2"],
-  "excluded": ["Item 1", "Item 2"],
-  "itinerary": [
-    {
-      "day": 1,
-      "title": "Day title",
-      "description": "Description",
-      "activities": ["Activity 1"],
-      "meals": ["Breakfast"],
-      "accommodation": "Details"
-    }
-  ]
-}
-
-If any field is not found, use reasonable defaults or null. Ensure all arrays and objects are properly formatted.`;
-
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are an expert at extracting structured information from travel documents. Always respond with valid JSON only."
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            temperature: 0.3,
-            response_format: { type: "json_object" }
-        });
-
-        const content = response.choices[0].message.content;
-        return JSON.parse(content);
-    } catch (error) {
-        logger.error('Error extracting from PDF:', error);
-        throw new Error('Failed to extract information from PDF');
-    }
-}
-
-/**
- * Generate adventure description using AI
- */
 async function generateDescription(adventureDetails) {
+    const openai = getOpenAI();
+    if (!openai) {
+        throw new Error('OpenAI API key is not configured');
+    }
+
     try {
         const prompt = `Create an engaging, compelling description for this adventure:
 
@@ -150,30 +206,27 @@ Write a 2-3 paragraph description that:
 Return only the description text, no JSON.`;
 
         const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: 'gpt-4o-mini',
             messages: [
                 {
-                    role: "system",
-                    content: "You are an expert travel writer who creates compelling adventure descriptions."
+                    role: 'system',
+                    content: 'You are an expert travel writer who creates compelling adventure descriptions.',
                 },
-                {
-                    role: "user",
-                    content: prompt
-                }
+                { role: 'user', content: prompt },
             ],
             temperature: 0.8,
-            max_tokens: 500
+            max_tokens: 500,
         });
 
         return response.choices[0].message.content.trim();
     } catch (error) {
         logger.error('Error generating description:', error);
-        throw new Error('Failed to generate description with AI');
+        throw new Error(mapOpenAIError(error));
     }
 }
 
 module.exports = {
     optimizeItinerary,
     extractFromPDF,
-    generateDescription
+    generateDescription,
 };

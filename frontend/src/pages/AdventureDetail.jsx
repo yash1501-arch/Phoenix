@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     MapPin, Clock, Users, Star, Shield, CheckCircle, XCircle,
     ChevronDown, ChevronUp, ArrowLeft,
-    Activity, Phone, MessageCircle, CalendarCheck
+    Activity, Phone, MessageCircle, CalendarCheck, Mountain, Bus, Backpack
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -17,6 +17,43 @@ import WeatherWidget from '../components/ui/WeatherWidget';
 import ShareButtons from '../components/ui/ShareButtons';
 import BookingModal from '../components/BookingModal';
 import { Reveal, IconMotion } from '../components/ui/Motion';
+
+const asStringList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
+const DEFAULT_PACKING = [
+    'Trekking shoes (broken in, not brand-new)',
+    '2–3 litres of water in reusable bottles',
+    'Cap, sunglasses, SPF 50 sunscreen',
+    'Light daypack (30L is plenty)',
+    'Energy snacks — dry fruits, bars',
+    'Rain shell (June–Sept mandatory)',
+];
+
+const BrochureList = ({ items, variant = 'default' }) => (
+    <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3 max-w-2xl">
+        {items.map((item, i) => (
+            <li key={i} className="flex items-start gap-3 text-sm text-stone border-b border-stone/5 pb-3">
+                <span
+                    className={`mt-1.5 w-1 h-1 rounded-full shrink-0 ${variant === 'dont' ? 'bg-red-400' : 'bg-ember'}`}
+                    aria-hidden="true"
+                />
+                <span>{item}</span>
+            </li>
+        ))}
+    </ul>
+);
 
 // ── WhatsApp Redirect ────────────────────────────────────────────────────────
 const openWhatsApp = (adventure, phone) => {
@@ -92,6 +129,9 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, animated = false }) =>
             <div className="bg-stone text-mist p-6 sm:p-8 border-b border-ember/30">
                 <p className="meta !text-mist/50 mb-2">Price per person</p>
                 <p className="font-display text-3xl sm:text-4xl text-mist font-semibold">₹{adventure.price?.toLocaleString()}</p>
+                {adventure.price_note && (
+                    <p className="text-mist/70 text-sm mt-2">{adventure.price_note}</p>
+                )}
             </div>
 
             <div className="p-5 sm:p-6 space-y-4">
@@ -211,6 +251,16 @@ const AdventureDetail = () => {
 
     if (!adventure) return null;
 
+    const thingsToCarry = asStringList(adventure.things_to_carry);
+    const packingList = thingsToCarry.length > 0 ? thingsToCarry : DEFAULT_PACKING;
+    const pickupMumbai = asStringList(adventure.pickup_mumbai);
+    const pickupPune = asStringList(adventure.pickup_pune);
+    const dos = asStringList(adventure.dos);
+    const donts = asStringList(adventure.donts);
+    const guidelines = asStringList(adventure.trek_guidelines);
+    const hasTrekMeta = adventure.base_village || adventure.elevation || adventure.region;
+    const hasPickup = pickupMumbai.length > 0 || pickupPune.length > 0;
+
     const difficultyColor = {
         Easy: 'bg-moss/15 text-moss',
         Moderate: 'bg-ember/15 text-ember-deep',
@@ -266,6 +316,12 @@ const AdventureDetail = () => {
                         <div className="flex flex-wrap gap-3 sm:gap-4 text-mist/80 sm:text-mist/90 text-xs sm:text-sm">
                             <span className="flex items-center gap-1.5"><MapPin size={13} className="text-ember shrink-0" />{adventure.location}</span>
                             <span className="flex items-center gap-1.5"><Clock size={13} className="text-ember shrink-0" />{adventure.duration}</span>
+                            {adventure.region && (
+                                <span className="flex items-center gap-1.5"><Mountain size={13} className="text-ember shrink-0" />{adventure.region}</span>
+                            )}
+                            {adventure.elevation && (
+                                <span className="flex items-center gap-1.5"><Mountain size={13} className="text-ember shrink-0" />{adventure.elevation}</span>
+                            )}
                             {adventure.rating && <span className="flex items-center gap-1.5"><Star size={13} className="text-ember fill-current" />{adventure.rating}</span>}
                         </div>
                     </div>
@@ -282,6 +338,32 @@ const AdventureDetail = () => {
                         <h2 className="font-display text-2xl font-semibold text-stone mb-4">About this adventure</h2>
                         <p className="text-muted leading-relaxed text-base">{adventure.description}</p>
                     </Reveal>
+
+                    {hasTrekMeta && (
+                        <Reveal variant="fade" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Trek details</h2>
+                            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {adventure.base_village && (
+                                    <div className="rounded-lg border border-stone/10 bg-white p-4">
+                                        <dt className="text-xs uppercase tracking-wide text-muted mb-1">Base village</dt>
+                                        <dd className="font-semibold text-stone text-sm">{adventure.base_village}</dd>
+                                    </div>
+                                )}
+                                {adventure.elevation && (
+                                    <div className="rounded-lg border border-stone/10 bg-white p-4">
+                                        <dt className="text-xs uppercase tracking-wide text-muted mb-1">Elevation</dt>
+                                        <dd className="font-semibold text-stone text-sm">{adventure.elevation}</dd>
+                                    </div>
+                                )}
+                                {adventure.region && (
+                                    <div className="rounded-lg border border-stone/10 bg-white p-4">
+                                        <dt className="text-xs uppercase tracking-wide text-muted mb-1">Region</dt>
+                                        <dd className="font-semibold text-stone text-sm">{adventure.region}</dd>
+                                    </div>
+                                )}
+                            </dl>
+                        </Reveal>
+                    )}
 
                     {/* Mobile: Book Now sits directly under About */}
                     <div className="lg:hidden">
@@ -370,27 +452,85 @@ const AdventureDetail = () => {
                             </div>
                         </Reveal>
                     )}
+
+                    {hasPickup && (
+                        <Reveal variant="slideLeft" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4 flex items-center gap-2">
+                                <Bus size={22} className="text-ember" /> Pickup points
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {pickupMumbai.length > 0 && (
+                                    <div>
+                                        <h3 className="font-bold text-stone mb-3">Mumbai</h3>
+                                        <ul className="space-y-2">
+                                            {pickupMumbai.map((point, i) => (
+                                                <li key={i} className="text-sm text-muted flex items-start gap-2">
+                                                    <MapPin size={14} className="text-ember mt-0.5 shrink-0" />
+                                                    {point}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {pickupPune.length > 0 && (
+                                    <div>
+                                        <h3 className="font-bold text-stone mb-3">Pune</h3>
+                                        <ul className="space-y-2">
+                                            {pickupPune.map((point, i) => (
+                                                <li key={i} className="text-sm text-muted flex items-start gap-2">
+                                                    <MapPin size={14} className="text-ember mt-0.5 shrink-0" />
+                                                    {point}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </Reveal>
+                    )}
+
                     <Reveal variant="slideRight" as="section">
-                        <h2 className="font-display text-2xl md:text-3xl text-stone font-semibold mb-5">What to pack</h2>
+                        <h2 className="font-display text-2xl md:text-3xl text-stone font-semibold mb-5 flex items-center gap-2">
+                            <Backpack size={22} className="text-ember" /> What to pack
+                        </h2>
                         <p className="text-muted text-sm mb-6 max-w-xl">
-                            Everything here fits in a 30L daypack. Rentals available on request — mention it when you book.
+                            {thingsToCarry.length > 0
+                                ? 'Bring everything on this list for a safe and comfortable trek.'
+                                : 'Everything here fits in a 30L daypack. Rentals available on request — mention it when you book.'}
                         </p>
-                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3 max-w-2xl">
-                            {[
-                                'Trekking shoes (broken in, not brand-new)',
-                                '2–3 litres of water in reusable bottles',
-                                'Cap, sunglasses, SPF 50 sunscreen',
-                                'Light daypack (30L is plenty)',
-                                'Energy snacks — dry fruits, bars',
-                                'Rain shell (June–Sept mandatory)',
-                            ].map((item, i) => (
-                                <li key={i} className="flex items-start gap-3 text-sm text-stone border-b border-stone/5 pb-3">
-                                    <span className="mt-1.5 w-1 h-1 rounded-full bg-ember shrink-0" aria-hidden="true" />
-                                    <span>{item}</span>
-                                </li>
-                            ))}
-                        </ul>
+                        <BrochureList items={packingList} />
                     </Reveal>
+
+                    {(dos.length > 0 || donts.length > 0) && (
+                        <Reveal variant="fade" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Do&apos;s &amp; Don&apos;ts</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {dos.length > 0 && (
+                                    <div>
+                                        <h3 className="font-bold text-moss mb-3 flex items-center gap-2">
+                                            <CheckCircle size={16} /> Do&apos;s
+                                        </h3>
+                                        <BrochureList items={dos} />
+                                    </div>
+                                )}
+                                {donts.length > 0 && (
+                                    <div>
+                                        <h3 className="font-bold text-red-600 mb-3 flex items-center gap-2">
+                                            <XCircle size={16} /> Don&apos;ts
+                                        </h3>
+                                        <BrochureList items={donts} variant="dont" />
+                                    </div>
+                                )}
+                            </div>
+                        </Reveal>
+                    )}
+
+                    {guidelines.length > 0 && (
+                        <Reveal variant="rise" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Trek guidelines</h2>
+                            <BrochureList items={guidelines} />
+                        </Reveal>
+                    )}
 
                     <section className="flex items-center gap-2">
                         <span className="text-sm text-muted">Share this adventure:</span>

@@ -161,11 +161,11 @@ const BlogEditor = () => {
         </div>
 
         <div className="flex flex-wrap gap-3 pt-4 border-t border-[var(--border-color)]">
-          <button onClick={() => handleSubmit()} disabled={saving} className="btn btn-primary">
+          <button onClick={() => handleSubmit()} disabled={saving} className="btn-primary">
             <Save size={16} /> {saving ? 'Saving…' : (form.published ? 'Save changes' : 'Save draft')}
           </button>
           {!form.published && (
-            <button onClick={() => handleSubmit(true)} disabled={saving} className="btn btn-secondary">
+            <button onClick={() => handleSubmit(true)} disabled={saving} className="btn-secondary">
               <Eye size={16} /> Publish now
             </button>
           )}
