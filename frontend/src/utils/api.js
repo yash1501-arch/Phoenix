@@ -5,26 +5,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const api = axios.create({
     baseURL: `${API_BASE_URL}/api`,
     headers: {
-        'Content-Type': 'application/json'
-    }
+        'Content-Type': 'application/json',
+    },
+    withCredentials: true,
 });
 
-// Attach auth token automatically to every request
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-}, (error) => Promise.reject(error));
-
-// Handle 401 globally — redirect to login
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            window.location.href = '/login';
+            window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         }
         return Promise.reject(error);
     }
@@ -32,23 +22,48 @@ api.interceptors.response.use(
 
 export const getImageUrl = (path) => {
     if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${API_BASE_URL}${path}`;
+    if (/^https?:\/\//i.test(path) || path.startsWith('//')) {
+        return path.startsWith('//') ? `https:${path}` : path;
+    }
+    if (path.startsWith('/uploads/')) {
+        return `${API_BASE_URL}${path}`;
+    }
+    return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 };
 
 export const adventuresAPI = {
     getAll: (params) => api.get('/adventures', { params }),
-    getById: (id) => api.get(`/adventures/${id}`)
+    getById: (id) => api.get(`/adventures/${id}`),
+};
+
+export const authAPI = {
+    me: () => api.get('/auth/me'),
+    logout: () => api.post('/auth/logout'),
+};
+
+export const contactAPI = {
+    submit: (data) => api.post('/contact', data),
 };
 
 export const bookingsAPI = {
-    getAll: (params) => api.get('/bookings', { params }),
+    createManual: (data) => api.post('/bookings/manual', data),
+    getPaymentDetails: (bookingId) => api.get(`/bookings/${bookingId}/payment`),
+    getById: (bookingId) => api.get(`/bookings/${bookingId}`),
     getUserBookings: (userId) => api.get(`/bookings/user/${userId}`),
-    create: (data) => api.post('/bookings', data),
-    cancel: (id, reason) => api.post(`/bookings/${id}/cancel`, { reason }),
-    updateStatus: (id, status) => api.patch(`/bookings/${id}/status`, { status }),
-    createOrder: (data) => api.post('/payments/create-order', data),
-    verifyPayment: (data) => api.post('/payments/verify-payment', data),
+    submitPayment: (data) => {
+        const { screenshot, ...rest } = data;
+        if (screenshot) {
+            const fd = new FormData();
+            Object.entries(rest).forEach(([k, v]) => {
+                if (v != null && v !== '') fd.append(k, v);
+            });
+            fd.append('screenshot', screenshot);
+            return api.post('/payments/manual/submit', fd, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+        }
+        return api.post('/payments/manual/submit', rest);
+    },
 };
 
 export const usersAPI = {
@@ -63,9 +78,28 @@ export const usersAPI = {
     changePassword: (data) => api.post('/auth/change-password', data),
 };
 
-// Public settings endpoint (read-only, no auth). Falls back to defaults if the API
-// isn't reachable so the gallery still renders gracefully.
+export const blogAPI = {
+    getAll: (params) => api.get('/blog', { params }),
+    getBySlug: (slug) => api.get(`/blog/post/${slug}`),
+};
+
+export const newsletterAPI = {
+    subscribe: (email) => api.post('/newsletter/subscribe', { email }),
+};
+
+function safeJsonParse(s) {
+    try { return JSON.parse(s); } catch { return []; }
+}
+
 export const publicSettingsAPI = {
+    getAll: async () => {
+        try {
+            const res = await api.get('/settings/public');
+            return res.data?.data || {};
+        } catch {
+            return {};
+        }
+    },
     getInstagramPosts: async () => {
         try {
             const res = await api.get('/settings/public', { params: { key: 'instagram_posts' } });
@@ -86,9 +120,5 @@ export const publicSettingsAPI = {
         }
     },
 };
-
-function safeJsonParse(s) {
-    try { return JSON.parse(s); } catch { return []; }
-}
 
 export default api;

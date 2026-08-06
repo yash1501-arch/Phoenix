@@ -1,12 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Star, MapPin, Clock } from 'lucide-react';
+import { Search, Star, MapPin, Clock } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import Footer, { MobileTabBarSpacer } from '../components/Footer';
-import ScrollAnimation from '../components/ScrollAnimation';
+import Footer from '../components/Footer';
+import PageHero from '../components/ui/PageHero';
+import Seo from '../components/Seo';
 import WishlistButton from '../components/ui/WishlistButton';
+import { Reveal, StaggerContainer, StaggerItem, IconMotion } from '../components/ui/Motion';
 import { adventuresAPI, getImageUrl } from '../utils/api';
+
+const FILTERS = [
+  { id: 'all', label: 'All trips' },
+  { id: 'easy', label: 'Easy' },
+  { id: 'moderate', label: 'Moderate' },
+  { id: 'challenging', label: 'Challenging' },
+];
 
 const AdventuresPage = () => {
   const [adventures, setAdventures] = useState([]);
@@ -15,245 +23,228 @@ const AdventuresPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
+    let alive = true;
     const fetchAdventures = async () => {
       try {
         const response = await adventuresAPI.getAll({ status: 'active' });
-        setAdventures(response.data.data);
+        if (alive) setAdventures(response.data.data || []);
       } catch (error) {
-        console.error('Error fetching adventures:', error);
+        if (alive) console.error('Error fetching adventures:', error);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     };
-
     fetchAdventures();
+    return () => { alive = false; };
   }, []);
 
-  const filteredAdventures = adventures.filter(adv => {
-    const matchesSearch = (adv.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (adv.location || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filter === 'all' || adv.difficulty?.toLowerCase() === filter.toLowerCase();
-    return matchesSearch && matchesFilter;
-  });
+  const filteredAdventures = useMemo(() => {
+    return adventures.filter((adv) => {
+      const q = searchTerm.toLowerCase().trim();
+      const matchesSearch = !q ||
+        (adv.title || '').toLowerCase().includes(q) ||
+        (adv.location || '').toLowerCase().includes(q);
+      const matchesFilter = filter === 'all' || adv.difficulty?.toLowerCase() === filter.toLowerCase();
+      return matchesSearch && matchesFilter;
+    });
+  }, [adventures, searchTerm, filter]);
 
-  const difficultyFilters = [
-    { id: 'all', name: 'All Adventures' },
-    { id: 'easy', name: 'Easy' },
-    { id: 'moderate', name: 'Moderate' },
-    { id: 'challenging', name: 'Challenging' },
-  ];
+  // Group by category for an editorial index
+  const grouped = useMemo(() => {
+    const map = new Map();
+    for (const adv of filteredAdventures) {
+      const key = adv.category || 'general';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(adv);
+    }
+    return Array.from(map.entries());
+  }, [filteredAdventures]);
 
   if (loading) {
     return (
-      <div id="main-content" className="min-h-screen bg-gradient-to-b from-white to-[#F0E68C]/5">
+      <div className="min-h-screen bg-mist">
         <Navbar />
-        <div className="pt-32 flex justify-center items-center min-h-[50vh]">
-          <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+        <div className="pt-40 pb-24 flex justify-center items-center">
+          <div className="w-10 h-10 border-2 border-ember border-t-transparent rounded-full animate-spin" />
         </div>
-    <MobileTabBarSpacer />
-    <Footer />
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div id="main-content" className="min-h-screen bg-gradient-to-b from-white to-[#F0E68C]/5">
+    <div className="min-h-screen bg-mist">
+      <Seo
+        title="All Adventures"
+        description={`Browse ${adventures.length} curated treks, camping trips, and expeditions across the Sahyadris and Himalayas.`}
+      />
       <Navbar />
-      
-      <div className="pt-28 sm:pt-32 pb-12 sm:pb-16 relative overflow-hidden">
-        {/* Background Image with Overlay */}
-        <div className="absolute inset-0 z-0">
-            <img 
-                src="/src/assets/images/hero-bg.png" 
-                alt="Background" 
-                className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-white/90 backdrop-blur-sm" />
-        </div>
-        
-        {/* Hero Section */}
-        <ScrollAnimation>
-          <div className="relative z-10 text-center max-w-4xl mx-auto mb-12 md:mb-16 px-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full mb-6">
-              <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-              <span className="text-[#D4AF37] text-xs font-bold tracking-wider uppercase">
-                Explore Our Adventures
-              </span>
+
+      <PageHero
+        eyebrow="All departures"
+        title="Every trek, every camp, one team."
+        subtitle={`${adventures.length} curated routes — personally scouted, honestly graded, and led by guides we know by name. Filter by difficulty or search by destination.`}
+        breadcrumb={[{ label: 'Home', to: '/' }, { label: 'All Adventures' }]}
+      />
+
+      {/* Search + filter bar */}
+      <div className="sticky top-16 md:top-20 z-30 bg-mist/95 backdrop-blur border-b border-stone/10">
+        <div className="container py-4">
+          <div className="flex flex-col md:flex-row gap-3 md:items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search treks or destinations…"
+                aria-label="Search adventures"
+                className="input !pl-10 !py-2.5 !text-sm !border-transparent focus:!border-stone focus:!bg-mist"
+              />
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-black mb-6">
-              Available <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#B8860B]">Adventures</span>
-            </h1>
-            <p className="text-gray-800 text-lg md:text-xl leading-relaxed">
-              Discover our handpicked collection of adventures curated by our expert team. Each adventure is carefully planned for your safety and enjoyment.
-            </p>
-          </div>
-        </ScrollAnimation>
 
-        {/* Search and Filter Section */}
-        <ScrollAnimation>
-          <div className="container mb-12">
-            <div className="bg-white rounded-2xl p-6 shadow-professional border border-[#D4AF37]/20">
-              <div className="flex flex-col lg:flex-row gap-6">
-                {/* Search */}
-                <div className="flex-1">
-                  <div className="relative">
-                    <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                      type="text"
-                      placeholder="Search adventures or locations..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-[#D4AF37]/30 rounded-xl focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent outline-none transition-all bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Difficulty Filter */}
-                <div className="flex items-center gap-3">
-                  <svg className="text-[#D4AF37] w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  <select
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                    className="px-4 py-3 border border-[#D4AF37]/30 rounded-xl focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent outline-none transition-all bg-white"
-                  >
-                    {difficultyFilters.map(filterOption => (
-                      <option key={filterOption.id} value={filterOption.id}>{filterOption.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ScrollAnimation>
-
-        {/* Adventures Grid */}
-        <div className="container">
-          {filteredAdventures.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredAdventures.map((adv, index) => (
-                <ScrollAnimation key={adv._id} delay={index * 0.1}>
-                  <Link to={`/adventure/${adv._id}`} className="block">
-                    <motion.div
-                      whileHover={{ y: -8 }}
-                      className="group bg-white rounded-3xl p-4 shadow-professional hover:shadow-professional-lg transition-all duration-300 cursor-pointer border border-[#D4AF37]/20"
-                    >
-                    {/* Image Container */}
-                    <div className="relative overflow-hidden rounded-2xl mb-4 aspect-[4/5]">
-                      <img
-                        src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop'}
-                        alt={adv.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop'; }}
-                      />
-                      
-                      {/* Difficulty Badge */}
-                      <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border backdrop-blur-sm ${
-                        adv.difficulty === 'Easy' ? 'bg-[#F0E68C]/20 text-[#D4AF37] border-[#D4AF37]/30' :
-                        adv.difficulty === 'Moderate' ? 'bg-[#F0E68C]/30 text-[#D4AF37] border-[#D4AF37]/40' :
-                        adv.difficulty === 'Challenging' ? 'bg-black/10 text-black border-black/20' :
-                        'bg-white/10 text-black border-black/20'
-                      }`}>
-                        {adv.difficulty || 'Adventure'}
-                      </div>
-
-                      {/* Like Button */}
-                      <div className="absolute top-3 right-3">
-                        <WishlistButton adventure={adv} size="sm" />
-                      </div>
-                    </div>
-
-                    {/* Card Content */}
-                    <div className="space-y-3">
-                      {/* Title & Rating */}
-                      <div className="flex justify-between items-start gap-2">
-                        <h3 className="text-base md:text-lg font-bold leading-tight text-black group-hover:text-[#D4AF37] transition-colors line-clamp-2 flex-1">
-                          {adv.title}
-                        </h3>
-                        <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg shrink-0">
-                          <Star size={12} className="text-green-600 fill-current" />
-                          <span className="text-xs font-bold text-green-700">{adv.rating || 'New'}</span>
-                        </div>
-                      </div>
-
-                      {/* Location & Duration */}
-                      <div className="flex items-center gap-3 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <MapPin size={14} className="text-[#D4AF37]" />
-                          <span className="font-medium line-clamp-1">{adv.location}</span>
-                        </div>
-                        <div className="w-1 h-1 rounded-full bg-[#D4AF37]" />
-                        <div className="flex items-center gap-1">
-                          <Clock size={14} className="text-[#D4AF37]" />
-                          <span className="font-medium">{adv.duration}</span>
-                        </div>
-                      </div>
-
-                      {/* Next available date */}
-                      {(() => {
-                        const raw = typeof adv.available_dates === 'string'
-                          ? JSON.parse(adv.available_dates || '[]')
-                          : (adv.available_dates || []);
-                        const next = Array.isArray(raw) && raw.length > 0 ? raw[0] : null;
-                        if (!next) return (
-                          <p className="text-[11px] text-amber-700 bg-amber-50 inline-block px-2 py-0.5 rounded-md font-semibold">
-                            No upcoming dates
-                          </p>
-                        );
-                        const [y, m, d] = next.split('-').map(Number);
-                        const dt = new Date(Date.UTC(y, m - 1, d));
-                        const formatted = dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
-                        const total = Array.isArray(raw) ? raw.length : 0;
-                        return (
-                          <p className="text-[11px] text-emerald-700 bg-emerald-50 inline-block px-2 py-0.5 rounded-md font-semibold">
-                            Next: {formatted}{total > 1 ? ` (+${total - 1} more)` : ''}
-                          </p>
-                        );
-                      })()}
-
-                      {/* Price & CTA */}
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                        <div>
-                          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-0.5">
-                            Starting from
-                          </p>
-                          <p className="text-xl md:text-2xl font-black text-black">
-                            ₹{adv.price}
-                          </p>
-                        </div>
-                        <button className="w-11 h-11 rounded-full bg-black text-white flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:scale-110 transition-all shadow-lg">
-                          <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
-                        </button>
-                      </div>
-
-                      {/* Reviews Count */}
-                      <p className="text-xs text-gray-500 font-medium">
-                        {adv.reviews_count > 0 ? `Based on ${adv.reviews_count} reviews` : 'Be the first to review!'}
-                      </p>
-                    </div>
-                    </motion.div>
-                  </Link>
-                </ScrollAnimation>
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar" role="tablist" aria-label="Filter by difficulty">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.id}
+                  role="tab"
+                  aria-selected={filter === f.id}
+                  onClick={() => setFilter(f.id)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition whitespace-nowrap ${
+                    filter === f.id
+                      ? 'bg-stone text-mist'
+                      : 'text-stone hover:bg-mist-muted border border-stone/10'
+                  }`}
+                >
+                  {f.label}
+                </button>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-16">
-              <div className="text-gray-500 text-lg">No adventures found matching your criteria.</div>
-              <button 
-                onClick={() => { setFilter('all'); setSearchTerm(''); }}
-                className="mt-4 px-6 py-3 bg-[#D4AF37] text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-              >
-                Clear Filters
-              </button>
-            </div>
-          )}
+
+            <p className="text-xs text-muted md:ml-auto">
+              {filteredAdventures.length} {filteredAdventures.length === 1 ? 'trip' : 'trips'}
+              {filter !== 'all' && ` · ${FILTERS.find((f) => f.id === filter)?.label}`}
+              {searchTerm && ` · matching "${searchTerm}"`}
+            </p>
+          </div>
         </div>
       </div>
-    <MobileTabBarSpacer />
-    <Footer />
+
+      <main id="main-content" className="container section-tight">
+        {filteredAdventures.length === 0 ? (
+          <Reveal variant="scale" className="text-center py-24 max-w-md mx-auto">
+            <p className="font-display text-2xl text-stone mb-3">Nothing matches those filters</p>
+            <p className="text-muted text-sm mb-6">
+              Try a different difficulty or clear the search to see everything we run.
+            </p>
+            <button
+              onClick={() => { setFilter('all'); setSearchTerm(''); }}
+              className="btn btn-primary"
+            >
+              Clear filters
+            </button>
+          </Reveal>
+        ) : (
+          grouped.map(([category, items]) => (
+            <section key={category} className="mb-16">
+              {grouped.length > 1 && (
+                <Reveal variant="slideLeft">
+                  <header className="flex items-baseline justify-between border-b border-stone/15 pb-3 mb-8">
+                    <h2 className="font-display text-2xl md:text-3xl text-stone capitalize font-semibold">
+                      {category === 'general' ? 'Featured departures' : category}
+                    </h2>
+                    <span className="meta">{items.length} {items.length === 1 ? 'trip' : 'trips'}</span>
+                  </header>
+                </Reveal>
+              )}
+
+              <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12" as="ol">
+                {items.map((adv) => {
+                  const advId = adv._id || adv.id;
+                  const dates = (() => {
+                    const raw = typeof adv.available_dates === 'string'
+                      ? JSON.parse(adv.available_dates || '[]')
+                      : (adv.available_dates || []);
+                    return Array.isArray(raw) ? raw : [];
+                  })();
+                  const nextDate = dates[0] ? (() => {
+                    const [y, m, d] = dates[0].split('-').map(Number);
+                    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+                  })() : null;
+
+                  return (
+                    <StaggerItem key={advId} as="li">
+                      <Link to={`/adventure/${advId}`} className="group block">
+                        <div className="relative mb-5 aspect-[4/3] overflow-hidden rounded-lg">
+                          <img
+                            src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop'}
+                            alt={`${adv.title} — ${adv.location}`}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-stone/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="absolute top-3 left-3 bg-stone/90 text-mist text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
+                            {adv.difficulty || 'Moderate'}
+                          </div>
+                          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition">
+                            <WishlistButton adventure={adv} size="sm" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <h3 className="font-display text-xl md:text-2xl leading-snug text-stone group-hover:text-ember transition-colors font-semibold">
+                            {adv.title}
+                          </h3>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                            <span className="inline-flex items-center gap-1.5">
+                              <IconMotion hoverRotate={-6}><MapPin size={13} className="text-ember" /></IconMotion> {adv.location}
+                            </span>
+                            <span aria-hidden="true" className="text-stone/30">·</span>
+                            <span className="inline-flex items-center gap-1.5">
+                              <Clock size={13} className="text-ember" /> {adv.duration}
+                            </span>
+                          </div>
+
+                          {adv.rating > 0 && (
+                            <p className="flex items-center gap-1.5 text-sm">
+                              <Star size={13} className="text-ember fill-current" />
+                              <span className="font-semibold text-stone">{adv.rating}</span>
+                              {adv.reviews_count > 0 && (
+                                <span className="text-muted">· {adv.reviews_count} review{adv.reviews_count !== 1 ? 's' : ''}</span>
+                              )}
+                            </p>
+                          )}
+
+                          {nextDate && (
+                            <p className="text-xs font-medium text-moss">
+                              Next departure: {nextDate}
+                              {dates.length > 1 && <span className="text-muted"> (+{dates.length - 1} more)</span>}
+                            </p>
+                          )}
+
+                          <div className="flex items-baseline justify-between pt-3 border-t border-stone/10">
+                            <div>
+                              <span className="meta block">From</span>
+                              <span className="font-display text-2xl text-stone font-semibold">₹{(adv.price || 0).toLocaleString('en-IN')}</span>
+                            </div>
+                            <span className="text-sm font-semibold text-ember inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+                              Details <span aria-hidden="true">→</span>
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </StaggerItem>
+                  );
+                })}
+              </StaggerContainer>
+            </section>
+          ))
+        )}
+      </main>
+
+      <Footer />
     </div>
   );
 };

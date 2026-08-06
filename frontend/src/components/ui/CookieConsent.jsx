@@ -38,39 +38,39 @@ export default function CookieConsent() {
                     role="dialog"
                     aria-live="polite"
                     aria-label="Cookie consent"
-                    className="fixed bottom-4 left-4 right-4 md:left-6 md:right-auto md:max-w-md z-50 bg-zinc-900/95 border border-primary/30 rounded-2xl p-5 shadow-2xl backdrop-blur"
+                    className="fixed bottom-3 left-3 right-3 md:bottom-6 md:left-6 md:right-auto md:max-w-sm z-50 bg-zinc-900/95 border border-primary/30 rounded-xl p-4 md:p-5 shadow-2xl backdrop-blur"
                 >
                     <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center">
-                            <Cookie size={20} />
+                        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center">
+                            <Cookie size={18} />
                         </div>
-                        <div className="flex-1">
-                            <h3 className="font-semibold text-white mb-1">Cookies & Privacy</h3>
-                            <p className="text-sm text-zinc-300 leading-relaxed">
-                                We use cookies for authentication, cart, and analytics to improve your experience. By accepting, you consent to our use as per the
-                                {' '}<Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link> and the DPDP Act 2023.
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-white text-sm mb-1">Cookies &amp; privacy</h3>
+                            <p className="text-xs text-zinc-300 leading-relaxed">
+                                We use cookies for authentication and to remember your wishlist. No ad trackers.{' '}
+                                <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
                             </p>
-                            <div className="mt-4 flex flex-wrap gap-2">
+                            <div className="mt-3 flex flex-wrap gap-2">
                                 <button
                                     onClick={accept}
-                                    className="px-4 py-2 rounded-full bg-primary text-black text-sm font-semibold hover:brightness-110 transition"
+                                    className="px-4 py-1.5 rounded-full bg-primary text-black text-xs font-bold hover:brightness-110 transition"
                                 >
-                                    Accept All
+                                    Accept all
                                 </button>
                                 <button
                                     onClick={decline}
-                                    className="px-4 py-2 rounded-full border border-zinc-700 text-zinc-200 text-sm font-semibold hover:bg-zinc-800 transition"
+                                    className="px-4 py-1.5 rounded-full border border-zinc-700 text-zinc-200 text-xs font-semibold hover:bg-zinc-800 transition"
                                 >
-                                    Essential Only
+                                    Essential only
                                 </button>
                             </div>
                         </div>
                         <button
                             onClick={decline}
                             aria-label="Dismiss cookie banner"
-                            className="text-zinc-400 hover:text-white transition"
+                            className="text-zinc-500 hover:text-white transition shrink-0"
                         >
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     </div>
                 </motion.div>

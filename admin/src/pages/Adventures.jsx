@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Search, Filter, Edit, Trash2, Eye, MapPin, Clock, Users, Mountain, Download } from 'lucide-react';
+import {
+    Plus, Search, Edit, Trash2,
+    MapPin, Clock, Users as UsersIcon,
+    Mountain, Download, Filter, ChevronDown
+} from 'lucide-react';
 import { adventuresAPI } from '../utils/api';
 import { exportRows } from '../utils/csv';
 import './Adventures.css';
+
+const catColors = {
+    trek: 'badge-orange',
+    camping: 'badge-green',
+    tour: 'badge-blue',
+    general: 'badge-purple',
+};
 
 const Adventures = () => {
     const [adventures, setAdventures] = useState([]);
@@ -12,10 +23,11 @@ const Adventures = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterDifficulty, setFilterDifficulty] = useState('all');
+    const [filterCategory, setFilterCategory] = useState('all');
 
     useEffect(() => {
         fetchAdventures();
-    }, [filterStatus, filterDifficulty]);
+    }, [filterStatus, filterDifficulty, filterCategory]);
 
     const fetchAdventures = async () => {
         try {
@@ -23,9 +35,9 @@ const Adventures = () => {
             const params = {};
             if (filterStatus !== 'all') params.status = filterStatus;
             if (filterDifficulty !== 'all') params.difficulty = filterDifficulty;
+            if (filterCategory !== 'all') params.category = filterCategory;
 
             const response = await adventuresAPI.getAll(params);
-            // Convex returns data directly as array or wrapped in { data: [] }
             const data = response.data;
             setAdventures(Array.isArray(data) ? data : (data?.data || []));
         } catch (error) {
@@ -37,12 +49,11 @@ const Adventures = () => {
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this adventure?')) return;
-
         try {
             await adventuresAPI.delete(id);
+            toast.success('Adventure deleted');
             fetchAdventures();
         } catch (error) {
-            console.error('Error deleting adventure:', error);
             toast.error('Failed to delete adventure');
         }
     };
@@ -51,6 +62,7 @@ const Adventures = () => {
         const cols = [
             { label: 'ID', key: '_id' },
             { label: 'Title', key: 'title' },
+            { label: 'Category', key: 'category' },
             { label: 'Location', key: 'location' },
             { label: 'Price', key: 'price' },
             { label: 'Duration', key: 'duration' },
@@ -63,10 +75,13 @@ const Adventures = () => {
         toast.success(`Exported ${filteredAdventures.length} adventures`);
     };
 
-    const filteredAdventures = adventures.filter(adventure =>
-        (adventure.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (adventure.location || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredAdventures = adventures.filter(adventure => {
+        const term = searchTerm.toLowerCase();
+        return (
+            (adventure.title || '').toLowerCase().includes(term) ||
+            (adventure.location || '').toLowerCase().includes(term)
+        );
+    });
 
     return (
         <div className="adventures-page">
@@ -75,54 +90,57 @@ const Adventures = () => {
                     <h1 className="page-title">Adventures</h1>
                     <p className="page-subtitle">Manage your adventure packages</p>
                 </div>
-                <Link to="/adventures/add" className="btn-primary">
-                    <Plus size={20} />
-                    Add Adventure
-                </Link>
-                <button onClick={onExport} className="btn-secondary" disabled={filteredAdventures.length === 0}>
-                    <Download size={16} /> Export CSV
-                </button>
+                <div className="page-actions">
+                    <button onClick={onExport} className="btn-secondary" disabled={filteredAdventures.length === 0}>
+                        <Download size={16} /> Export
+                    </button>
+                    <Link to="/adventures/add" className="btn-primary">
+                        <Plus size={18} />
+                        Add Adventure
+                    </Link>
+                </div>
             </div>
 
-            <div className="filters-section">
+            {/* Filters Bar */}
+            <div className="filters-bar">
                 <div className="search-box">
-                    <Search className="search-icon" />
+                    <Search className="search-icon" size={18} />
                     <input
                         type="text"
-                        placeholder="Search adventures..."
+                        placeholder="Search by title or location..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="search-input"
                     />
                 </div>
 
-                <div className="filters">
-                    <div className="filter-group">
-                        <Filter size={18} />
-                        <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
-                            className="filter-select"
-                        >
-                            <option value="all">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="draft">Draft</option>
-                        </select>
-                    </div>
+                <div className="filter-select-group">
+                    <Filter size={16} />
+                    <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                        <option value="all">All Categories</option>
+                        <option value="trek">Trek</option>
+                        <option value="camping">Camping</option>
+                        <option value="tour">Tour</option>
+                        <option value="general">General</option>
+                    </select>
+                </div>
 
-                    <div className="filter-group">
-                        <select
-                            value={filterDifficulty}
-                            onChange={(e) => setFilterDifficulty(e.target.value)}
-                            className="filter-select"
-                        >
-                            <option value="all">All Difficulty</option>
-                            <option value="Easy">Easy</option>
-                            <option value="Moderate">Moderate</option>
-                            <option value="Challenging">Challenging</option>
-                        </select>
-                    </div>
+                <div className="filter-select-group">
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="draft">Draft</option>
+                    </select>
+                </div>
+
+                <div className="filter-select-group">
+                    <select value={filterDifficulty} onChange={(e) => setFilterDifficulty(e.target.value)}>
+                        <option value="all">All Difficulty</option>
+                        <option value="Easy">Easy</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Challenging">Challenging</option>
+                    </select>
                 </div>
             </div>
 
@@ -133,74 +151,99 @@ const Adventures = () => {
                 </div>
             ) : filteredAdventures.length === 0 ? (
                 <div className="empty-state">
-                    <Mountain size={64} />
+                    <Mountain size={56} />
                     <h3>No adventures found</h3>
-                    <p>Start by adding your first adventure package</p>
-                    <Link to="/adventures/add" className="btn-primary">
-                        <Plus size={20} />
-                        Add Adventure
-                    </Link>
+                    <p>{searchTerm ? 'Try a different search term' : 'Start by adding your first adventure package'}</p>
+                    {!searchTerm && (
+                        <Link to="/adventures/add" className="btn-primary">
+                            <Plus size={18} />
+                            Add Adventure
+                        </Link>
+                    )}
                 </div>
             ) : (
-                <div className="adventures-grid">
-                    {filteredAdventures.map((adventure) => (
-                        <div key={adventure._id} className="adventure-card">
-                            <div className="adventure-image">
-                                <img
-                                    src={adventure.image_url || 'https://via.placeholder.com/400x300'}
-                                    alt={adventure.title}
-                                />
-                                <span className={`status-badge ${adventure.status}`}>
-                                    {adventure.status}
-                                </span>
-                            </div>
-
-                            <div className="adventure-content">
-                                <h3 className="adventure-title">{adventure.title}</h3>
-
-                                <div className="adventure-meta">
-                                    <div className="meta-item">
-                                        <MapPin size={16} />
-                                        <span>{adventure.location}</span>
-                                    </div>
-                                    <div className="meta-item">
-                                        <Clock size={16} />
-                                        <span>{adventure.duration}</span>
-                                    </div>
-                                    <div className="meta-item">
-                                        <Users size={16} />
-                                        <span>{adventure.max_participants} max</span>
-                                    </div>
-                                </div>
-
-                                <div className="adventure-footer">
-                                    <div className="price-section">
-                                        <span className="price">₹{adventure.price?.toLocaleString()}</span>
-                                        <span className={`difficulty ${adventure.difficulty?.toLowerCase()}`}>
-                                            {adventure.difficulty}
+                <div className="table-wrapper">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th className="th-img">Adventure</th>
+                                <th>Category</th>
+                                <th>Location</th>
+                                <th>Difficulty</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th className="th-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredAdventures.map((adv) => (
+                                <tr key={adv._id}>
+                                    <td className="td-title">
+                                        <div className="cell-title">
+                                            <div className="cell-img">
+                                                <img
+                                                    src={adv.image_url || 'https://via.placeholder.com/48x36'}
+                                                    alt={adv.title}
+                                                />
+                                            </div>
+                                            <div className="cell-title-text">
+                                                <span className="cell-name">{adv.title}</span>
+                                                <span className="cell-meta">
+                                                    <Clock size={12} />
+                                                    {adv.duration || '—'} · <UsersIcon size={12} />
+                                                    {adv.max_participants || '—'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {adv.category ? (
+                                            <span className={`badge ${catColors[adv.category] || 'badge-orange'}`}>
+                                                {adv.category}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted">—</span>
+                                        )}
+                                    </td>
+                                    <td>
+                                        <span className="cell-location">
+                                            <MapPin size={14} />
+                                            {adv.location || '—'}
                                         </span>
-                                    </div>
-
-                                    <div className="action-buttons">
-                                        <Link
-                                            to={`/adventures/edit/${adventure._id}`}
-                                            className="btn-icon"
-                                            title="Edit"
-                                        >
-                                            <Edit size={18} />
+                                    </td>
+                                    <td>
+                                        {adv.difficulty ? (
+                                            <span className={`badge ${adv.difficulty === 'Easy' ? 'badge-green' : adv.difficulty === 'Moderate' ? 'badge-yellow' : 'badge-red'}`}>
+                                                {adv.difficulty}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted">—</span>
+                                        )}
+                                    </td>
+                                    <td className="td-price">
+                                        ₹{adv.price?.toLocaleString() || '—'}
+                                    </td>
+                                    <td>
+                                        <span className={`badge ${adv.status === 'active' ? 'badge-green' : adv.status === 'inactive' ? 'badge-red' : 'badge-yellow'}`}>
+                                            {adv.status || 'draft'}
+                                        </span>
+                                    </td>
+                                    <td className="td-actions">
+                                        <Link to={`/adventures/edit/${adv._id}`} className="btn-icon" title="Edit">
+                                            <Edit size={16} />
                                         </Link>
-                                        <button
-                                            onClick={() => handleDelete(adventure._id)}
-                                            className="btn-icon danger"
-                                            title="Delete"
-                                        >
-                                            <Trash2 size={18} />
+                                        <button onClick={() => handleDelete(adv._id)} className="btn-icon danger" title="Delete">
+                                            <Trash2 size={16} />
                                         </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    <div className="table-footer">
+                        <span className="table-count">{filteredAdventures.length} adventure{filteredAdventures.length !== 1 ? 's' : ''}</span>
+                    </div>
                 </div>
             )}
         </div>

@@ -1,4 +1,5 @@
 const { getConvexClient } = require('../utils/convexClient');
+const { sanitizeUser } = require('../utils/sanitizeUser');
 const logger = require('../utils/logger');
 require('dotenv').config();
 
@@ -15,6 +16,11 @@ const getUsers = async (req, res) => {
             search
         });
 
+        // Strip password hashes from all user objects
+        if (result.data && Array.isArray(result.data)) {
+            result.data = result.data.map(sanitizeUser);
+        }
+
         res.json(result);
     } catch (error) {
         logger.error('Error fetching users:', error);
@@ -29,13 +35,17 @@ const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
 
+        if (req.user.id !== id && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Not authorized to view this user' });
+        }
+
         const result = await getConvexClient().getUserById(id);
 
         if (!result) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        res.json({ success: true, data: result });
+        res.json({ success: true, data: sanitizeUser(result) });
     } catch (error) {
         logger.error('Error fetching user:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch user' });
@@ -43,17 +53,24 @@ const getUserById = async (req, res) => {
 };
 
 /**
- * Update user
+ * Update user (owner or admin only)
  */
 const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
+
+        // IDOR protection: users can only update their own profile unless admin
+        if (req.user.id !== id && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Not authorized to update this user' });
+        }
+
         const updateData = req.body;
 
         // Prevent role and password updates through this general endpoint
         delete updateData.role;
         delete updateData.password;
         delete updateData._id;
+        delete updateData.email; // Email changes should go through a separate verified flow
 
         const result = await getConvexClient().updateUser(id, updateData);
 
@@ -61,7 +78,7 @@ const updateUser = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        res.json({ success: true, data: result });
+        res.json({ success: true, data: sanitizeUser(result) });
     } catch (error) {
         logger.error('Error updating user:', error);
         res.status(500).json({ success: false, message: 'Failed to update user' });
@@ -83,7 +100,7 @@ const uploadAvatar = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No image file provided' });
         }
 
-        const avatar_url = req.file.path;
+        const avatar_url = req.file.secure_url || req.file.path;
         const result = await getConvexClient().updateUser(id, { avatar_url, updated_at: new Date().toISOString() });
 
         if (!result) {

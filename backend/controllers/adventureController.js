@@ -62,30 +62,21 @@ const getAdventures = async (req, res) => {
     try {
         const { page = 1, limit = 10, status, difficulty, location, search, category, includeAllDates } = req.query;
         const includeAll = includeAllDates === 'true' || includeAllDates === '1';
+        const effectiveStatus = status || (includeAll ? undefined : 'active');
 
-        const result = await getConvexClient().getAdventures({
-            page: parseInt(page),
-            limit: parseInt(limit),
-            status,
-            difficulty,
-            location,
-            search,
-            category,
-        });
+        const convexFilters = { page: parseInt(page), limit: parseInt(limit), status: effectiveStatus, difficulty, location, category };
+        const result = await getConvexClient().getAdventures(convexFilters);
 
         if (result && Array.isArray(result.data)) {
             result.data = result.data.map((a) => attachAvailableDates(a, { includeAllDates: includeAll }));
 
-            if (search || category) {
-                const lower = (search || '').toLowerCase();
-                result.data = result.data.filter((a) => {
-                    const matchesSearch = !lower
-                        || (a.title || '').toLowerCase().includes(lower)
-                        || (a.location || '').toLowerCase().includes(lower)
-                        || (a.description || '').toLowerCase().includes(lower);
-                    const matchesCategory = !category || (a.category || '').toLowerCase().includes(category.toLowerCase());
-                    return matchesSearch && matchesCategory;
-                });
+            if (search) {
+                const lower = search.toLowerCase();
+                result.data = result.data.filter((a) =>
+                    (a.title || '').toLowerCase().includes(lower)
+                    || (a.location || '').toLowerCase().includes(lower)
+                    || (a.description || '').toLowerCase().includes(lower)
+                );
             }
         }
 
@@ -110,6 +101,16 @@ const getAdventureById = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
 
+        const isAdmin = await (async () => {
+            if (!req.user?.id) return false;
+            const dbUser = await getConvexClient().getUserById(req.user.id);
+            return dbUser?.role === 'admin';
+        })();
+
+        if (result.status !== 'active' && !isAdmin) {
+            return res.status(404).json({ success: false, message: 'Adventure not found' });
+        }
+
         res.json({ success: true, data: attachAvailableDates(result, { includeAllDates: includeAll }) });
     } catch (error) {
         logger.error('Error fetching adventure:', error);
@@ -125,7 +126,7 @@ const createAdventure = async (req, res) => {
         const adventureData = req.body;
 
         if (req.file) {
-            adventureData.image_url = req.file.path;
+            adventureData.image_url = req.file.secure_url || req.file.path;
         }
 
         if (adventureData.included !== undefined) {
@@ -170,6 +171,7 @@ const createAdventure = async (req, res) => {
             delete adventureData.max_participants;
         }
 
+        if (adventureData.category === '') delete adventureData.category;
         if (adventureData.endurance_level === '') delete adventureData.endurance_level;
         if (!adventureData.image_url) delete adventureData.image_url;
         if (adventureData.rating === '') delete adventureData.rating;
@@ -200,7 +202,7 @@ const updateAdventure = async (req, res) => {
         const adventureData = req.body;
 
         if (req.file) {
-            adventureData.image_url = req.file.path;
+            adventureData.image_url = req.file.secure_url || req.file.path;
         }
 
         if (adventureData.included !== undefined) {
@@ -243,6 +245,7 @@ const updateAdventure = async (req, res) => {
             delete adventureData.max_participants;
         }
 
+        if (adventureData.category === '') delete adventureData.category;
         if (adventureData.endurance_level === '') delete adventureData.endurance_level;
         if (adventureData.image_url === '') delete adventureData.image_url;
 
@@ -327,11 +330,19 @@ const uploadImages = async (req, res) => {
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ success: false, message: 'No images uploaded' });
         }
-        const imageUrls = req.files.map(file => `/uploads/images/${file.filename}`);
+        // Cloudinary upload middleware sets secure_url / path to the CDN URL
+        // never invent local /uploads/... paths (those 404 and break the gallery).
+        const imageUrls = req.files.map((file) => {
+            const url = file.secure_url || file.path || file.url;
+            if (!url) {
+                throw new Error('Upload succeeded but no image URL was returned');
+            }
+            return url;
+        });
         res.json({ success: true, data: imageUrls });
     } catch (error) {
         logger.error('Error uploading images:', error);
-        res.status(500).json({ success: false, message: 'Failed to upload images' });
+        res.status(500).json({ success: false, message: error.message || 'Failed to upload images' });
     }
 };
 

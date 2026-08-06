@@ -9,6 +9,7 @@ export default defineSchema({
     price: v.number(),
     duration: v.string(),
     difficulty: v.string(),
+    category: v.optional(v.string()), // 'trek', 'camping', 'tour', 'general'
     endurance_level: v.optional(v.string()),
     image_url: v.optional(v.string()),
     status: v.string(), // 'active', 'inactive'
@@ -32,6 +33,7 @@ export default defineSchema({
   })
     .index("status", ["status"])
     .index("difficulty", ["difficulty"])
+    .index("category", ["category"])
     .index("location", ["location"])
     .index("created_at", ["created_at"]),
   
@@ -40,34 +42,12 @@ export default defineSchema({
     name: v.string(),
     password: v.string(), // Hashed password
     role: v.string(), // 'admin', 'user'
+    avatar_url: v.optional(v.string()),
+    totp_secret: v.optional(v.string()),
+    totp_enabled: v.optional(v.boolean()),
     created_at: v.string(), // ISO string
-    updated_at: v.string(), // ISO string
+    updated_at: v.optional(v.string()), // ISO string
   }).index("email", ["email"]),
-  
-  bookings: defineTable({
-    user_id: v.string(),
-    adventure_id: v.string(),
-    booking_date: v.string(), // ISO string
-    participants: v.number(),
-    total_amount: v.number(),
-    advance_paid: v.optional(v.number()),
-    status: v.string(), // 'pending', 'confirmed', 'cancelled', 'completed'
-    id_type: v.optional(v.string()), // 'aadhaar', 'pan', 'driving', 'passport'
-    id_number: v.optional(v.string()),
-    created_at: v.string(), // ISO string
-    updated_at: v.string(), // ISO string
-  }).index("user_id", ["user_id"])
-    .index("adventure_id", ["adventure_id"]),
-  
-  payments: defineTable({
-    booking_id: v.string(),
-    amount: v.number(),
-    currency: v.string(),
-    status: v.string(), // 'pending', 'completed', 'failed', 'refunded'
-    payment_method: v.string(),
-    transaction_id: v.string(),
-    created_at: v.string(),
-  }).index("booking_id", ["booking_id"]),
 
   reviews: defineTable({
     user_id: v.string(),
@@ -80,7 +60,8 @@ export default defineSchema({
     approved: v.boolean(), // moderation
     created_at: v.string(),
   }).index("adventure_id", ["adventure_id"])
-    .index("user_id", ["user_id"]),
+    .index("user_id", ["user_id"])
+    .index("booking_id", ["booking_id"]),
 
   wishlist: defineTable({
     user_id: v.string(),
@@ -111,4 +92,81 @@ export default defineSchema({
     value: v.string(),
     updated_at: v.string(),
   }).index("key", ["key"]),
+
+  blog_posts: defineTable({
+    title: v.string(),
+    slug: v.string(),
+    excerpt: v.string(),
+    content: v.string(), // markdown-lite: paragraphs split by \n\n
+    category: v.string(), // 'trail-notes', 'guides', 'news'
+    cover_image: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    author: v.string(),
+    read_time: v.optional(v.number()), // minutes
+    published: v.boolean(),
+    created_at: v.string(),
+    updated_at: v.optional(v.string()),
+  }).index("slug", ["slug"])
+    .index("published", ["published"])
+    .index("category", ["category"]),
+
+  contact_messages: defineTable({
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    subject: v.string(),
+    message: v.string(),
+    status: v.string(), // 'new', 'read', 'replied', 'archived'
+    created_at: v.string(),
+  }).index("status", ["status"]),
+
+  bookings: defineTable({
+    booking_code: v.string(),
+    user_id: v.string(),
+    adventure_id: v.string(),
+    adventure_date: v.string(),
+    number_of_seats: v.number(),
+    amount: v.number(),
+    booking_status: v.string(), // draft, pending_payment, payment_submitted, confirmed, payment_failed, rejected, expired, cancelled
+    payment_method: v.string(),
+    seat_hold_expires_at: v.string(),
+    customer_name: v.optional(v.string()),
+    customer_email: v.optional(v.string()),
+    customer_phone: v.optional(v.string()),
+    created_at: v.string(),
+    updated_at: v.string(),
+  })
+    .index("booking_code", ["booking_code"])
+    .index("user_id", ["user_id"])
+    .index("booking_status", ["booking_status"])
+    .index("adventure_date", ["adventure_id", "adventure_date"]),
+
+  payments: defineTable({
+    booking_id: v.string(),
+    method: v.string(),
+    amount: v.number(),
+    upi_reference: v.optional(v.string()),
+    payer_name: v.optional(v.string()),
+    payer_upi_id: v.optional(v.string()),
+    screenshot_url: v.optional(v.string()),
+    screenshot_public_id: v.optional(v.string()),
+    payment_status: v.string(), // pending, submitted_by_customer, verified, rejected, refunded, duplicate
+    submitted_at: v.optional(v.string()),
+    verified_by: v.optional(v.string()),
+    verified_at: v.optional(v.string()),
+    rejection_reason: v.optional(v.string()),
+    created_at: v.string(),
+    updated_at: v.string(),
+  })
+    .index("booking_id", ["booking_id"])
+    .index("payment_status", ["payment_status"])
+    .index("upi_reference", ["upi_reference"]),
+
+  adventure_seat_inventory: defineTable({
+    adventure_id: v.string(),
+    adventure_date: v.string(),
+    max_participants: v.number(),
+    reserved_seats: v.number(),
+    updated_at: v.string(),
+  }).index("adventure_date", ["adventure_id", "adventure_date"]),
 });

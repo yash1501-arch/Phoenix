@@ -12,9 +12,11 @@ const safeJson = (input, fallback = null) => {
 
 exports.addReview = async (req, res) => {
     try {
-        const { user_id, adventure_id, booking_id, rating, title, comment, photos } = req.body;
-        if (!user_id || !adventure_id || rating == null) {
-            return res.status(400).json({ success: false, message: 'user_id, adventure_id, rating are required' });
+        const { adventure_id, booking_id, rating, title, comment, photos } = req.body;
+        const user_id = req.user.id;
+
+        if (!adventure_id || !booking_id || rating == null) {
+            return res.status(400).json({ success: false, message: 'adventure_id, booking_id, and rating are required' });
         }
         if (rating < 1 || rating > 5) {
             return res.status(400).json({ success: false, message: 'Rating must be 1-5' });
@@ -31,19 +33,35 @@ exports.addReview = async (req, res) => {
         return res.json({ success: true, data: { id }, message: 'Review submitted, awaiting approval' });
     } catch (error) {
         console.error('addReview error:', error);
-        return res.status(500).json({ success: false, message: 'Failed to submit review' });
+        const message = error.message || 'Failed to submit review';
+        const status = /booking|review/i.test(message) ? 400 : 500;
+        return res.status(status).json({ success: false, message });
     }
 };
 
 exports.getReviewsForAdventure = async (req, res) => {
     try {
-        const { adventure_id, limit, approved_only } = req.query;
+        const adventure_id = req.params.adventureId || req.query.adventure_id;
+        const { limit, approved_only } = req.query;
+
         if (!adventure_id) {
             return res.status(400).json({ success: false, message: 'adventure_id is required' });
         }
+
+        const includeUnapproved = approved_only === 'false';
+        if (includeUnapproved) {
+            if (!req.user?.id) {
+                return res.status(403).json({ success: false, message: 'Admin only' });
+            }
+            const dbUser = await getConvexClient().getUserById(req.user.id);
+            if (!dbUser || dbUser.role !== 'admin') {
+                return res.status(403).json({ success: false, message: 'Admin only' });
+            }
+        }
+
         const data = await getConvexClient().getReviewsForAdventure(adventure_id, {
             limit: limit ? Number(limit) : 50,
-            approved_only: approved_only === 'false' ? false : true,
+            approved_only: includeUnapproved ? false : true,
         });
         return res.json({ success: true, data });
     } catch (error) {
@@ -54,7 +72,14 @@ exports.getReviewsForAdventure = async (req, res) => {
 
 exports.getUserReviews = async (req, res) => {
     try {
-        const data = await getConvexClient().getReviewsByUser(req.params.userId);
+        const { userId } = req.params;
+        
+        // IDOR protection: users can only view their own reviews unless admin
+        if (req.user.id !== userId && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Not authorized to view these reviews' });
+        }
+        
+        const data = await getConvexClient().getReviewsByUser(userId);
         return res.json({ success: true, data });
     } catch (error) {
         return res.status(500).json({ success: false, message: 'Failed to fetch user reviews' });

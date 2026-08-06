@@ -1,130 +1,104 @@
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { EASE } from './Motion';
 
-const fadeUp = {
-    hidden: { opacity: 0, y: 16 },
-    show: (i = 0) => ({
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.55, delay: 0.05 + i * 0.08, ease: [0.22, 0.61, 0.36, 1] },
-    }),
-};
-
+/**
+ * Interior page hero — stone surface, ember accents, Unbounded display.
+ */
 const PageHero = ({
-    eyebrow,
-    title,
-    subtitle,
-    align = 'center',
-    breadcrumb,
-    showCta = false,
-    ctaLabel = 'Browse Adventures',
-    ctaHref = '/adventures',
-    children,
+  eyebrow,
+  title,
+  subtitle,
+  align = 'center',
+  breadcrumb,
+  showCta = false,
+  ctaLabel = 'Browse Adventures',
+  ctaHref = '/adventures',
+  children,
 }) => {
-    const isCenter = align === 'center';
-    return (
-        <section className="relative overflow-hidden bg-gradient-to-br from-black via-[#0b0b0b] to-black pt-32 pb-20 text-white md:pt-40 md:pb-28">
-            <div
-                aria-hidden
-                className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-[#D4AF37]/20 blur-3xl"
-            />
-            <div
-                aria-hidden
-                className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-[#D4AF37]/10 blur-3xl"
-            />
-            <div className="container relative z-10">
-                {breadcrumb && (
-                    <motion.nav
-                        variants={fadeUp}
-                        initial="hidden"
-                        animate="show"
-                        custom={0}
-                        className="mb-6 text-xs font-semibold uppercase tracking-widest text-[#D4AF37]/80"
-                    >
-                        {breadcrumb.map((crumb, i) => (
-                            <span key={crumb.label}>
-                                {i > 0 && <span className="mx-2 text-white/40">/</span>}
-                                {crumb.to ? (
-                                    <Link to={crumb.to} className="hover:text-white">
-                                        {crumb.label}
-                                    </Link>
-                                ) : (
-                                    <span className="text-white/70">{crumb.label}</span>
-                                )}
-                            </span>
-                        ))}
-                    </motion.nav>
+  const reduced = useReducedMotion();
+  const isCenter = align === 'center';
+
+  const fadeUp = (i = 0) =>
+    reduced
+      ? { opacity: 1, y: 0 }
+      : {
+          initial: { opacity: 0, y: 16 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.55, delay: 0.05 + i * 0.08, ease: EASE },
+        };
+
+  return (
+    <section className="relative overflow-hidden bg-stone pt-32 pb-20 text-mist md:pt-40 md:pb-24">
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(240,89,30,0.08),_transparent_55%)]"
+      />
+      <div aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-ember/30" />
+      <div className="container relative z-10">
+        {breadcrumb && (
+          <motion.nav
+            {...fadeUp(0)}
+            aria-label="Breadcrumb"
+            className="mb-8 text-xs font-semibold uppercase tracking-[0.16em] text-ember"
+          >
+            {breadcrumb.map((crumb, i) => (
+              <span key={crumb.label}>
+                {i > 0 && <span className="mx-2 text-mist/30">/</span>}
+                {crumb.to ? (
+                  <Link to={crumb.to} className="hover:text-mist transition-colors">
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span className="text-mist/50">{crumb.label}</span>
                 )}
-                <motion.div
-                    variants={fadeUp}
-                    initial="hidden"
-                    animate="show"
-                    custom={1}
-                    className={isCenter ? 'mx-auto max-w-3xl text-center' : 'max-w-3xl'}
-                >
-                    {eyebrow && (
-                        <motion.span
-                            variants={fadeUp}
-                            initial="hidden"
-                            animate="show"
-                            custom={1}
-                            className="inline-block rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#D4AF37]"
-                        >
-                            {eyebrow}
-                        </motion.span>
-                    )}
-                    <motion.h1
-                        variants={fadeUp}
-                        initial="hidden"
-                        animate="show"
-                        custom={2}
-                        className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl md:text-6xl"
-                    >
-                        {title}
-                    </motion.h1>
-                    {subtitle && (
-                        <motion.p
-                            variants={fadeUp}
-                            initial="hidden"
-                            animate="show"
-                            custom={3}
-                            className="mt-5 text-base text-white/70 sm:text-lg md:text-xl"
-                        >
-                            {subtitle}
-                        </motion.p>
-                    )}
-                    {showCta && (
-                        <motion.div
-                            variants={fadeUp}
-                            initial="hidden"
-                            animate="show"
-                            custom={4}
-                            className="mt-8 flex flex-wrap items-center justify-center gap-3"
-                        >
-                            <Link
-                                to={ctaHref}
-                                className="btn btn-primary"
-                            >
-                                {ctaLabel} <ArrowRight size={16} />
-                            </Link>
-                        </motion.div>
-                    )}
-                </motion.div>
-                {children && (
-                    <motion.div
-                        variants={fadeUp}
-                        initial="hidden"
-                        animate="show"
-                        custom={5}
-                        className="mt-10"
-                    >
-                        {children}
-                    </motion.div>
-                )}
-            </div>
-        </section>
-    );
+              </span>
+            ))}
+          </motion.nav>
+        )}
+        <div className={isCenter ? 'mx-auto max-w-3xl text-center' : 'max-w-3xl'}>
+          {eyebrow && (
+            <motion.p {...fadeUp(1)} className="kicker !text-ember">
+              {eyebrow}
+            </motion.p>
+          )}
+          <motion.h1
+            {...fadeUp(2)}
+            className="mt-5 font-display text-display-2xl !text-mist font-semibold tracking-tight"
+          >
+            {title}
+          </motion.h1>
+          {isCenter && (
+            <motion.hr {...fadeUp(2)} className="rule-gold mx-auto mt-8" />
+          )}
+          {subtitle && (
+            <motion.p
+              {...fadeUp(3)}
+              className="lede mt-7 !text-mist/75 mx-auto max-w-2xl"
+            >
+              {subtitle}
+            </motion.p>
+          )}
+          {showCta && (
+            <motion.div
+              {...fadeUp(4)}
+              className={`mt-10 flex flex-wrap gap-3 ${isCenter ? 'justify-center' : ''}`}
+            >
+              <Link to={ctaHref} className="btn btn-outline">
+                {ctaLabel} <ArrowRight size={16} />
+              </Link>
+            </motion.div>
+          )}
+        </div>
+        {children && (
+          <motion.div {...fadeUp(5)} className="mt-10">
+            {children}
+          </motion.div>
+        )}
+      </div>
+    </section>
+  );
 };
 
 export default PageHero;

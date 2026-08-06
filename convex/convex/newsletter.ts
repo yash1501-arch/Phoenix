@@ -1,7 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
-export const subscribe = mutation({
+export const subscribe = internalMutation({
     args: { email: v.string() },
     handler: async (ctx, args) => {
         const existing = await ctx.db
@@ -22,7 +22,7 @@ export const subscribe = mutation({
     },
 });
 
-export const unsubscribe = mutation({
+export const unsubscribe = internalMutation({
     args: { email: v.string() },
     handler: async (ctx, args) => {
         const existing = await ctx.db
@@ -36,7 +36,7 @@ export const unsubscribe = mutation({
     },
 });
 
-export const getAll = query({
+export const getAll = internalQuery({
     args: {},
     handler: async (ctx) => {
         return await ctx.db.query("newsletter").collect();

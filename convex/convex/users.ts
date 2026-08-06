@@ -1,8 +1,8 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 // Get all users with optional search
-export const getAll = query({
+export const getAll = internalQuery({
   args: {
     page: v.optional(v.number()),
     limit: v.optional(v.number()),
@@ -47,7 +47,7 @@ export const getAll = query({
 });
 
 // Get user by ID
-export const getById = query({
+export const getById = internalQuery({
   args: { id: v.id("users") },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.id);
@@ -56,7 +56,7 @@ export const getById = query({
 });
 
 // Create new user
-export const create = mutation({
+export const create = internalMutation({
   args: {
     name: v.string(),
     email: v.string(),
@@ -76,13 +76,15 @@ export const create = mutation({
 });
 
 // Update user
-export const update = mutation({
+export const update = internalMutation({
   args: {
     id: v.id("users"),
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     password: v.optional(v.string()),
     role: v.optional(v.string()),
+    totp_secret: v.optional(v.string()),
+    totp_enabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { id, ...updateFields } = args;
@@ -98,7 +100,7 @@ export const update = mutation({
 });
 
 // Get user by email (useful for auth)
-export const getByEmail = query({
+export const getByEmail = internalQuery({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
@@ -109,10 +111,38 @@ export const getByEmail = query({
 });
 
 // Delete user by id
-export const remove = mutation({
+export const remove = internalMutation({
   args: { id: v.id("users") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.id);
+    return args.id;
+  },
+});
+
+export const setTotp = internalMutation({
+  args: {
+    id: v.id("users"),
+    totp_secret: v.string(),
+    totp_enabled: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      totp_secret: args.totp_secret,
+      totp_enabled: args.totp_enabled,
+      updated_at: new Date().toISOString(),
+    });
+    return args.id;
+  },
+});
+
+export const clearTotp = internalMutation({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      totp_secret: undefined,
+      totp_enabled: false,
+      updated_at: new Date().toISOString(),
+    });
     return args.id;
   },
 });

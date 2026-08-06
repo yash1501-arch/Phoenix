@@ -7,7 +7,6 @@ Disallow: /login
 Disallow: /register
 Disallow: /forgot-password
 Disallow: /reset-password
-Disallow: /checkout
 Disallow: /dashboard
 Disallow: /wishlist
 Disallow: /api/

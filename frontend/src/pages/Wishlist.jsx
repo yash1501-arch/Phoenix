@@ -2,94 +2,96 @@ import { Link } from 'react-router-dom';
 import { Heart, MapPin, Clock, Trash2, Compass, ChevronRight } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import Navbar from '../components/Navbar';
-import Footer, { MobileTabBarSpacer } from '../components/Footer';
+import Footer from '../components/Footer';
 import Seo from '../components/Seo';
 import PageHero from '../components/ui/PageHero';
 import EmptyState from '../components/ui/EmptyState';
 import { getImageUrl } from '../utils/api';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Reveal, StaggerContainer, StaggerItem, EASE } from '../components/ui/Motion';
 
 const Wishlist = () => {
-    const { items, remove } = useWishlist();
+  const { items, remove } = useWishlist();
 
-    return (
-        <>
-            <Seo title="My Wishlist" description="Treks and adventures you've saved for later." />
-            <Navbar />
-            <PageHero
-                eyebrow="Saved for later"
-                title="Your Wishlist"
-                subtitle="Treks and adventures you're dreaming about. Pick up where you left off."
-                breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Wishlist' }]}
-            />
-            <section className="bg-white py-12">
-                <div className="container">
-                    {items.length === 0 ? (
-                        <EmptyState
-                            icon={Heart}
-                            title="Your wishlist is empty"
-                            description="Tap the heart on any adventure to save it for later."
-                            action={
-                                <Link to="/adventures" className="btn btn-primary">
-                                    <Compass size={16} /> Discover adventures
-                                </Link>
-                            }
-                        />
-                    ) : (
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            <AnimatePresence>
-                                {items.map((item, i) => {
-                                    const a = item.adventure || {};
-                                    const advId = item.adventure_id;
-                                    return (
-                                        <motion.article
-                                            key={advId}
-                                            layout
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            transition={{ delay: i * 0.04 }}
-                                            className="group relative overflow-hidden rounded-2xl border border-[#D4AF37]/30 bg-white shadow-professional transition-all hover:-translate-y-1 hover:shadow-professional-lg"
-                                        >
-                                            <div className="img-wrapper rounded-none pb-[60%]">
-                                                <img
-                                                    src={getImageUrl(a.image_url) || '/placeholder.jpg'}
-                                                    alt={a.title}
-                                                    onError={(e) => (e.currentTarget.src = '/placeholder.jpg')}
-                                                />
-                                            </div>
-                                            <button
-                                                onClick={() => remove(advId)}
-                                                className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-red-500 shadow-md backdrop-blur-sm transition-all hover:bg-red-500 hover:text-white"
-                                                aria-label="Remove from wishlist"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                            <div className="p-5">
-                                                <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
-                                                    <span className="inline-flex items-center gap-1"><MapPin size={12} /> {a.location || 'India'}</span>
-                                                    <span className="inline-flex items-center gap-1"><Clock size={12} /> {a.duration || '—'}</span>
-                                                </div>
-                                                <h3 className="text-base font-bold text-gray-900 group-hover:text-[#B8860B]">{a.title}</h3>
-                                                <div className="mt-3 flex items-center justify-between">
-                                                    <span className="text-lg font-extrabold text-[#B8860B]">₹{Number(a.price || 0).toLocaleString('en-IN')}</span>
-                                                    <Link to={`/adventure/${advId}`} className="rounded-lg border-2 border-[#D4AF37] px-3 py-1.5 text-xs font-bold text-[#B8860B] hover:bg-[#D4AF37] hover:text-white">
-                                                        View <ChevronRight size={12} className="inline" />
-                                                    </Link>
-                                                </div>
-                                            </div>
-                                        </motion.article>
-                                    );
-                                })}
-                            </AnimatePresence>
+  return (
+    <div className="min-h-screen bg-mist">
+      <Seo title="My Wishlist" description="Treks and adventures you've saved for later." />
+      <Navbar />
+      <PageHero
+        eyebrow="Saved for later"
+        title="Your Wishlist"
+        subtitle="Treks and adventures you're dreaming about. Pick up where you left off."
+        breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Wishlist' }]}
+      />
+      <section className="bg-white py-12 md:py-16">
+        <div className="container">
+          {items.length === 0 ? (
+            <Reveal variant="scale">
+              <EmptyState
+                icon={Heart}
+                title="Your wishlist is empty"
+                description="Tap the heart on any adventure to save it for later."
+                action={
+                  <Link to="/adventures" className="btn btn-primary">
+                    <Compass size={16} /> Discover adventures
+                  </Link>
+                }
+              />
+            </Reveal>
+          ) : (
+            <StaggerContainer className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <AnimatePresence>
+                {items.map((item) => {
+                  const a = item.adventure || {};
+                  const advId = item.adventure_id;
+                  return (
+                    <StaggerItem key={advId}>
+                      <motion.article
+                        layout
+                        exit={{ opacity: 0, scale: 0.92 }}
+                        transition={{ duration: 0.3, ease: EASE }}
+                        className="group relative flex flex-col overflow-hidden rounded-lg border border-stone/8 bg-white shadow-smoke transition-shadow hover:shadow-card h-full"
+                      >
+                        <div className="relative aspect-[4/3] overflow-hidden">
+                          <img
+                            src={getImageUrl(a.image_url) || '/placeholder.jpg'}
+                            alt={a.title}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            onError={(e) => (e.currentTarget.src = '/placeholder.jpg')}
+                          />
                         </div>
-                    )}
-                </div>
-            </section>
-    <MobileTabBarSpacer />
-    <Footer />
-        </>
-    );
+                        <button
+                          onClick={() => remove(advId)}
+                          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-md bg-white/95 text-red-500 shadow-smoke transition-colors hover:bg-red-500 hover:text-white"
+                          aria-label="Remove from wishlist"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <div className="flex flex-1 flex-col p-5">
+                          <div className="mb-2 flex items-center justify-between text-xs text-muted">
+                            <span className="inline-flex items-center gap-1"><MapPin size={12} className="text-ember" /> {a.location || 'India'}</span>
+                            <span className="inline-flex items-center gap-1"><Clock size={12} className="text-ember" /> {a.duration || '—'}</span>
+                          </div>
+                          <h3 className="font-display line-clamp-2 text-base font-semibold text-stone group-hover:text-ember transition-colors">{a.title}</h3>
+                          <div className="mt-auto flex items-center justify-between pt-4 border-t border-stone/8">
+                            <span className="font-display text-lg font-semibold text-stone">₹{Number(a.price || 0).toLocaleString('en-IN')}</span>
+                            <Link to={`/adventure/${advId}`} className="inline-flex items-center gap-1 text-xs font-bold text-ember hover:text-ember-deep">
+                              View <ChevronRight size={12} />
+                            </Link>
+                          </div>
+                        </div>
+                      </motion.article>
+                    </StaggerItem>
+                  );
+                })}
+              </AnimatePresence>
+            </StaggerContainer>
+          )}
+        </div>
+      </section>
+            <Footer />
+    </div>
+  );
 };
 
 export default Wishlist;

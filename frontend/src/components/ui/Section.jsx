@@ -1,49 +1,52 @@
-import { motion } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
+import { Reveal } from './Motion';
 
-// Consistent section wrapper. Standardises vertical rhythm across the app.
-// All public pages should use this for major content blocks.
 const sizes = {
-    sm: 'py-12 md:py-16',     // 48/64
-    md: 'py-16 md:py-20',     // 64/80
-    lg: 'py-20 md:py-24',     // 80/96
-    xl: 'py-24 md:py-28',     // 96/112
+  sm: 'py-12 md:py-16',
+  md: 'py-16 md:py-20',
+  lg: 'py-20 md:py-24',
+  xl: 'py-24 md:py-28',
 };
 
 const toneClasses = {
-    light: 'bg-white',
-    cream: 'bg-gradient-to-b from-white to-[#F0E68C]/5',
-    gold: 'bg-gradient-to-r from-[#F0E68C]/10 to-[#D4AF37]/10 border-y border-[#D4AF37]/20',
-    dark: 'bg-gradient-to-br from-black via-[#0b0b0b] to-black text-white',
+  light: 'bg-mist',
+  mist: 'bg-mist',
+  white: 'bg-white',
+  stone: 'bg-stone text-mist',
+  dark: 'bg-stone text-mist',
+  muted: 'bg-mist-subtle',
 };
 
+/**
+ * Section wrapper — vertical rhythm + optional scroll reveal.
+ * Prefer `variant` for varied motion (not identical fade-up everywhere).
+ */
 export default function Section({
-    children,
-    size = 'lg',
-    tone = 'light',
-    className = '',
-    id,
-    container = true,
-    reveal = true,
-    ...rest
+  children,
+  size = 'lg',
+  tone = 'light',
+  className = '',
+  id,
+  container = true,
+  reveal = true,
+  variant = 'rise',
+  ...rest
 }) {
-    const y = size === 'sm' ? 16 : size === 'md' ? 20 : 24;
-    const Wrapper = reveal ? motion.section : 'section';
-    const inner = (
-        <Wrapper
-            id={id}
-            className={`${sizes[size] || sizes.lg} ${toneClasses[tone] || toneClasses.light} ${className}`}
-            {...(reveal
-                ? {
-                    initial: { opacity: 0, y },
-                    whileInView: { opacity: 1, y: 0 },
-                    viewport: { once: true, margin: '-80px' },
-                    transition: { duration: 0.6, ease: [0.22, 0.61, 0.36, 1] },
-                }
-                : {})}
-            {...rest}
-        >
-            {container ? <div className="container">{children}</div> : children}
-        </Wrapper>
+  const reduced = useReducedMotion();
+  const content = container ? <div className="container">{children}</div> : children;
+  const classes = `${sizes[size] || sizes.lg} ${toneClasses[tone] || toneClasses.light} ${className}`;
+
+  if (!reveal || reduced) {
+    return (
+      <section id={id} className={classes} {...rest}>
+        {content}
+      </section>
     );
-    return inner;
+  }
+
+  return (
+    <Reveal as="section" id={id} className={classes} variant={variant} {...rest}>
+      {content}
+    </Reveal>
+  );
 }

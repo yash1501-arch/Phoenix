@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Save, Settings as SettingsIcon, Plus, Trash2, Instagram, ExternalLink } from 'lucide-react';
-import { settingsAPI } from '../utils/api';
+import { Save, Settings as SettingsIcon, Plus, Trash2, Instagram, ExternalLink, Shield, ShieldOff } from 'lucide-react';
+import { settingsAPI, twoFactorAPI } from '../utils/api';
 
 const SETTINGS_FIELDS = [
     { key: 'site_name', label: 'Site Name', type: 'text' },
@@ -118,6 +118,138 @@ const InstagramPostsEditor = ({ value, onSave }) => {
     );
 };
 
+const Security2FAPanel = () => {
+    const [enabled, setEnabled] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [setup, setSetup] = useState(null);
+    const [code, setCode] = useState('');
+    const [password, setPassword] = useState('');
+    const [busy, setBusy] = useState(false);
+
+    const loadStatus = () => {
+        twoFactorAPI.status()
+            .then((res) => setEnabled(Boolean(res.data?.data?.enabled)))
+            .catch(() => toast.error('Could not load 2FA status'))
+            .finally(() => setLoading(false));
+    };
+
+    useEffect(() => { loadStatus(); }, []);
+
+    const startSetup = async () => {
+        setBusy(true);
+        try {
+            const res = await twoFactorAPI.setup();
+            setSetup(res.data?.data || null);
+            setCode('');
+        } catch {
+            toast.error('Failed to start 2FA setup');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const confirmEnable = async () => {
+        if (!setup?.secret) return;
+        setBusy(true);
+        try {
+            await twoFactorAPI.enable(setup.secret, code);
+            toast.success('Two-factor authentication enabled');
+            setSetup(null);
+            setCode('');
+            setEnabled(true);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Invalid code');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const disable2fa = async () => {
+        setBusy(true);
+        try {
+            await twoFactorAPI.disable(code, password);
+            toast.success('Two-factor authentication disabled');
+            setCode('');
+            setPassword('');
+            setEnabled(false);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Could not disable 2FA');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+            <h2 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+                <Shield size={18} className="text-[#D4AF37]" />
+                Admin two-factor authentication
+            </h2>
+            <p className="text-xs text-gray-500 mb-4">
+                Protect admin login with Google Authenticator, Authy, or any TOTP app.
+            </p>
+
+            {loading ? (
+                <p className="text-sm text-gray-500">Loading…</p>
+            ) : enabled ? (
+                <div className="space-y-3">
+                    <p className="text-sm text-green-700 font-medium">2FA is enabled on this account.</p>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Current 6-digit code"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full rounded-xl border-2 border-gray-200 px-4 py-2.5 text-sm"
+                    />
+                    <input
+                        type="password"
+                        placeholder="Account password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full rounded-xl border-2 border-gray-200 px-4 py-2.5 text-sm"
+                    />
+                    <button
+                        type="button"
+                        onClick={disable2fa}
+                        disabled={busy || code.length < 6 || !password}
+                        className="btn-secondary flex items-center gap-2 disabled:opacity-60"
+                    >
+                        <ShieldOff size={16} /> Disable 2FA
+                    </button>
+                </div>
+            ) : setup ? (
+                <div className="space-y-3">
+                    {setup.qrDataUrl && (
+                        <img src={setup.qrDataUrl} alt="Scan in authenticator app" className="w-44 h-44 rounded-lg border border-gray-200" />
+                    )}
+                    <p className="text-xs text-gray-500 break-all font-mono">{setup.secret}</p>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="6-digit code from app"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full rounded-xl border-2 border-gray-200 px-4 py-2.5 text-sm"
+                    />
+                    <div className="flex gap-2">
+                        <button type="button" onClick={confirmEnable} disabled={busy || code.length < 6} className="btn-primary disabled:opacity-60">
+                            Confirm & enable
+                        </button>
+                        <button type="button" onClick={() => setSetup(null)} className="btn-secondary">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <button type="button" onClick={startSetup} disabled={busy} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+                    <Shield size={16} /> Enable 2FA
+                </button>
+            )}
+        </div>
+    );
+};
+
 const Settings = () => {
     const [values, setValues] = useState({});
     const [loading, setLoading] = useState(true);
@@ -196,6 +328,8 @@ const Settings = () => {
                     value={values.instagram_posts}
                     onSave={(v) => onSave('instagram_posts', v)}
                 />
+
+                <Security2FAPanel />
             </div>
         </div>
     );

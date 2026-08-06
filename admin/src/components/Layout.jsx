@@ -4,14 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard,
     Mountain,
-    Calendar,
-    Users,
     Menu,
     X,
     LogOut,
     Settings,
     Star,
-    Activity
+    PenLine,
+    Inbox,
+    CreditCard
 } from 'lucide-react';
 import './Layout.css';
 
@@ -20,33 +20,17 @@ const Layout = ({ children }) => {
     const { logout, user } = useAuth();
     const location = useLocation();
 
-    // Close sidebar on mobile when route changes
     React.useEffect(() => {
-        if (window.innerWidth <= 768) {
-            setSidebarOpen(false);
-        }
+        if (window.innerWidth <= 768) setSidebarOpen(false);
     }, [location]);
-
-    // Handle screen resize
-    React.useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth > 768) {
-                setSidebarOpen(true);
-            } else {
-                setSidebarOpen(false);
-            }
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     const menuItems = [
         { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
         { path: '/adventures', icon: Mountain, label: 'Adventures' },
-        { path: '/bookings', icon: Calendar, label: 'Bookings' },
-        { path: '/users', icon: Users, label: 'Users' },
         { path: '/reviews', icon: Star, label: 'Reviews' },
-        { path: '/audit', icon: Activity, label: 'Audit Log' },
+        { path: '/blog', icon: PenLine, label: 'Blog' },
+        { path: '/messages', icon: Inbox, label: 'Messages' },
+        { path: '/payments', icon: CreditCard, label: 'Payments' },
         { path: '/settings', icon: Settings, label: 'Settings' }
     ];
 
@@ -57,28 +41,25 @@ const Layout = ({ children }) => {
 
     return (
         <div className="admin-layout">
-            {/* Mobile Overlay */}
             {sidebarOpen && window.innerWidth <= 768 && (
-                <div
-                    className="sidebar-overlay"
-                    onClick={() => setSidebarOpen(false)}
-                />
+                <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
             )}
 
-            {/* Sidebar */}
             <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
                 <div className="sidebar-header">
                     <div className="logo">
-                        <Mountain className="logo-icon" />
-                        {(sidebarOpen || window.innerWidth <= 768) && <span className="logo-text">Phoenix Admin</span>}
+                        <span className="logo-mark-wrap">
+                            <img src="/logo-mark.png" alt="Phoenix Adventures" className="logo-mark" />
+                        </span>
+                        {(sidebarOpen || window.innerWidth <= 768) && <span className="logo-text">Phoenix</span>}
                     </div>
-                    {/* Mobile Close Button */}
-                    <button
-                        className="mobile-close-btn"
-                        onClick={() => setSidebarOpen(false)}
-                    >
+                    <button className="mobile-close-btn" onClick={() => setSidebarOpen(false)}>
                         <X size={20} />
                     </button>
+                </div>
+
+                <div className="sidebar-label">
+                    {(sidebarOpen || window.innerWidth <= 768) && <span>Main Menu</span>}
                 </div>
 
                 <nav className="sidebar-nav">
@@ -90,11 +71,21 @@ const Layout = ({ children }) => {
                         >
                             <item.icon className="nav-icon" />
                             {(sidebarOpen || window.innerWidth <= 768) && <span className="nav-label">{item.label}</span>}
+                            {isActive(item.path) && <span className="nav-indicator" />}
                         </Link>
                     ))}
                 </nav>
 
                 <div className="sidebar-footer">
+                    <div className="sidebar-user">
+                        <div className="user-avatar">{user?.name?.charAt(0) || 'A'}</div>
+                        {(sidebarOpen || window.innerWidth <= 768) && (
+                            <div className="user-info">
+                                <span className="user-name">{user?.name || 'Admin'}</span>
+                                <span className="user-role">Administrator</span>
+                            </div>
+                        )}
+                    </div>
                     <button className="nav-item logout" onClick={logout}>
                         <LogOut className="nav-icon" />
                         {(sidebarOpen || window.innerWidth <= 768) && <span className="nav-label">Logout</span>}
@@ -102,15 +93,10 @@ const Layout = ({ children }) => {
                 </div>
             </aside>
 
-            {/* Main Content */}
             <div className="main-content">
-                {/* Header */}
                 <header className="header">
-                    <button
-                        className="menu-toggle"
-                        onClick={() => setSidebarOpen(!sidebarOpen)}
-                    >
-                        <Menu />
+                    <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+                        <Menu size={20} />
                     </button>
 
                     <div className="header-right">
@@ -125,7 +111,6 @@ const Layout = ({ children }) => {
                     </div>
                 </header>
 
-                {/* Page Content */}
                 <main className="page-content">
                     {children}
                 </main>

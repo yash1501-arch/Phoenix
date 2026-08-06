@@ -1,7 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
-export const add = mutation({
+export const add = internalMutation({
     args: {
         user_id: v.string(),
         adventure_id: v.string(),
@@ -23,7 +23,7 @@ export const add = mutation({
     },
 });
 
-export const remove = mutation({
+export const remove = internalMutation({
     args: {
         user_id: v.string(),
         adventure_id: v.string(),
@@ -39,7 +39,7 @@ export const remove = mutation({
     },
 });
 
-export const getByUser = query({
+export const getByUser = internalQuery({
     args: { user_id: v.string() },
     handler: async (ctx, args) => {
         const items = await ctx.db
@@ -62,7 +62,7 @@ export const getByUser = query({
     },
 });
 
-export const isWishlisted = query({
+export const isWishlisted = internalQuery({
     args: {
         user_id: v.string(),
         adventure_id: v.string(),

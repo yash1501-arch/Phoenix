@@ -1,177 +1,169 @@
 import React from 'react';
-import { Users, Award, Globe, Shield, Sparkles } from 'lucide-react';
+import { Users, Award, Mountain, Shield, HeartHandshake } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import Footer, { MobileTabBarSpacer } from '../components/Footer';
-import ScrollAnimation from '../components/ScrollAnimation';
+import Footer from '../components/Footer';
+import PageHero from '../components/ui/PageHero';
 import Section from '../components/ui/Section';
-import FounderCard, { BusinessInstagramCTA, BusinessSocialButtons } from '../components/ui/FounderCard';
+import FounderCard, { BusinessInstagramCTA } from '../components/ui/FounderCard';
 import { founders } from '../data/founders';
-import { StaggerContainer, StaggerItem } from '../components/ui/Motion';
+import Seo from '../components/Seo';
+import { Reveal, StaggerContainer, StaggerItem, IconMotion } from '../components/ui/Motion';
 
 const About = () => {
+  // Trust stats from CONTEXT.md � verbatim
   const stats = [
-    { icon: Users, value: '15,000+', label: 'Happy Adventurers' },
-    { icon: Award, value: '50+', label: 'Destinations' },
-    { icon: Globe, value: '12+', label: 'Years Experience' },
-    { icon: Shield, value: '4.9/5', label: 'Safety Rating' }
+    { icon: HeartHandshake, value: '45+', label: 'Volunteers connected' },
+    { icon: Mountain, value: '500+', label: 'Trips completed' },
+    { icon: Users, value: '15,000+', label: 'Happy explorers' },
+    { icon: Award, value: '50+', label: 'Local guides' },
+    { icon: Shield, value: '4.9/5', label: 'Average rating' },
   ];
 
   const values = [
     {
-      title: 'Sustainability',
-      description: 'We prioritize eco-friendly practices and contribute to conservation efforts in every destination we visit.',
-      color: 'from-green-400 to-green-600'
+      title: 'Safety first',
+      description:
+        'Every departure is planned with clear grading, local knowledge, and end-to-end logistics so you can walk at your own pace.',
     },
     {
-      title: 'Safety',
-      description: 'We maintain the highest safety standards with comprehensive risk assessments and emergency protocols.',
-      color: 'from-blue-400 to-blue-600'
+      title: 'Fort & history-led',
+      description:
+        'We focus on Sahyadri range forts and Maharashtra outdoor destinations � Raigad, Rajgad, Torna, Sagargad, Hadsar, Pratapgad, Shivneri, and more.',
     },
     {
-      title: 'Excellence',
-      description: 'Our commitment to quality ensures every adventure exceeds expectations with professional service.',
-      color: 'from-purple-400 to-purple-600'
+      title: 'Adventure tribe',
+      description:
+        'Discover the great outdoors with our adventure tribe � small groups, honest routes, and guides who know these trails.',
     },
     {
       title: 'Community',
-      description: 'We believe in connecting people with nature and each other through transformative experiences.',
-      color: 'from-orange-400 to-orange-600'
-    }
+      description:
+        'We believe in connecting people with nature and each other through transformative experiences.',
+    },
   ];
 
+  const visibleFounders = founders.filter((f) => !f.placeholder);
+
   return (
-    <div id="main-content" className="min-h-screen bg-gradient-to-b from-white to-[#F0E68C]/5">
+    <div id="main-content" className="min-h-screen bg-mist">
+      <Seo
+        title="About Us"
+        description="Phoenix Adventures � trekking & outdoor adventure focused on Sahyadri forts. Est. 22 March 2023."
+      />
       <Navbar />
 
-      {/* Hero — top padding clears the fixed navbar; balanced bottom padding */}
-      <section className="relative bg-black text-white pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="/src/assets/images/hero-bg.png"
-            alt="About Background"
-            className="w-full h-full object-cover opacity-40"
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/40 to-black/80" />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#D4AF37]/20 to-transparent z-[1]"></div>
-        <div className="relative z-10 container text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full mb-6">
-            <Sparkles size={14} className="text-[#D4AF37]" />
-            <span className="text-[#D4AF37] text-xs font-bold tracking-wider uppercase">
-              Our Story
-            </span>
-          </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black mb-6 leading-tight">
-            About <span className="text-[#D4AF37]">Phoenix Adventures</span>
-          </h1>
-          <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-            Founded with a passion for exploration and deep respect for nature, we've been connecting adventurers with the world's most breathtaking destinations for over a decade.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="Our story"
+        title="Built on the trail"
+        subtitle="Phoenix Adventures was established on 22 March 2023. We connect adventurers with Sahyadri fort treks and Maharashtra outdoor destinations � safety-first, own pace, end-to-end logistics."
+        breadcrumb={[{ label: 'Home', to: '/' }, { label: 'About' }]}
+      />
 
-      {/* Business Instagram CTA strip */}
       <BusinessInstagramCTA />
 
-      {/* Stats */}
-      <Section size="md" tone="light">
-        <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+      <Section size="md" tone="mist" variant="fade">
+        <StaggerContainer className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 sm:gap-6">
           {stats.map((stat) => (
             <StaggerItem key={stat.label}>
-              <div className="text-center p-6 bg-white rounded-2xl shadow-professional border border-[#D4AF37]/20 h-full">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#D4AF37] to-[#B8860B] rounded-full flex items-center justify-center text-white mx-auto mb-4">
-                  <stat.icon className="w-8 h-8" />
+              <div className="text-center p-6 bg-white rounded-lg border border-stone/8 h-full">
+                <IconMotion className="w-12 h-12 bg-stone text-ember rounded-md flex items-center justify-center mx-auto mb-4">
+                  <stat.icon className="w-6 h-6" />
+                </IconMotion>
+                <div className="font-display text-2xl sm:text-3xl font-semibold text-stone mb-1">
+                  {stat.value}
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-black mb-2">{stat.value}</div>
-                <div className="text-sm text-gray-600 font-semibold">{stat.label}</div>
+                <div className="text-sm text-muted font-medium">{stat.label}</div>
               </div>
             </StaggerItem>
           ))}
         </StaggerContainer>
       </Section>
 
-      {/* Mission */}
-      <Section size="lg" tone="gold">
-        <div className="text-center max-w-4xl mx-auto mb-12">
-          <h2 className="text-3xl sm:text-4xl font-black text-black mb-5">
-            Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#B8860B]">Mission</span>
+      <Section size="lg" tone="white" variant="slideLeft">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <p className="kicker mb-3">Mission</p>
+          <h2 className="font-display text-display-lg text-stone font-semibold mb-5">
+            Discover the great outdoors with our adventure tribe
           </h2>
-          <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
-            To inspire people to step out of their comfort zones and discover the transformative power of adventure.
-            We believe that every journey should be an opportunity for growth, connection, and wonder.
+          <p className="text-base sm:text-lg text-muted leading-relaxed">
+            Trekking and outdoor adventure focused on the Sahyadri range � fort history, safety-first guiding, and logistics handled end to end.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-10 lg:gap-12 items-center">
-          <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-black mb-5">Creating Unforgettable Experiences</h3>
-            <p className="text-gray-700 mb-4 leading-relaxed">
-              Since 2024, Phoenix Adventures has been crafting life-changing experiences for thrill-seekers and nature lovers alike.
-              Our team of certified guides brings years of experience and local knowledge to every adventure.
+        <div className="grid md:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <Reveal variant="rise">
+            <h3 className="font-display text-xl sm:text-2xl font-semibold text-stone mb-4">
+              Creating unforgettable experiences
+            </h3>
+            <p className="text-muted mb-4 leading-relaxed">
+              Since 22 March 2023, Phoenix Adventures has been crafting trail experiences for thrill-seekers and
+              nature lovers alike. Our local guides bring knowledge of Sahyadri forts and Maharashtra outdoors to every trip.
             </p>
-            <p className="text-gray-700 leading-relaxed">
-              We've helped thousands of adventurers discover their limits, overcome challenges, and connect with the natural world in profound ways.
+            {/* TODO: Confirm Onkar Oak staff bio before adding to About/team � named in reviews only */}
+            <p className="text-muted leading-relaxed">
+              We&apos;ve helped thousands of adventurers discover their limits, overcome challenges, and connect with the
+              natural world in profound ways.
             </p>
-          </div>
-          <div className="relative">
+          </Reveal>
+          <Reveal variant="clip">
             <img
-              src="https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=600&h=400&q=80"
-              alt="Team of adventurers"
-              className="rounded-2xl shadow-professional w-full"
+              src="https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&h=520&q=80"
+              alt="Team of adventurers on a ridge"
+              className="rounded-lg w-full object-cover aspect-[4/3]"
             />
-          </div>
+          </Reveal>
         </div>
       </Section>
 
-      {/* Values */}
-      <Section size="lg" tone="light" reveal={false}>
-        <div className="text-center max-w-4xl mx-auto mb-12 md:mb-16">
-          <h2 className="text-3xl sm:text-4xl font-black text-black mb-5">
-            Our Core <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#B8860B]">Values</span>
+      <Section size="lg" tone="mist" reveal={false}>
+        <Reveal variant="fade" className="text-center max-w-3xl mx-auto mb-12 md:mb-14">
+          <p className="kicker mb-3">Principles</p>
+          <h2 className="font-display text-display-lg text-stone font-semibold mb-4">
+            What we hold to
           </h2>
-          <p className="text-base sm:text-lg text-gray-700">
-            These principles guide everything we do and ensure we maintain the highest standards.
+          <p className="text-muted">
+            Four commitments that shape every departure we run.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {values.map((value) => (
-            <div
-              key={value.title}
-              className="group bg-white rounded-2xl p-6 shadow-professional hover:shadow-professional-lg border border-[#D4AF37]/20 transition-all h-full hover:-translate-y-1"
-            >
-              <div className={`w-12 h-12 bg-gradient-to-r ${value.color} rounded-xl flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-                <Shield className="w-6 h-6" />
+            <StaggerItem key={value.title}>
+              <div className="bg-white rounded-lg p-6 border border-stone/8 h-full">
+                <IconMotion className="w-10 h-10 bg-stone text-ember rounded-md flex items-center justify-center mb-4">
+                  <Shield className="w-5 h-5" />
+                </IconMotion>
+                <h3 className="font-display text-lg font-semibold text-stone mb-2">{value.title}</h3>
+                <p className="text-sm text-muted leading-relaxed">{value.description}</p>
               </div>
-              <h3 className="text-xl font-bold text-black mb-3">{value.title}</h3>
-              <p className="text-gray-600 leading-relaxed">{value.description}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* Founders */}
-      <Section size="lg" tone="cream">
-        <div className="text-center max-w-4xl mx-auto mb-12 md:mb-16">
-          <h2 className="text-3xl sm:text-4xl font-black text-black mb-5">
-            Meet Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#B8860B]">Founders</span>
-          </h2>
-          <p className="text-base sm:text-lg text-gray-700">
-            The two people behind every Phoenix adventure — guiding, building, and living the journey.
-          </p>
-        </div>
-
-        <StaggerContainer className="grid sm:grid-cols-2 gap-6 md:gap-8 max-w-4xl mx-auto">
-          {founders.map((founder) => (
-            <StaggerItem key={founder.name}>
-              <FounderCard founder={founder} />
             </StaggerItem>
           ))}
         </StaggerContainer>
       </Section>
 
-      <MobileTabBarSpacer />
-      <Footer />
+      {visibleFounders.length > 0 && (
+        <Section size="lg" tone="white" variant="slideRight">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <p className="kicker mb-3">Team</p>
+            <h2 className="font-display text-display-lg text-stone font-semibold mb-4">
+              Meet our founders
+            </h2>
+            <p className="text-muted">
+              The people behind every Phoenix adventure � guiding, building, and living the journey.
+            </p>
+          </div>
+
+          <StaggerContainer className="grid sm:grid-cols-2 gap-6 md:gap-8 max-w-4xl mx-auto">
+            {visibleFounders.map((founder) => (
+              <StaggerItem key={founder.name}>
+                <FounderCard founder={founder} />
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
+        </Section>
+      )}
+
+            <Footer />
     </div>
   );
 };

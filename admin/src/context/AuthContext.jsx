@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 
 const AuthContext = createContext();
@@ -11,72 +11,117 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    useEffect(() => {
-        const checkAuth = () => {
-            const token = localStorage.getItem('adminToken');
-            if (token) {
-                try {
-                    // Decode token to get user info
-                    const payload = JSON.parse(atob(token.split('.')[1]));
+    const hydrateSession = useCallback(async () => {
+        try {
+            const response = await api.get('/auth/me');
+            const sessionUser = response.data?.user || {
+                id: response.data?.id || response.data?._id,
+                name: response.data?.name,
+                email: response.data?.email,
+                role: response.data?.role,
+            };
 
-                    // Verify admin role
-                    if (payload.user.role === 'admin') {
-                        setUser(payload.user);
-                        setIsAuthenticated(true);
-                    } else {
-                        localStorage.removeItem('adminToken');
-                        setUser(null);
-                        setIsAuthenticated(false);
-                    }
-                } catch (e) {
-                    console.error('Invalid token', e);
-                    localStorage.removeItem('adminToken');
-                    setUser(null);
-                    setIsAuthenticated(false);
-                }
+            if (sessionUser?.role === 'admin' && sessionUser?.id) {
+                setUser(sessionUser);
+                setIsAuthenticated(true);
+                return true;
             }
-            setLoading(false);
+        } catch {
+            // not logged in
+        }
+        setUser(null);
+        setIsAuthenticated(false);
+        return false;
+    }, []);
+
+    useEffect(() => {
+        localStorage.removeItem('adminToken');
+        hydrateSession().finally(() => setLoading(false));
+    }, [hydrateSession]);
+
+    useEffect(() => {
+        const handleUnauthorized = () => {
+            setUser(null);
+            setIsAuthenticated(false);
         };
-        checkAuth();
+        window.addEventListener('auth:unauthorized', handleUnauthorized);
+        return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
     }, []);
 
     const login = async (email, password) => {
         try {
-            // Using axios instance 'api' which handles base URL
             const response = await api.post('/auth/login', { email, password });
-            const { token } = response.data;
 
-            // Verify admin role
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload.user.role !== 'admin') {
+            if (response.data?.requires2fa) {
                 return {
                     success: false,
-                    message: 'Access Denied: Admin privileges required.'
+                    requires2fa: true,
+                    challengeToken: response.data.challengeToken,
                 };
             }
 
-            localStorage.setItem('adminToken', token);
-            setUser(payload.user);
+            let sessionUser = response.data?.user;
+
+            if (!sessionUser?.id) {
+                const me = await api.get('/auth/me');
+                sessionUser = me.data?.user || {
+                    id: me.data?.id || me.data?._id,
+                    name: me.data?.name,
+                    email: me.data?.email,
+                    role: me.data?.role,
+                };
+            }
+
+            if (sessionUser?.role !== 'admin') {
+                await api.post('/auth/logout').catch(() => {});
+                return {
+                    success: false,
+                    message: 'Access Denied: Admin privileges required.',
+                };
+            }
+
+            setUser(sessionUser);
             setIsAuthenticated(true);
             return { success: true };
         } catch (error) {
             return {
                 success: false,
-                message: error.response?.data?.message || 'Login failed. Please check credentials.'
+                message: error.response?.data?.message || 'Login failed',
             };
         }
     };
 
-    const logout = () => {
-        localStorage.removeItem('adminToken');
+    const verify2faLogin = async (challengeToken, code) => {
+        try {
+            const response = await api.post('/auth/2fa/verify-login', { challengeToken, code });
+            const sessionUser = response.data?.user;
+            if (!sessionUser?.id || sessionUser.role !== 'admin') {
+                return { success: false, message: 'Access Denied: Admin privileges required.' };
+            }
+            setUser(sessionUser);
+            setIsAuthenticated(true);
+            return { success: true };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Invalid authentication code',
+            };
+        }
+    };
+
+    const logout = async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch {
+            // ignore
+        }
         setUser(null);
         setIsAuthenticated(false);
-        // We let the router handle redirection based on isAuthenticated state
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, isAuthenticated, login, logout }}>
-            {!loading && children}
+        <AuthContext.Provider value={{ user, loading, isAuthenticated, login, verify2faLogin, logout }}>
+            {children}
         </AuthContext.Provider>
     );
 };

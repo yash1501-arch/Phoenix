@@ -7,25 +7,42 @@ export default {
     theme: {
         extend: {
             colors: {
-                primary: {
-                    DEFAULT: '#D4AF37',
-                    glow: 'rgba(212, 175, 55, 0.5)',
-                    dark: '#B8860B',
-                    light: '#F0E68C',
-                    orange: '#F7931E',
+                // Editorial admin palette — matches frontend branding
+                ink: {
+                    DEFAULT: '#0e0d0b',
+                    soft: '#1a1815',
                 },
-                secondary: '#1A1A1A',
-                accent: '#FF6B35',
-                surface: '#F3F4F6',
+                paper: {
+                    DEFAULT: '#faf7f2',
+                    soft: '#f4f0e8',
+                },
+                primary: {
+                    DEFAULT: '#c9a961',
+                    glow: 'rgba(201, 169, 97, 0.4)',
+                    dark: '#9c7c3c',
+                    light: '#e8d9b0',
+                },
+                accent: {
+                    DEFAULT: '#2f4a3e',
+                    light: '#3f6353',
+                },
+                copper: '#b8734a',
+                secondary: '#0e0d0b',
+                // Legacy aliases
+                surface: '#F9FAFB',
+                warm: '#faf7f2',
             },
             fontFamily: {
-                sans: ['Inter', 'system-ui', 'sans-serif'],
-                display: ['Poppins', 'sans-serif'],
+                sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                display: ['Fraunces', 'ui-serif', 'Georgia', 'serif'],
             },
             boxShadow: {
-                'professional': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                'professional-lg': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                'glow': '0 0 20px rgba(212, 175, 55, 0.5)',
+                'card': '0 1px 2px rgba(14, 13, 11, 0.05)',
+                'card-hover': '0 8px 24px rgba(14, 13, 11, 0.08)',
+                'glow': '0 0 20px rgba(201, 169, 97, 0.3)',
+            },
+            borderRadius: {
+                'editorial': '2px',
             },
         },
     },

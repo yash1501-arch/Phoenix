@@ -1,7 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
-export const log = mutation({
+export const log = internalMutation({
     args: {
         actor_id: v.optional(v.string()),
         actor_email: v.optional(v.string()),
@@ -18,7 +18,7 @@ export const log = mutation({
     },
 });
 
-export const list = query({
+export const list = internalQuery({
     args: {
         limit: v.optional(v.number()),
         action: v.optional(v.string()),

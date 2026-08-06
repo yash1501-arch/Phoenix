@@ -17,7 +17,7 @@ const StarPicker = ({ value, onChange }) => (
             >
                 <Star
                     size={28}
-                    className={n <= value ? 'fill-[#D4AF37] text-[#D4AF37]' : 'text-gray-300'}
+                    className={n <= value ? 'fill-[#c9a961] text-[#c9a961]' : 'text-gray-300'}
                 />
             </button>
         ))}
@@ -69,7 +69,7 @@ const ReviewForm = ({ adventureId, bookingId, onClose, onSubmitted }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             onSubmit={onSubmit}
-            className="space-y-4 rounded-2xl border border-[#D4AF37]/30 bg-gradient-to-br from-[#FFFDF8] to-white p-5"
+            className="space-y-4 rounded-2xl border border-[#c9a961]/30 bg-gradient-to-br from-[#FFFDF8] to-white p-5"
         >
             <div>
                 <p className="mb-2 text-sm font-bold text-gray-700">Your rating</p>
@@ -82,7 +82,7 @@ const ReviewForm = ({ adventureId, bookingId, onClose, onSubmitted }) => {
                     onChange={(e) => setTitle(e.target.value)}
                     maxLength={80}
                     placeholder="Summarise your experience"
-                    className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-[#D4AF37] focus:outline-none"
+                    className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-[#c9a961] focus:outline-none"
                 />
             </div>
             <div>
@@ -94,14 +94,14 @@ const ReviewForm = ({ adventureId, bookingId, onClose, onSubmitted }) => {
                     required
                     maxLength={1000}
                     placeholder="What did you love? What could be better?"
-                    className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-[#D4AF37] focus:outline-none"
+                    className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-[#c9a961] focus:outline-none"
                 />
             </div>
             <div className="flex gap-2">
                 <button type="button" onClick={onClose} className="flex-1 rounded-xl border-2 border-gray-200 py-2.5 text-sm font-bold text-gray-600 hover:border-gray-300">
                     Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] py-2.5 text-sm font-bold text-white disabled:opacity-60">
+                <button type="submit" disabled={submitting} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#c9a961] to-[#9c7c3c] py-2.5 text-sm font-bold text-white disabled:opacity-60">
                     <Send size={14} /> {submitting ? 'Submitting…' : 'Submit review'}
                 </button>
             </div>
@@ -121,10 +121,10 @@ const ReviewList = ({ reviews, summary }) => {
     return (
         <div className="space-y-4">
             {summary && (
-                <div className="flex flex-wrap items-center gap-6 rounded-2xl border border-[#D4AF37]/20 bg-gradient-to-br from-[#FFFDF8] to-white p-5">
+                <div className="flex flex-wrap items-center gap-6 rounded-2xl border border-[#c9a961]/20 bg-gradient-to-br from-[#FFFDF8] to-white p-5">
                     <div className="text-center">
-                        <p className="text-4xl font-extrabold text-[#B8860B]">{summary.average || '—'}</p>
-                        <div className="mt-1 flex justify-center text-[#D4AF37]">
+                        <p className="text-4xl font-extrabold text-[#9c7c3c]">{summary.average || '—'}</p>
+                        <div className="mt-1 flex justify-center text-[#c9a961]">
                             {[1, 2, 3, 4, 5].map((n) => (
                                 <Star key={n} size={14} className={n <= Math.round(summary.average) ? 'fill-current' : 'text-gray-300'} />
                             ))}
@@ -138,9 +138,9 @@ const ReviewList = ({ reviews, summary }) => {
                             return (
                                 <div key={n} className="flex items-center gap-2 text-xs">
                                     <span className="w-4 text-gray-500">{n}</span>
-                                    <Star size={11} className="fill-[#D4AF37] text-[#D4AF37]" />
+                                    <Star size={11} className="fill-[#c9a961] text-[#c9a961]" />
                                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
-                                        <div className="h-full bg-[#D4AF37]" style={{ width: `${pct}%` }} />
+                                        <div className="h-full bg-[#c9a961]" style={{ width: `${pct}%` }} />
                                     </div>
                                     <span className="w-8 text-right text-gray-500">{count}</span>
                                 </div>
@@ -154,7 +154,7 @@ const ReviewList = ({ reviews, summary }) => {
                     <article key={r._id || r.id} className="rounded-2xl border border-gray-200 bg-white p-5">
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8860B] text-sm font-bold text-white">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#c9a961] to-[#9c7c3c] text-sm font-bold text-white">
                                     {(r.user_name || 'A').charAt(0).toUpperCase()}
                                 </div>
                                 <div>
@@ -162,7 +162,7 @@ const ReviewList = ({ reviews, summary }) => {
                                     <p className="text-[11px] text-gray-500">{new Date(r.created_at).toLocaleDateString('en-IN', { dateStyle: 'medium' })}</p>
                                 </div>
                             </div>
-                            <div className="flex text-[#D4AF37]">
+                            <div className="flex text-[#c9a961]">
                                 {[1, 2, 3, 4, 5].map((n) => (
                                     <Star key={n} size={14} className={n <= r.rating ? 'fill-current' : 'text-gray-300'} />
                                 ))}
@@ -197,7 +197,7 @@ const Reviews = ({ adventureId, bookingId }) => {
                 <h2 className="text-2xl font-black text-gray-900">Reviews & Ratings</h2>
                 <button
                     onClick={() => setShowForm((s) => !s)}
-                    className="rounded-xl border-2 border-[#D4AF37] px-4 py-2 text-sm font-bold text-[#B8860B] hover:bg-[#D4AF37] hover:text-white"
+                    className="rounded-xl border-2 border-[#c9a961] px-4 py-2 text-sm font-bold text-[#9c7c3c] hover:bg-[#c9a961] hover:text-white"
                 >
                     {showForm ? 'Close' : 'Write a review'}
                 </button>

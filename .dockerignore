@@ -1,0 +1,15 @@
+# Ignore local dependencies and configurations
+node_modules
+**/node_modules
+npm-debug.log
+**/.env
+**/.env.local
+.git
+.gitignore
+.qoder
+admin
+frontend
+convex
+*.docx
+founder-1.jpg
+prd_ext

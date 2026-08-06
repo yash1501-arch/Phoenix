@@ -1,24 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const bookingController = require('../controllers/bookingController');
 const { auth, adminOnly } = require('../middleware/auth');
+const bookingController = require('../controllers/bookingController');
 
-// Get all bookings (Admin only)
-router.get('/', auth, adminOnly, bookingController.getAllBookings);
-
-// Get bookings for a specific user (authenticated users)
+router.post('/manual', auth, bookingController.createManual);
 router.get('/user/:userId', auth, bookingController.getUserBookings);
 
-// Get single booking by ID
-router.get('/:id', auth, bookingController.getBookingById);
+// Admin routes before parameterized routes
+router.get('/admin/all', auth, adminOnly, bookingController.adminListAll);
+router.post('/admin/:bookingId/release', auth, adminOnly, bookingController.adminRelease);
 
-// Create a new booking (authenticated users)
-router.post('/', auth, bookingController.createBooking);
-
-// Cancel a booking (owner or admin)
-router.post('/:id/cancel', auth, bookingController.cancelBooking);
-
-// Update booking status (Admin only)
-router.patch('/:id/status', auth, adminOnly, bookingController.updateBookingStatus);
+router.get('/:bookingId/payment', auth, bookingController.getPaymentDetails);
+router.get('/:bookingId', auth, bookingController.getById);
 
 module.exports = router;

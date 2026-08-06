@@ -2,59 +2,57 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
-import { useCart } from '../context/CartContext';
 import {
-    User, Mail, Calendar, MapPin, Award, LogOut,
-    ChevronRight, Clock, CreditCard, Settings, Compass, LayoutDashboard, Users,
-    Heart, ShoppingCart, CalendarCheck, ArrowRight
+    Mail, Calendar, Award, LogOut, Phone,
+    ChevronRight, Settings, Compass, LayoutDashboard,
+    Heart, ArrowRight, MessageCircle, MapPin, IndianRupee, Clock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import Footer, { MobileTabBarSpacer } from '../components/Footer';
-import { bookingsAPI, usersAPI, getImageUrl } from '../utils/api';
+import Footer from '../components/Footer';
+import { publicSettingsAPI, getImageUrl, bookingsAPI } from '../utils/api';
 import { motion } from 'framer-motion';
+import UserAvatar from '../components/ui/UserAvatar';
 import './UserDashboard.css';
+
+const STATUS_BADGE = {
+    pending_payment: { label: 'Pay Now', cls: 'bg-amber-100 text-amber-800' },
+    payment_submitted: { label: 'Under Review', cls: 'bg-blue-100 text-blue-800' },
+    confirmed: { label: 'Confirmed', cls: 'bg-emerald-100 text-emerald-800' },
+    rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-800' },
+    expired: { label: 'Expired', cls: 'bg-gray-100 text-gray-600' },
+    cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-600' },
+};
 
 const UserDashboard = () => {
     const { user, logout, updateUserContext } = useAuth();
     const { items: wishlistItems, count: wishlistCount } = useWishlist();
-    const { cartItems } = useCart();
+    const [whatsappNumber, setWhatsappNumber] = useState('919372506447');
     const [bookings, setBookings] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [bookingsLoading, setBookingsLoading] = useState(true);
 
     useEffect(() => {
-        if (user?.id) {
-            fetchBookings();
-        }
-    }, [user]);
+        publicSettingsAPI.getAll().then((all) => {
+            if (all.whatsapp) setWhatsappNumber(String(all.whatsapp).replace(/\D/g, '') || '919372506447');
+        }).catch(() => {});
+    }, []);
 
-    const fetchBookings = async () => {
-        try {
-            const response = await bookingsAPI.getUserBookings(user.id);
-            setBookings(response.data.data);
-        } catch (error) {
-            console.error('Error fetching bookings:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    useEffect(() => {
+        if (!user?.id) return;
+        bookingsAPI.getUserBookings(user.id)
+            .then((res) => setBookings(res.data?.data || []))
+            .catch((err) => toast.error(err.response?.data?.message || 'Could not load your bookings'))
+            .finally(() => setBookingsLoading(false));
+    }, [user?.id]);
 
-    // Derived State
-    const upcomingTrips = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
-    const pastTrips = bookings.filter(b => b.status === 'completed');
-
-    // Calculate Stats
-    const totalSpent = bookings
-        .filter(b => b.status === 'confirmed' || b.status === 'completed')
-        .reduce((sum, b) => sum + parseFloat(b.total_amount || 0), 0);
-
-    const adventurePoints = Math.floor(totalSpent / 100);
+    const confirmedCount = bookings.filter((b) => b.booking_status === 'confirmed').length;
+    const pendingCount = bookings.filter((b) => ['pending_payment', 'payment_submitted'].includes(b.booking_status)).length;
 
     const stats = [
-        { label: 'Total Trips', value: bookings.length.toString(), icon: Compass, color: 'bg-blue-50 text-blue-600' },
-        { label: 'Total Spent', value: `₹${totalSpent.toLocaleString()}`, icon: CreditCard, color: 'bg-green-50 text-green-600' },
+        { label: 'My Trips', value: confirmedCount.toString(), icon: Award, color: 'bg-emerald-50 text-emerald-600' },
+        { label: 'Pending', value: pendingCount.toString(), icon: Clock, color: 'bg-amber-50 text-amber-600' },
+        { label: 'Wishlist', value: wishlistCount.toString(), icon: Heart, color: 'bg-pink-50 text-pink-600' },
         { label: 'Member Since', value: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Jan 2026', icon: Calendar, color: 'bg-purple-50 text-purple-600' },
-        { label: 'Adventure Points', value: adventurePoints.toString(), icon: Award, color: 'bg-orange-50 text-orange-600' },
     ];
 
     const quickActions = [
@@ -66,22 +64,14 @@ const UserDashboard = () => {
             gradient: 'from-pink-500 via-rose-500 to-red-500',
         },
         {
-            label: 'Cart',
-            count: cartItems.length,
-            icon: ShoppingCart,
-            to: '/cart',
-            gradient: 'from-amber-500 via-orange-500 to-yellow-500',
-        },
-        {
-            label: 'My Bookings',
-            count: bookings.length,
-            icon: CalendarCheck,
-            to: '/dashboard',
-            gradient: 'from-emerald-500 via-teal-500 to-cyan-500',
+            label: 'Contact Us',
+            count: '',
+            icon: MessageCircle,
+            to: '#',
+            gradient: 'from-green-500 via-emerald-500 to-teal-500',
+            onClick: () => window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi! I want to know more about your adventures.')}`, '_blank'),
         },
     ];
-
-    const avatarUrl = getImageUrl(user?.avatar_url);
 
     return (
         <div className="user-dashboard-wrapper">
@@ -94,7 +84,7 @@ const UserDashboard = () => {
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center gap-2 text-orange-300 font-bold uppercase tracking-wider mb-4"
+                            className="flex items-center gap-2 text-ember font-bold uppercase tracking-wider mb-4"
                         >
                             <LayoutDashboard size={18} />
                             <span>User Dashboard</span>
@@ -113,7 +103,7 @@ const UserDashboard = () => {
                             transition={{ delay: 0.2 }}
                             className="text-gray-300 text-lg max-w-xl"
                         >
-                            Your adventure portfolio. Track your bookings, manage payments, and discover your next journey.
+                            Your adventure hub. Book trips via UPI and track verification here.
                         </motion.p>
                     </div>
                 </div>
@@ -150,22 +140,41 @@ const UserDashboard = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.45 + (i * 0.08) }}
                         >
-                            <Link
-                                to={q.to}
-                                className="group block relative overflow-hidden rounded-2xl p-5 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all"
-                            >
-                                <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full bg-gradient-to-br ${q.gradient} opacity-10 group-hover:opacity-20 transition-opacity`} />
-                                <div className="relative flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${q.gradient} text-white flex items-center justify-center shadow-sm`}>
-                                        <q.icon size={22} />
+                            {q.onClick ? (
+                                <button
+                                    onClick={q.onClick}
+                                    className="group block w-full text-left relative overflow-hidden rounded-2xl p-5 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                                >
+                                    <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full bg-gradient-to-br ${q.gradient} opacity-10 group-hover:opacity-20 transition-opacity`} />
+                                    <div className="relative flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${q.gradient} text-white flex items-center justify-center shadow-sm`}>
+                                            <q.icon size={22} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-500">{q.label}</p>
+                                            <p className="text-2xl font-black text-gray-900">{q.count || '24/7'}</p>
+                                        </div>
+                                        <ArrowRight size={18} className="text-gray-300 group-hover:text-gray-700 group-hover:translate-x-1 transition-all" />
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-gray-500">{q.label}</p>
-                                        <p className="text-2xl font-black text-gray-900">{q.count}</p>
+                                </button>
+                            ) : (
+                                <Link
+                                    to={q.to}
+                                    className="group block relative overflow-hidden rounded-2xl p-5 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                                >
+                                    <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full bg-gradient-to-br ${q.gradient} opacity-10 group-hover:opacity-20 transition-opacity`} />
+                                    <div className="relative flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${q.gradient} text-white flex items-center justify-center shadow-sm`}>
+                                            <q.icon size={22} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-500">{q.label}</p>
+                                            <p className="text-2xl font-black text-gray-900">{q.count}</p>
+                                        </div>
+                                        <ArrowRight size={18} className="text-gray-300 group-hover:text-gray-700 group-hover:translate-x-1 transition-all" />
                                     </div>
-                                    <ArrowRight size={18} className="text-gray-300 group-hover:text-gray-700 group-hover:translate-x-1 transition-all" />
-                                </div>
-                            </Link>
+                                </Link>
+                            )}
                         </motion.div>
                     ))}
                 </div>
@@ -174,116 +183,165 @@ const UserDashboard = () => {
                     {/* Main Content Area */}
                     <div className="lg:col-span-2 space-y-10">
 
-                        {/* Upcoming Trips */}
+                        {/* My Bookings */}
                         <motion.section
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.5 }}
                         >
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-black text-gray-900">Upcoming Adventures</h2>
+                                <h2 className="text-2xl font-black text-gray-900">My Bookings</h2>
                                 <Link to="/adventures" className="text-primary font-semibold hover:text-orange-600 transition-colors flex items-center gap-1">
-                                    Browse New <ChevronRight size={18} />
+                                    Book New <ChevronRight size={18} />
                                 </Link>
                             </div>
 
-                            {loading ? (
-                                <div className="text-center py-12 bg-white rounded-3xl border border-gray-100 shadow-sm">
-                                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                                    <p className="text-gray-500">Loading your journey...</p>
+                            {bookingsLoading ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="w-10 h-10 border-4 border-[#c9a961] border-t-transparent rounded-full animate-spin" />
                                 </div>
-                            ) : upcomingTrips.length > 0 ? (
-                                <div className="space-y-6">
-                                    {upcomingTrips.map((booking) => (
-                                        <div key={booking._id || booking.id} className="booking-card flex flex-col sm:flex-row">
-                                            <div className="w-full sm:w-48 h-48 sm:h-auto relative overflow-hidden">
-                                                <img
-                                                    src={getImageUrl(booking.adventures?.image_url) || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800'}
-                                                    alt={booking.adventures?.title}
-                                                    className="booking-image"
-                                                />
-                                                <div className="absolute top-2 left-2">
-                                                    <span className={`status-badge ${booking.status}`}>
-                                                        {booking.status}
-                                                    </span>
+                            ) : bookings.length > 0 ? (
+                                <div className="space-y-4">
+                                    {bookings.map((booking) => {
+                                        const badge = STATUS_BADGE[booking.booking_status] || STATUS_BADGE.pending_payment;
+                                        const adv = booking.adventure || {};
+                                        const bookingId = booking._id || booking.id;
+                                        return (
+                                            <div key={bookingId} className="booking-card bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all">
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                                    <img
+                                                        src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200'}
+                                                        alt={adv.title}
+                                                        className="w-full sm:w-20 h-20 rounded-xl object-cover"
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                            <h3 className="font-bold text-gray-900">{adv.title || 'Adventure'}</h3>
+                                                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 font-mono mb-2">{booking.booking_code}</p>
+                                                        <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                                                            <span className="flex items-center gap-1"><Calendar size={12} /> {booking.adventure_date}</span>
+                                                            <span className="flex items-center gap-1"><MapPin size={12} /> {adv.location}</span>
+                                                            <span className="flex items-center gap-1"><IndianRupee size={12} /> {booking.amount?.toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+                                                    {['pending_payment', 'payment_submitted', 'payment_failed'].includes(booking.booking_status) && (
+                                                        <Link
+                                                            to={`/booking/${bookingId}/payment`}
+                                                            className="shrink-0 px-4 py-2 bg-[#c9a961] text-white text-sm font-bold rounded-xl hover:bg-[#b8954f] transition"
+                                                        >
+                                                            {booking.booking_status === 'payment_submitted' ? 'View Status' : 'Complete Payment'}
+                                                        </Link>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="p-6 flex-1 flex flex-col justify-center">
-                                                <h3 className="text-xl font-bold text-gray-900 mb-2">{booking.adventures?.title}</h3>
-
-                                                <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
-                                                    <div className="flex items-center gap-2">
-                                                        <Calendar size={16} className="text-primary" />
-                                                        {new Date(booking.booking_date).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <MapPin size={16} className="text-primary" />
-                                                        {booking.adventures?.location}
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Users size={16} className="text-primary" />
-                                                        {booking.participants} People
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock size={16} className="text-primary" />
-                                                        {booking.adventures?.duration}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
-                                                    <span className="font-bold text-gray-900">
-                                                        Total: ₹{booking.total_amount?.toLocaleString()}
-                                                    </span>
-                                                    <Link to="/dashboard" className="text-primary font-bold hover:text-orange-700 transition-colors text-sm uppercase tracking-wide">
-                                                        View Details
-                                                    </Link>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
-                                <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-gray-300">
-                                    <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Compass size={32} className="text-primary" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-gray-900 mb-1">No upcoming trips</h3>
-                                    <p className="text-gray-500 mb-6">Looks like you haven't booked your next adventure yet.</p>
-                                    <Link to="/adventures" className="btn btn-primary px-8 py-3 rounded-xl shadow-lg shadow-orange-200">
-                                        Find an Adventure
+                                <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-300">
+                                    <Compass size={32} className="text-gray-300 mx-auto mb-3" />
+                                    <p className="text-gray-500 mb-4">No bookings yet. Start your adventure!</p>
+                                    <Link to="/adventures" className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#c9a961] text-white font-bold rounded-xl hover:bg-[#b8954f] transition">
+                                        Browse Adventures <ArrowRight size={16} />
                                     </Link>
                                 </div>
                             )}
                         </motion.section>
 
-                        {/* Past Trips (Compact) */}
-                        {pastTrips.length > 0 && (
-                            <motion.section
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.6 }}
-                            >
-                                <h2 className="text-xl font-bold text-gray-900 mb-6 mt-4">Past Memories</h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {pastTrips.map((booking) => (
-                                        <div key={booking._id || booking.id} className="bg-white rounded-2xl p-4 border border-gray-200 hover:shadow-md transition-all flex gap-4 items-center">
-                                            <img
-                                                src={getImageUrl(booking.adventures?.image_url)}
-                                                alt="Trip"
-                                                className="w-16 h-16 rounded-xl object-cover"
-                                            />
-                                            <div>
-                                                <h4 className="font-bold text-gray-900 line-clamp-1">{booking.adventures?.title}</h4>
-                                                <p className="text-xs text-gray-500 mb-1">
-                                                    {new Date(booking.booking_date).toLocaleDateString()}
-                                                </p>
-                                                <div className="flex text-yellow-400 text-xs">★★★★★</div>
-                                            </div>
-                                        </div>
-                                    ))}
+                        {/* WhatsApp Inquiry Section */}
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                        >
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-8 border border-green-100">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="w-14 h-14 rounded-2xl bg-green-500 text-white flex items-center justify-center shadow-lg shadow-green-200">
+                                        <MessageCircle size={28} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-gray-900">Need Help?</h2>
+                                        <p className="text-gray-600">Questions about your booking? Chat with us on WhatsApp anytime.</p>
+                                    </div>
                                 </div>
-                            </motion.section>
-                        )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Link to="/adventures"
+                                        className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-green-200 hover:shadow-md transition-all group"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+                                            <Compass size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors">Browse Adventures</p>
+                                            <p className="text-xs text-gray-500">Find your next trip</p>
+                                        </div>
+                                        <ChevronRight size={18} className="ml-auto text-gray-300 group-hover:text-orange-600" />
+                                    </Link>
+
+                                    <button
+                                        onClick={() => window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi! I want to know more about your adventures.')}`, '_blank')}
+                                        className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-green-200 hover:shadow-md transition-all group text-left"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center">
+                                            <MessageCircle size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-900 group-hover:text-green-600 transition-colors">Chat on WhatsApp</p>
+                                            <p className="text-xs text-gray-500">We reply within minutes</p>
+                                        </div>
+                                        <ChevronRight size={18} className="ml-auto text-gray-300 group-hover:text-green-600" />
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.section>
+
+                        {/* Wishlist Preview */}
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.55 }}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-gray-900">Your Wishlist</h2>
+                                <Link to="/wishlist" className="text-primary font-semibold hover:text-orange-600 transition-colors flex items-center gap-1">
+                                    View All <ChevronRight size={18} />
+                                </Link>
+                            </div>
+
+                            {wishlistItems.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {wishlistItems.slice(0, 4).map((item) => {
+                                        const adventure = item.adventure || {};
+                                        const advId = adventure._id || item.adventure_id;
+                                        return (
+                                            <Link
+                                                key={item._id || advId}
+                                                to={`/adventure/${advId}`}
+                                                className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 hover:shadow-md transition-all group"
+                                            >
+                                                <img
+                                                    src={getImageUrl(adventure.image_url) || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200'}
+                                                    alt={adventure.title || 'Adventure'}
+                                                    className="w-14 h-14 rounded-xl object-cover"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-bold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{adventure.title || 'Adventure'}</p>
+                                                    <p className="text-xs text-gray-500">{adventure.location || ''}</p>
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-300">
+                                    <Heart size={32} className="text-gray-300 mx-auto mb-3" />
+                                    <p className="text-gray-500">Your wishlist is empty. Start exploring!</p>
+                                </div>
+                            )}
+                        </motion.section>
                     </div>
 
                     {/* Sidebar */}
@@ -295,20 +353,12 @@ const UserDashboard = () => {
                             transition={{ delay: 0.4 }}
                             className="profile-card"
                         >
-                            {avatarUrl ? (
-                                <img
-                                    src={avatarUrl}
-                                    alt={user?.name}
-                                    className="w-24 h-24 rounded-full object-cover border-4 border-[#D4AF37] mx-auto mb-4"
-                                />
-                            ) : (
-                                <div className="profile-avatar">
-                                    {user?.name?.charAt(0).toUpperCase() || 'U'}
-                                </div>
-                            )}
+                            <div className="flex justify-center mb-4">
+                                <UserAvatar user={user} size="xl" ring />
+                            </div>
                             <h3 className="text-xl font-black text-gray-900 mb-1">{user?.name || 'Explorer'}</h3>
                             <p className="text-primary font-medium text-sm mb-6 bg-orange-50 inline-block px-3 py-1 rounded-full">
-                                {bookings.length <= 1 ? 'Novice Explorer' : bookings.length <= 5 ? 'Seasoned Adventurer' : 'Elite Traveler'}
+                                Adventure Enthusiast
                             </p>
 
                             <div className="space-y-4 text-left">
@@ -318,7 +368,7 @@ const UserDashboard = () => {
                                 </div>
                                 {user?.phone && (
                                     <div className="flex items-center gap-3 text-sm p-3 bg-gray-50 rounded-xl">
-                                        <User size={18} className="text-gray-400" />
+                                        <Phone size={18} className="text-gray-400" />
                                         <span className="text-gray-600">{user.phone}</span>
                                     </div>
                                 )}
@@ -360,20 +410,19 @@ const UserDashboard = () => {
                                     </div>
                                     <ChevronRight size={16} className="text-gray-300" />
                                 </Link>
-                                <Link to="/contact" className="action-link">
+                                <button onClick={() => window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi! I need help with my account.')}`, '_blank')} className="action-link w-full text-left">
                                     <div className="flex items-center gap-3">
-                                        <CreditCard size={20} className="text-gray-400" />
-                                        <span className="font-medium text-gray-700">Contact & Support</span>
+                                        <MessageCircle size={20} className="text-gray-400" />
+                                        <span className="font-medium text-gray-700">Contact on WhatsApp</span>
                                     </div>
                                     <ChevronRight size={16} className="text-gray-300" />
-                                </Link>
+                                </button>
                             </div>
                         </motion.div>
                     </div>
                 </div>
             </div>
-    <MobileTabBarSpacer />
-    <Footer />
+        <Footer />
         </div>
     );
 };

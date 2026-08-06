@@ -1,72 +1,90 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../utils/api';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (!context) return { user: null, token: null, login: () => {}, register: () => {}, logout: () => {}, loading: false, isAuthenticated: false };
+    if (!context) {
+        return {
+            user: null,
+            token: null,
+            login: () => {},
+            register: () => {},
+            logout: () => {},
+            loading: false,
+            isAuthenticated: false,
+        };
+    }
     return context;
 };
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        // Check if user is logged in on mount
-        if (token) {
-            try {
-                // Better base64 decoding for JWTs
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-
-                const payload = JSON.parse(jsonPayload);
-                if (payload && payload.user && payload.user.id) {
-                    setUser(payload.user);
-                } else {
-                    console.error('Invalid or legacy token structure');
-                    logout();
-                    return; // Prevent setting loading to false if we are redirecting
-                }
-            } catch (error) {
-                console.error('Invalid token:', error);
-                logout();
-                return;
+    const hydrateSession = useCallback(async () => {
+        try {
+            const res = await authAPI.me();
+            const sessionUser = res.data?.user || {
+                id: res.data?.id || res.data?._id,
+                name: res.data?.name,
+                email: res.data?.email,
+                role: res.data?.role,
+            };
+            if (sessionUser?.id) {
+                setUser(sessionUser);
+                return true;
             }
+        } catch {
+            setUser(null);
         }
-        setLoading(false);
-    }, [token]);
+        return false;
+    }, []);
+
+    useEffect(() => {
+        localStorage.removeItem('token');
+        hydrateSession().finally(() => setLoading(false));
+    }, [hydrateSession]);
+
+    useEffect(() => {
+        const handleUnauthorized = () => {
+            setUser(null);
+            const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/adventures', '/about', '/contact', '/blog', '/gallery', '/faq', '/safety', '/terms', '/privacy', '/refund'];
+            const currentPath = window.location.pathname;
+            const isPublicPath = publicPaths.some((p) => currentPath === p || currentPath.startsWith('/adventure/') || currentPath.startsWith('/treks') || currentPath.startsWith('/camping') || currentPath.startsWith('/tours') || currentPath.startsWith('/search'));
+            if (!isPublicPath) {
+                navigate('/login');
+            }
+        };
+
+        window.addEventListener('auth:unauthorized', handleUnauthorized);
+        return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    }, [navigate]);
 
     const login = async (email, password) => {
         try {
             const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${baseUrl}/api/auth/login`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ email, password }),
             });
 
             const data = await response.json();
-
             if (!response.ok) {
                 throw new Error(data.message || 'Login failed');
             }
 
-            localStorage.setItem('token', data.token);
-            setToken(data.token);
-
-            // Decode token to set user
-            const payload = JSON.parse(atob(data.token.split('.')[1]));
-            setUser(payload.user);
+            if (data.user?.id) {
+                setUser(data.user);
+            } else {
+                await hydrateSession();
+            }
 
             return { success: true };
         } catch (error) {
@@ -79,24 +97,21 @@ export const AuthProvider = ({ children }) => {
             const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${baseUrl}/api/auth/register`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ name, email, password }),
             });
 
             const data = await response.json();
-
             if (!response.ok) {
                 throw new Error(data.message || 'Registration failed');
             }
 
-            localStorage.setItem('token', data.token);
-            setToken(data.token);
-
-            // Decode token to set user
-            const payload = JSON.parse(atob(data.token.split('.')[1]));
-            setUser(payload.user);
+            if (data.user?.id) {
+                setUser(data.user);
+            } else {
+                await hydrateSession();
+            }
 
             return { success: true };
         } catch (error) {
@@ -104,25 +119,28 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        setToken(null);
+    const logout = async () => {
+        try {
+            await authAPI.logout();
+        } catch {
+            // Clear local state even if cookie clear fails
+        }
         setUser(null);
         navigate('/');
     };
 
     const updateUserContext = (updatedData) => {
-        setUser(prev => ({ ...prev, ...updatedData }));
+        setUser((prev) => ({ ...prev, ...updatedData }));
     };
 
     const value = {
         user,
-        token,
+        token: user ? 'session' : null,
         login,
         register,
         logout,
         updateUserContext,
-        isAuthenticated: !!token,
+        isAuthenticated: !!user,
         loading,
     };
 

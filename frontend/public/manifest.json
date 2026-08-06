@@ -1,16 +1,23 @@
 {
   "name": "Phoenix Adventures",
   "short_name": "Phoenix",
-  "description": "Curated treks and camping experiences across Sahyadri and the Himalayas.",
+  "description": "Discover the great outdoors with our adventure tribe. Sahyadri fort treks and Maharashtra outdoor destinations.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#D4AF37",
+  "background_color": "#FAF7F1",
+  "theme_color": "#2F4A3D",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "src": "/favicon.png?v=6",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-mark.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

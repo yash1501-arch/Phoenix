@@ -5,6 +5,9 @@ const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const { auth } = require('../middleware/auth');
 const { getConvexClient } = require('../utils/convexClient');
+const { sendPasswordReset } = require('../services/emailService');
+const { setAuthCookie, clearAuthCookie } = require('../utils/authCookie');
+const { sanitizeUser } = require('../utils/sanitizeUser');
 const logger = require('../utils/logger');
 
 const getJwtSecret = () => {
@@ -27,9 +30,9 @@ async function findUserByEmail(email) {
 
 // Register User
 router.post('/register', [
-    check('name', 'Name is required').not().isEmpty(),
-    check('email', 'Please include a valid email').isEmail(),
-    check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+    check('name', 'Name is required').not().isEmpty().trim().isLength({ min: 2, max: 100 }),
+    check('email', 'Please include a valid email').isEmail().normalizeEmail(),
+    check('password', 'Password must be 8+ characters').isLength({ min: 8, max: 128 })
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -69,7 +72,8 @@ router.post('/register', [
         };
 
         const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
-        res.json({ token });
+        setAuthCookie(res, token);
+        res.json({ success: true, user: payload.user });
 
     } catch (err) {
         logger.error('Register error:', err.response?.data || err.stack || err.message);
@@ -114,8 +118,22 @@ router.post('/login', [
             }
         };
 
+        if (user.role === 'admin' && user.totp_enabled && user.totp_secret) {
+            const challengeToken = jwt.sign(
+                { id: user._id, purpose: '2fa' },
+                getJwtSecret(),
+                { expiresIn: '5m' }
+            );
+            return res.json({
+                success: true,
+                requires2fa: true,
+                challengeToken,
+            });
+        }
+
         const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
-        res.json({ token });
+        setAuthCookie(res, token);
+        res.json({ success: true, user: payload.user });
 
     } catch (err) {
         logger.error('Login error:', err.response?.data || err.stack || err.message);
@@ -126,7 +144,7 @@ router.post('/login', [
     }
 });
 
-// Forgot Password — send reset link (stub: logs to console, no email provider yet)
+// Forgot Password — email a one-hour reset link
 router.post('/forgot-password', [
     check('email', 'Valid email required').isEmail()
 ], async (req, res) => {
@@ -135,13 +153,37 @@ router.post('/forgot-password', [
         return res.status(400).json({ errors: errors.array() });
     }
     try {
-        const user = await findUserByEmail(String(req.body.email).toLowerCase());
+        const email = String(req.body.email).toLowerCase();
+        const user = await findUserByEmail(email);
         // Always respond success to prevent email enumeration
         if (user) {
-            const resetToken = jwt.sign({ id: user._id, purpose: 'reset' }, getJwtSecret(), { expiresIn: '1h' });
-            const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
-            logger.info(`[PASSWORD RESET] ${req.body.email} -> ${resetLink}`);
-            // TODO: send via email service
+            const resetToken = jwt.sign(
+                { id: user._id, purpose: 'reset' },
+                getJwtSecret(),
+                { expiresIn: '1h' }
+            );
+            const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+            const resetLink = `${frontendBase}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+            logger.info(`[PASSWORD RESET] Reset requested for ${email}`);
+
+            try {
+                await sendPasswordReset(user.email, user.name, resetLink);
+            } catch (mailErr) {
+                logger.error('Password reset email failed:', mailErr.message || mailErr);
+                // Dev-only fallback so local testing still works without blocking
+                if (process.env.NODE_ENV !== 'production') {
+                    return res.json({
+                        success: true,
+                        message: 'If that email exists, a reset link has been sent',
+                        devResetLink: resetLink,
+                        emailError: mailErr.code === 'SMTP_NOT_CONFIGURED'
+                            ? 'SMTP not configured'
+                            : 'Email send failed — check SMTP credentials',
+                    });
+                }
+                // Production: still return generic success (no enumeration); ops see logs
+            }
         }
         res.json({ success: true, message: 'If that email exists, a reset link has been sent' });
     } catch (err) {
@@ -161,19 +203,183 @@ router.post('/reset-password', [
     }
     try {
         const decoded = jwt.verify(req.body.token, getJwtSecret());
-        if (decoded.purpose !== 'reset') {
+        if (decoded.purpose !== 'reset' || !decoded.id) {
             return res.status(400).json({ success: false, message: 'Invalid token' });
         }
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
-        await getConvexClient().updateUser(decoded.id, { password: hashedPassword, updated_at: new Date().toISOString() });
+        // users:update only accepts name/email/password/role — updated_at set inside Convex
+        await getConvexClient().updateUser(decoded.id, { password: hashedPassword });
         res.json({ success: true, message: 'Password updated successfully' });
     } catch (err) {
         if (err.name === 'TokenExpiredError') {
             return res.status(400).json({ success: false, message: 'Reset link has expired' });
         }
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(400).json({ success: false, message: 'Invalid or malformed reset link' });
+        }
         logger.error('reset-password error:', err);
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// Logout — clear httpOnly session cookie
+router.post('/logout', (req, res) => {
+    clearAuthCookie(res);
+    res.json({ success: true });
+});
+
+// Complete admin login after TOTP challenge
+router.post('/2fa/verify-login', [
+    check('challengeToken', 'Challenge token is required').not().isEmpty(),
+    check('code', '6-digit code is required').isLength({ min: 6, max: 8 }),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    try {
+        const decoded = jwt.verify(req.body.challengeToken, getJwtSecret());
+        if (decoded.purpose !== '2fa' || !decoded.id) {
+            return res.status(400).json({ success: false, message: 'Invalid challenge' });
+        }
+
+        const user = await getConvexClient().getUserById(decoded.id);
+        if (!user || user.role !== 'admin' || !user.totp_enabled || !user.totp_secret) {
+            return res.status(400).json({ success: false, message: '2FA is not enabled for this account' });
+        }
+
+        const { verifyTotp } = require('../utils/totp');
+        if (!verifyTotp(user.totp_secret, req.body.code)) {
+            return res.status(401).json({ success: false, message: 'Invalid authentication code' });
+        }
+
+        const payload = {
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            },
+        };
+        const token = jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
+        setAuthCookie(res, token);
+        return res.json({ success: true, user: payload.user });
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return res.status(400).json({ success: false, message: 'Login challenge expired. Please sign in again.' });
+        }
+        logger.error('2fa verify-login error:', err.message);
+        return res.status(400).json({ success: false, message: 'Invalid challenge' });
+    }
+});
+
+// Admin 2FA status
+router.get('/2fa/status', auth, async (req, res) => {
+    try {
+        const user = await getConvexClient().getUserById(req.user.id);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin only' });
+        }
+        return res.json({
+            success: true,
+            data: { enabled: Boolean(user.totp_enabled && user.totp_secret) },
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: 'Failed to fetch 2FA status' });
+    }
+});
+
+// Begin 2FA setup — returns secret + QR for authenticator app
+router.post('/2fa/setup', auth, async (req, res) => {
+    try {
+        const user = await getConvexClient().getUserById(req.user.id);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin only' });
+        }
+
+        const { generateSecret, buildOtpAuthUrl } = require('../utils/totp');
+        const QRCode = require('qrcode');
+        const secret = generateSecret();
+        const otpauthUrl = buildOtpAuthUrl(user.email, secret);
+        const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+        return res.json({
+            success: true,
+            data: { secret, otpauthUrl, qrDataUrl },
+        });
+    } catch (err) {
+        logger.error('2fa setup error:', err.message);
+        return res.status(500).json({ success: false, message: 'Failed to start 2FA setup' });
+    }
+});
+
+// Enable 2FA after verifying a code from the authenticator app
+router.post('/2fa/enable', [
+    auth,
+    check('secret', 'Secret is required').not().isEmpty(),
+    check('code', '6-digit code is required').isLength({ min: 6, max: 8 }),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    try {
+        const user = await getConvexClient().getUserById(req.user.id);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin only' });
+        }
+
+        const { verifyTotp } = require('../utils/totp');
+        if (!verifyTotp(req.body.secret, req.body.code)) {
+            return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+        }
+
+        await getConvexClient().setUserTotp(user._id, req.body.secret, true);
+        return res.json({ success: true, message: 'Two-factor authentication enabled' });
+    } catch (err) {
+        logger.error('2fa enable error:', err.message);
+        return res.status(500).json({ success: false, message: 'Failed to enable 2FA' });
+    }
+});
+
+// Disable 2FA
+router.post('/2fa/disable', [
+    auth,
+    check('code', '6-digit code is required').isLength({ min: 6, max: 8 }),
+    check('password', 'Password is required').exists(),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    try {
+        const user = await getConvexClient().getUserById(req.user.id);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin only' });
+        }
+        if (!user.totp_enabled || !user.totp_secret) {
+            return res.status(400).json({ success: false, message: '2FA is not enabled' });
+        }
+
+        const isMatch = await bcrypt.compare(req.body.password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ success: false, message: 'Password is incorrect' });
+        }
+
+        const { verifyTotp } = require('../utils/totp');
+        if (!verifyTotp(user.totp_secret, req.body.code)) {
+            return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+        }
+
+        await getConvexClient().clearUserTotp(user._id);
+        return res.json({ success: true, message: 'Two-factor authentication disabled' });
+    } catch (err) {
+        logger.error('2fa disable error:', err.message);
+        return res.status(500).json({ success: false, message: 'Failed to disable 2FA' });
     }
 });
 
@@ -185,9 +391,16 @@ router.get('/me', auth, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Remove password from response
-        const { password, ...userWithoutPassword } = user;
-        res.json(userWithoutPassword);
+        const safeUser = sanitizeUser(user);
+        res.json({
+            ...safeUser,
+            user: {
+                id: safeUser.id,
+                name: safeUser.name,
+                email: safeUser.email,
+                role: safeUser.role,
+            },
+        });
     } catch (err) {
         logger.error(err.message);
         res.status(500).json({ success: false, message: 'Server Error' });
@@ -216,7 +429,7 @@ router.post('/change-password', [
         }
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(new_password, salt);
-        await getConvexClient().updateUser(req.user.id, { password: hashedPassword, updated_at: new Date().toISOString() });
+        await getConvexClient().updateUser(req.user.id, { password: hashedPassword });
         res.json({ success: true, message: 'Password updated successfully' });
     } catch (err) {
         logger.error('change-password error:', err);

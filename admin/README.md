@@ -61,12 +61,9 @@ The admin panel provides comprehensive tools for managing adventure packages wit
    Create a `.env` file in the backend directory:
    ```env
    PORT=5000
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_KEY=your_supabase_service_role_key
-   RAZORPAY_KEY_ID=your_razorpay_key_id
-   RAZORPAY_KEY_SECRET=your_razorpay_key_secret
-   JWT_SECRET=your_super_secret_jwt_key
+    CONVEX_URL=your_convex_url
+    CONVEX_ADMIN_KEY=your_convex_admin_key
+    JWT_SECRET=your_super_secret_jwt_key
    OPENAI_API_KEY=your_openai_api_key
    ```
 

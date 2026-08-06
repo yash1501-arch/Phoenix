@@ -35,6 +35,7 @@ const AddAdventure = () => {
         location: '',
         duration: '',
         difficulty: 'Moderate',
+        category: '',
         price: '',
         max_participants: '',
         image: null,
@@ -260,6 +261,7 @@ const AddAdventure = () => {
             submitData.append('location', formData.location);
             submitData.append('duration', formData.duration);
             submitData.append('difficulty', formData.difficulty);
+            submitData.append('category', formData.category);
             submitData.append('price', formData.price);
             submitData.append('max_participants', formData.max_participants);
             submitData.append('status', formData.status);
@@ -436,6 +438,22 @@ const AddAdventure = () => {
                         </div>
 
                         <div className="form-group">
+                            <label className="form-label">Category</label>
+                            <select
+                                name="category"
+                                value={formData.category}
+                                onChange={handleChange}
+                                className="form-select"
+                            >
+                                <option value="">Select category...</option>
+                                <option value="trek">Trek</option>
+                                <option value="camping">Camping</option>
+                                <option value="tour">Tour</option>
+                                <option value="general">General</option>
+                            </select>
+                        </div>
+
+                        <div className="form-group">
                             <label className="form-label required">
                                 <DollarSign size={16} />
                                 Price (₹)
@@ -505,7 +523,7 @@ const AddAdventure = () => {
                             >
                                 <ImageIcon size={48} />
                                 <p>Click to upload main image</p>
-                                <span>PNG, JPG, WebP up to 5MB</span>
+                                <span>All image formats supported up to 15MB</span>
                             </div>
                         )}
                         <input

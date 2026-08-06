@@ -2,7 +2,9 @@
 
 This guide walks through deploying the four pieces of the stack — **Convex**, **backend API**, **customer frontend**, and **admin panel** — to production, including environment variables, DNS, CI/CD, and the post-deploy verification checklist.
 
-> See [RUN.md](./RUN.md) for local development setup and [README.md](./README.md) for the project overview.
+> **Cost + security first?** Start with [HOSTING.md](./HOSTING.md) (recommended cheap/secure layout), then return here for detailed commands.
+>
+> See [RUN.md](./RUN.md) for local development and [README.md](./README.md) for the project overview.
 
 ---
 
@@ -17,7 +19,7 @@ This guide walks through deploying the four pieces of the stack — **Convex**, 
             ┌──────────────┴──────────────┐
             │                             │
    ┌────────┴────────┐          ┌─────────┴────────┐
-   │  Backend API    │◀─────────│  Razorpay webhooks│
+    │  Backend API    │            │                  │
    │  Node/Express   │          └──────────────────┘
    │  Render/Railway │
    └────────▲────────┘
@@ -79,7 +81,9 @@ Default credentials (rotate immediately after first login):
 
 ### 1.4 Verify
 
-Open the Convex dashboard → Functions. You should see all queries/mutations listed (e.g. `users:getByEmail`, `adventures:getAll`).
+Open the Convex dashboard → Functions. You should see functions listed as **internal** (e.g. `users:getByEmail`, `adventures:getAll`). Public anonymous clients cannot call them — only the backend with `CONVEX_ADMIN_KEY` (deploy key) can.
+
+**Security:** All Phoenix Convex functions are `internalQuery` / `internalMutation`. Never convert them back to public `query` / `mutation` without an auth layer. Never put `CONVEX_ADMIN_KEY` in frontend or admin env.
 
 ---
 
@@ -108,9 +112,6 @@ Set these in the host's secret/env-var UI. **Do not commit them to git.**
 | `JWT_SECRET`            | ✅       | 64+ random chars. Generate: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"` |
 | `CORS_ORIGINS`          | ✅       | Comma-separated list of every frontend origin that may call the API, e.g. `https://www.phoenixadventures.in,https://admin.phoenixadventures.in` |
 | `FRONTEND_URL`          | ✅       | Customer site origin, e.g. `https://www.phoenixadventures.in` (used for password-reset email links) |
-| `RAZORPAY_KEY_ID`       | ✅ for payments | Live key (`rzp_live_…`) for production                                          |
-| `RAZORPAY_KEY_SECRET`   | ✅ for payments | Live secret                                                                          |
-| `RAZORPAY_WEBHOOK_SECRET` | ✅ for payments | From Razorpay Dashboard → Settings → Webhooks → your endpoint → Secret         |
 | `OPENAI_API_KEY`        | optional | Enables AI itinerary / PDF / description features in admin                      |
 | `CLOUDINARY_CLOUD_NAME` | optional | Image uploads via Cloudinary                                                     |
 | `CLOUDINARY_API_KEY`    | optional |                                                                                  |
@@ -121,16 +122,6 @@ Set these in the host's secret/env-var UI. **Do not commit them to git.**
 | `SMTP_USER`             | optional |                                                                                  |
 | `SMTP_PASS`             | optional | App-specific password (Gmail)                                                    |
 | `ADMIN_EMAIL`           | optional | Where admin notifications go                                                    |
-
-### 2.3 Configure Razorpay webhooks
-
-In the Razorpay Dashboard → Settings → Webhooks → **Create new webhook**:
-
-- **URL:** `https://api.phoenixadventures.in/api/payments/webhook` (your backend URL + `/api/payments/webhook`)
-- **Active events:** `payment.captured`, `payment.failed`, `order.paid`, `refund.processed`
-- **Secret:** copy the value Razorpay gives you → paste into `RAZORPAY_WEBHOOK_SECRET` in the backend env
-
-Test the webhook from the Razorpay dashboard after saving — it should return `200 OK`.
 
 ### 2.4 First deploy verification
 
@@ -160,7 +151,7 @@ A non-`OK` response or `checks.convex.ok: false` means the env vars aren't reach
 | Variable                | Required | Example                                              |
 |-------------------------|----------|------------------------------------------------------|
 | `VITE_API_URL`          | ✅       | `https://api.phoenixadventures.in` (no trailing `/api` — the app appends it) |
-| `VITE_RAZORPAY_KEY_ID`  | ✅ for payments | Live key (`rzp_live_…`)                       |
+| `VITE_RAZORPAY_KEY_ID`  | ❌ Removed   | No longer needed (bookings via WhatsApp)      |
 
 ### 3.3 Custom domain
 
@@ -199,7 +190,7 @@ Same as the customer frontend, with different env vars and domain.
 |----------------|----------|----------------------------------------------------|
 | `VITE_API_URL` | ✅       | `https://api.phoenixadventures.in`                 |
 
-> The admin uses the same `VITE_API_URL` as the customer frontend — it calls the same backend. Razorpay key is not needed here (admin doesn't take payments).
+> The admin uses the same `VITE_API_URL` as the customer frontend — it calls the same backend.
 
 ### 4.2 Custom domain
 
@@ -228,15 +219,12 @@ The admin panel is wide-open to anyone with the URL. Add at least one of:
 | `JWT_SECRET`                |        | ✅      |          |       |
 | `CORS_ORIGINS`              |        | ✅      |          |       |
 | `FRONTEND_URL`              |        | ✅      |          |       |
-| `RAZORPAY_KEY_ID`           |        | ✅      | ✅       |       |
-| `RAZORPAY_KEY_SECRET`       |        | ✅      |          |       |
-| `RAZORPAY_WEBHOOK_SECRET`   |        | ✅      |          |       |
 | `OPENAI_API_KEY`            |        | ✅      |          |       |
 | `CLOUDINARY_*`              |        | ✅      |          |       |
 | `SMTP_*`                    |        | ✅      |          |       |
 | `ADMIN_EMAIL`               |        | ✅      |          |       |
 | `VITE_API_URL`              |        |         | ✅       | ✅    |
-| `VITE_RAZORPAY_KEY_ID`      |        |         | ✅       |       |
+| `VITE_RAZORPAY_KEY_ID`      |        |         | ❌       |       |
 
 ---
 
@@ -286,8 +274,7 @@ Both have first-class GitHub integration:
 - [ ] Backend env vars are all set, including a fresh `JWT_SECRET`
 - [ ] `CORS_ORIGINS` includes the exact prod frontend + admin origins (no trailing slash, https)
 - [ ] `NODE_ENV=production` is set on the backend
-- [ ] Razorpay webhook is configured with the live `RAZORPAY_WEBHOOK_SECRET`
-- [ ] Razorpay is in **Live mode** in the dashboard (not Test mode) on both backend + frontend
+
 - [ ] Frontend and admin have correct `VITE_API_URL` pointing to the live backend
 - [ ] Custom domains are connected, HTTPS is on
 - [ ] SPA fallback (`/* → /index.html`) works — try opening `/adventures` directly in a private tab
@@ -314,11 +301,10 @@ curl -s -X POST https://api.phoenixadventures.in/api/auth/login \
 
 Manual checks:
 
-- [ ] Open customer site, browse an adventure, complete a test booking (use Razorpay test card `4111 1111 1111 1111` in live mode for the first verification, then switch to live).
+- [ ] Open customer site, browse an adventure, submit a booking via WhatsApp.
 - [ ] Open admin panel, log in, see the new booking in **Bookings**, see it reflected in **Dashboard** stats.
 - [ ] Submit a contact/newsletter form and confirm the email/SMTP flow works (or check logs).
 - [ ] Test password reset end-to-end.
-- [ ] Check Razorpay dashboard → Webhooks → Recent deliveries for `payment.captured` 200 responses.
 
 ## 9. Updating after deploy
 
@@ -328,7 +314,7 @@ Manual checks:
 | Edit backend code               | Push to `main` → Render auto-rebuilds. Or click **Manual Deploy** → **Deploy latest commit**. |
 | Edit frontend/admin             | Push to `main` → Vercel auto-rebuilds.                                                      |
 | Rotate `JWT_SECRET`             | Set new value in backend env vars, **restart** the service (don't just redeploy).            |
-| Rotate Razorpay webhook secret  | Update in Razorpay dashboard, set new value in backend env, restart.                          |
+| Update WhatsApp number          | Change `WHATSAPP_NUMBER` in frontend env or source files, redeploy.                          |
 | Promote a dev Convex deploy to prod | Not directly supported — point `CONVEX_URL`/`CONVEX_ADMIN_KEY` to the prod deploy and re-run `seedAdmin.js`. |
 
 ## 10. Rollback
@@ -343,7 +329,7 @@ Manual checks:
 
 ## 11. Monitoring & logs
 
-- **Backend logs:** Render → Service → Logs (or your host's equivalent). Look for the `[ERROR]`, `Unhandled error:`, and `[razorpay] FATAL` lines.
+- **Backend logs:** Render → Service → Logs (or your host's equivalent). Look for the `[ERROR]` and `Unhandled error:` lines.
 - **Convex logs:** `npx convex logs --prod` from the `convex/` directory. Also available in the dashboard under **Logs**.
 - **Uptime:** point a free monitor (UptimeRobot, BetterStack, …) at `https://api.phoenixadventures.in/api/health` — alert on non-200.
 - **Error tracking:** drop in Sentry (or similar) on both backend and frontend — set `SENTRY_DSN` in each env.

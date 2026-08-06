@@ -6,13 +6,14 @@ import Dashboard from './pages/Dashboard';
 import Adventures from './pages/Adventures';
 import AddAdventure from './pages/AddAdventure';
 import EditAdventure from './pages/EditAdventure';
-import Bookings from './pages/Bookings';
-import Users from './pages/Users';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import Settings from './pages/Settings';
 import Reviews from './pages/Reviews';
-import AuditLog from './pages/AuditLog';
+import BlogList from './pages/BlogList';
+import BlogEditor from './pages/BlogEditor';
+import Messages from './pages/Messages';
+import Payments from './pages/Payments';
 import Layout from './components/Layout';
 
 const ProtectedRoute = ({ children }) => {
@@ -80,18 +81,6 @@ function App() {
             </ProtectedRoute>
           } />
 
-          <Route path="/bookings" element={
-            <ProtectedRoute>
-              <Bookings />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/users" element={
-            <ProtectedRoute>
-              <Users />
-            </ProtectedRoute>
-          } />
-
           <Route path="/settings" element={
             <ProtectedRoute>
               <Settings />
@@ -104,9 +93,33 @@ function App() {
             </ProtectedRoute>
           } />
 
-          <Route path="/audit" element={
+          <Route path="/blog" element={
             <ProtectedRoute>
-              <AuditLog />
+              <BlogList />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/blog/new" element={
+            <ProtectedRoute>
+              <BlogEditor />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/blog/edit/:id" element={
+            <ProtectedRoute>
+              <BlogEditor />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/messages" element={
+            <ProtectedRoute>
+              <Messages />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/payments" element={
+            <ProtectedRoute>
+              <Payments />
             </ProtectedRoute>
           } />
 

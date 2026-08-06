@@ -3,17 +3,48 @@ const cors = require('cors');
 const helmet = require('helmet');
 const hpp = require('hpp');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger');
 const requestId = require('./middleware/requestId');
 require('dotenv').config();
 
 // ── Startup env validation ────────────────────────────────────────────────────
-const requiredEnv = ['CONVEX_URL', 'CONVEX_ADMIN_KEY', 'JWT_SECRET'];
-const missingEnv = requiredEnv.filter((k) => !process.env[k]);
-if (missingEnv.length) {
-  logger.warn(`Missing env vars: ${missingEnv.join(', ')} — some features may fail. ` +
-    `Ensure backend/.env exists and the backend was started from the backend/ directory.`);
+const isProd = process.env.NODE_ENV === 'production';
+const requiredProd = [
+  'JWT_SECRET',
+  'CONVEX_URL',
+  'CONVEX_ADMIN_KEY',
+  'CLOUDINARY_CLOUD_NAME',
+  'CLOUDINARY_API_KEY',
+  'CLOUDINARY_API_SECRET',
+  'CORS_ORIGINS',
+  'ADMIN_EMAIL',
+];
+const requiredDev = ['CONVEX_URL', 'CONVEX_ADMIN_KEY', 'JWT_SECRET'];
+
+if (isProd) {
+  const missingProd = requiredProd.filter((k) => !process.env[k]);
+  if (missingProd.length) {
+    logger.error(`FATAL: Missing required production env vars: ${missingProd.join(', ')}`);
+    process.exit(1);
+  }
+} else {
+  const missingDev = requiredDev.filter((k) => !process.env[k]);
+  if (missingDev.length) {
+    logger.warn(`Missing env vars: ${missingDev.join(', ')} — some features may fail. ` +
+      `Ensure backend/.env exists and the backend was started from the backend/ directory.`);
+  }
+  const optionalServices = [
+    ['SMTP_USER', 'email notifications'],
+    ['WHATSAPP_TOKEN', 'WhatsApp confirmations'],
+    ['WHATSAPP_PHONE_NUMBER_ID', 'WhatsApp confirmations'],
+  ];
+  for (const [key, feature] of optionalServices) {
+    if (!process.env[key]) {
+      logger.warn(`Optional: ${key} not set — ${feature} disabled in dev`);
+    }
+  }
 }
 
 const app = express();
@@ -21,6 +52,9 @@ const app = express();
 const sanitize = require('./middleware/sanitize');
 
 // ── Security Middleware ────────────────────────────────────────────────────────
+
+// Render / reverse-proxy: correct client IPs for rate limiting
+app.set('trust proxy', 1);
 
 // Request ID for tracing
 app.use(requestId);
@@ -41,8 +75,13 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin) return callback(null, true);
+        // In production, reject browser requests with no Origin header
+        if (!origin) {
+            if (process.env.NODE_ENV === 'production') {
+                return callback(new Error('Not allowed by CORS'));
+            }
+            return callback(null, true);
+        }
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
@@ -51,18 +90,23 @@ app.use(cors({
     credentials: true,
 }));
 
-// Rate limiting — general API
+// Environment check (used by rate limiters below)
+const isDev = process.env.NODE_ENV !== 'production';
+
+// Rate limiting — general API (skip health checks and public settings reads)
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 100,
+    limit: isDev ? 500 : 200,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.path === '/health'
+        || req.path === '/settings/public'
+        || req.method === 'GET' && req.path.startsWith('/adventures'),
     message: { success: false, message: 'Too many requests, please try again later.' },
 });
 app.use('/api/', apiLimiter);
 
 // Rate limiting — strict for auth endpoints in production, lenient in dev
-const isDev = process.env.NODE_ENV !== 'production';
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     limit: isDev ? 100 : 10,
@@ -73,6 +117,21 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/', authLimiter);
 
+// Rate limiting — prevent spam on write endpoints
+const writeLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: isDev ? 100 : 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many requests, please slow down.' },
+});
+app.use('/api/newsletter/subscribe', writeLimiter);
+app.use('/api/contact', writeLimiter); // contact form spam protection
+app.use('/api/reviews', writeLimiter);
+app.use('/api/wishlist', writeLimiter);
+app.use('/api/bookings/manual', writeLimiter);
+app.use('/api/payments/manual/submit', writeLimiter);
+
 // Logging — conditional based on environment
 if (process.env.NODE_ENV === 'production') {
     app.use(morgan('combined'));
@@ -80,15 +139,16 @@ if (process.env.NODE_ENV === 'production') {
     app.use(morgan('dev'));
 }
 
-// ── Webhooks (Must be before express.json) ───────────────────────────────────
-app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), require('./routes/webhook'));
-
 // Body parsing for all other routes
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // XSS sanitization for all incoming requests
 app.use(sanitize);
+
+// Maintenance mode gate (admins bypass)
+app.use(require('./middleware/maintenanceMode'));
 
 // Serve static files (uploads)
 app.use('/uploads', express.static('uploads'));
@@ -96,15 +156,17 @@ app.use('/uploads', express.static('uploads'));
 // ── Routes ─────────────────────────────────────────────────────────────────────
 
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/payments', require('./routes/payments'));
 app.use('/api/adventures', require('./routes/adventures'));
-app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/wishlist', require('./routes/wishlist'));
 app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/audit', require('./routes/auditLog'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/blog', require('./routes/blog'));
+app.use('/api/contact', require('./routes/contact'));
+app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/payments', require('./routes/payments'));
 
 // Root endpoint
 app.get('/', (req, res) => {

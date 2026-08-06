@@ -6,11 +6,11 @@ Step-by-step instructions to run the project locally from a clean clone.
 
 - **Node.js 20+** and npm
 - A **Convex** account ([convex.dev](https://convex.dev)) — for the database/queries
-- **Razorpay** test account (optional, for payments)
+- **WhatsApp Business** account for customer inquiries
 - **OpenAI** API key (optional, for AI features in the admin panel)
 - **Cloudinary** account (optional, for image uploads)
 
-> The `backend/.env` in this repo already has working Convex + Razorpay + OpenAI + Cloudinary credentials. You can run end-to-end without setting up your own accounts on first run — just add the ones you don't have later.
+> The `backend/.env` in this repo already has working Convex + OpenAI + Cloudinary credentials. You can run end-to-end without setting up your own accounts on first run — just add the ones you don't have later.
 
 ---
 
@@ -31,9 +31,9 @@ cd convex   && npm install && cd ..
 
 These should already be in the repo (`.env` files are gitignored but checked in for dev):
 
-- `backend/.env` — Convex URL/key, JWT secret, Razorpay, OpenAI, Cloudinary
+- `backend/.env` — Convex URL/key, JWT secret, OpenAI, Cloudinary
 - `admin/.env` — `VITE_API_URL=http://localhost:5000`
-- `frontend/.env` — same `VITE_API_URL` + `VITE_RAZORPAY_KEY_ID`
+- `frontend/.env` — `VITE_API_URL=http://localhost:5000`
 - `convex/.env.local` — points to the dev Convex deployment
 
 If any are missing, copy from the matching `.env.example` and fill in real values.
@@ -123,7 +123,6 @@ npm run dev
 |-------------------------------------|--------------------------------------------------------------|
 | Deploy Convex functions (prod)      | `cd convex && $env:CONVEX_DEPLOY_KEY="..." && npx convex deploy` |
 | Reset the admin password            | `cd backend && node seedAdmin.js`                            |
-| Debug Convex state                  | `cd backend && node debug-auth.js`                           |
 | Lint admin                          | `cd admin && npm run lint`                                   |
 | Build admin for deploy              | `cd admin && npm run build`                                  |
 | Build frontend for deploy           | `cd frontend && npm run build`                               |

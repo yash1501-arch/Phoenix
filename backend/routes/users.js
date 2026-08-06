@@ -14,6 +14,6 @@ router.get('/:id', auth, userController.getUserById);
 router.put('/:id', auth, userController.updateUser);
 
 // Upload avatar (authenticated, owner only)
-router.post('/:id/avatar', auth, uploadImage.single('avatar'), userController.uploadAvatar);
+router.post('/:id/avatar', auth, ...uploadImage.single('avatar'), userController.uploadAvatar);
 
 module.exports = router;

@@ -1,182 +1,172 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, ArrowRight, Star, Heart, MapPin, Clock } from 'lucide-react';
+import { ArrowRight, Star, Heart, MapPin, Clock } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { adventuresAPI, getImageUrl } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../context/WishlistContext';
 
 const Adventures = () => {
     const [adventures, setAdventures] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    const tagColors = {
-        'Easy': 'bg-[#F0E68C]/20 text-[#D4AF37] border-[#D4AF37]/30',
-        'Moderate': 'bg-[#F0E68C]/30 text-[#D4AF37] border-[#D4AF37]/40',
-        'Challenging': 'bg-black/10 text-black border-black/20',
-        'Trending': 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/30'
-    };
+    const { isAuthenticated } = useAuth();
+    const { toggle, isWishlisted } = useWishlist();
 
     useEffect(() => {
+        let alive = true;
         const fetchAdventures = async () => {
             try {
-                // Fetch active adventures
                 const response = await adventuresAPI.getAll({ status: 'active', limit: 8 });
-                setAdventures(response.data.data);
+                if (alive) setAdventures(response.data.data || []);
             } catch (error) {
                 console.error('Error fetching adventures:', error);
             } finally {
-                setLoading(false);
+                if (alive) setLoading(false);
             }
         };
-
         fetchAdventures();
+        return () => { alive = false; };
     }, []);
 
-    const getTagColor = (difficulty) => {
-        return tagColors[difficulty] || 'bg-white/10 text-black border-black/20';
+    const handleWishlist = async (e, adv) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isAuthenticated) {
+            toast.error('Sign in to save adventures to your wishlist');
+            return;
+        }
+        try {
+            await toggle(adv._id || adv.id);
+        } catch {
+            /* context shows toast */
+        }
     };
 
     if (loading) {
         return (
-            <section className="py-20 bg-gradient-to-b from-[#F0E68C]/5 to-white flex justify-center items-center min-h-[50vh]">
-                <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+            <section className="py-24 md:py-32 bg-mist flex justify-center items-center min-h-[50vh]">
+                <div className="w-10 h-10 border-2 border-ember border-t-transparent rounded-full animate-spin" />
             </section>
         );
     }
 
     if (!loading && adventures.length === 0) {
-        // Optional: Show "No adventures found" default or just hide
         return null;
     }
 
     return (
-        <section id="adventures" className="py-16 sm:py-20 md:py-24 lg:py-32 bg-gradient-to-b from-[#F0E68C]/5 to-white" aria-labelledby="adventures-heading">
+        <section id="adventures" className="py-24 md:py-32 bg-mist" aria-labelledby="adventures-heading">
             <div className="container">
-                {/* Section Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 md:mb-16 gap-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 md:mb-16 gap-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
+                        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
                         className="max-w-2xl"
                     >
-                        <span className="text-[#D4AF37] font-bold tracking-widest uppercase text-xs md:text-sm inline-block mb-3 md:mb-4">
-                            Upcoming Expeditions
-                        </span>
-                        <h2 id="adventures-heading" className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-black leading-tight">
-                            Choose Your{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F0E68C]">
-                                Destination
-                            </span>
+                        <p className="kicker mb-3">Open departures</p>
+                        <h2 id="adventures-heading" className="font-display text-display-lg text-stone font-semibold">
+                            Upcoming expeditions
                         </h2>
+                        <p className="mt-4 text-base md:text-lg text-muted max-w-xl">
+                            Small groups. Certified guides. Book seats on WhatsApp.
+                        </p>
                     </motion.div>
 
-                    <motion.button
-                        initial={{ opacity: 0, x: 20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        whileHover={{ x: 5 }}
-                        className="hidden md:flex items-center gap-2 text-black hover:text-[#D4AF37] transition-colors font-bold group"
+                    <Link
+                        to="/adventures"
+                        className="hidden md:inline-flex items-center gap-2 font-bold text-stone hover:text-ember transition-colors group"
                     >
-                        View All Treks
-                        <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                    </motion.button>
+                        Browse all
+                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                    </Link>
                 </div>
 
-                {/* Adventures Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
-                    {adventures.map((adv, index) => (
-                        <motion.div
-                            key={adv.id}
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            whileHover={{ y: -8 }}
-                            className="group bg-white rounded-3xl p-3 shadow-professional hover:shadow-professional-lg transition-all duration-300 cursor-pointer border border-[#D4AF37]/20"
-                        >
-                            {/* Image Container */}
-                            <div className="relative overflow-hidden rounded-2xl mb-4 aspect-[4/5]">
-                                <img
-                                    src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop'}
-                                    alt={adv.title}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop'; }}
-                                />
-
-                                {/* Tag/Difficulty Badge */}
-                                <div className={`absolute top-3 left-3 ${getTagColor(adv.difficulty)} backdrop-blur-sm text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-wider border`}>
-                                    {adv.difficulty || 'Adventure'}
-                                </div>
-
-                                {/* Like Button */}
-                                <button className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-gray-700 hover:bg-primary hover:text-white transition-all shadow-sm">
-                                    <Heart size={16} className="group-hover:fill-current transition-all" />
-                                </button>
-
-                                {/* Gradient Overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            </div>
-
-                            {/* Card Content */}
-                            <div className="px-2 pb-2 space-y-3">
-                                {/* Title & Rating */}
-                                <div className="flex justify-between items-start gap-2">
-                                    <h3 className="text-sm sm:text-base md:text-lg font-bold leading-tight text-black group-hover:text-[#D4AF37] transition-colors line-clamp-2 flex-1">
-                                        {adv.title}
-                                    </h3>
-                                    <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg shrink-0">
-                                        <Star size={12} className="text-green-600 fill-current" />
-                                        <span className="text-xs font-bold text-green-700">{adv.rating || 'New'}</span>
+                    {adventures.map((adv, index) => {
+                        const advId = adv._id || adv.id;
+                        const wishlisted = isAuthenticated && isWishlisted?.(advId);
+                        return (
+                            <motion.article
+                                key={advId}
+                                initial={{ opacity: 0, y: 24 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, margin: '-40px' }}
+                                transition={{ duration: 0.45, delay: Math.min(index, 6) * 0.05 }}
+                                whileHover={{ y: -4 }}
+                                className="group bg-white rounded-lg overflow-hidden border border-stone/8 shadow-smoke hover:shadow-card transition-shadow"
+                            >
+                                <Link to={`/adventure/${advId}`} className="block">
+                                    <div className="relative aspect-[4/5] overflow-hidden">
+                                        <img
+                                            src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80'}
+                                            alt={`${adv.title} — ${adv.location}`}
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80'; }}
+                                        />
+                                        <span className="absolute top-3 left-3 bg-stone/90 text-mist text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
+                                            {adv.difficulty || 'Moderate'}
+                                        </span>
+                                        <button
+                                            onClick={(e) => handleWishlist(e, adv)}
+                                            aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+                                            aria-pressed={wishlisted}
+                                            className="absolute top-3 right-3 w-10 h-10 bg-mist/95 rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-white transition-colors"
+                                        >
+                                            <Heart size={15} className={wishlisted ? 'fill-current text-ember' : ''} />
+                                        </button>
                                     </div>
-                                </div>
 
-                                {/* Location & Duration */}
-                                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
-                                    <div className="flex items-center gap-1">
-                                        <MapPin size={14} className="text-[#D4AF37] shrink-0" />
-                                        <span className="font-medium line-clamp-1">{adv.location}</span>
-                                    </div>
-                                    <div className="w-1 h-1 rounded-full bg-[#D4AF37]" />
-                                    <div className="flex items-center gap-1">
-                                        <Clock size={14} className="text-[#D4AF37] shrink-0" />
-                                        <span className="font-medium">{adv.duration}</span>
-                                    </div>
-                                </div>
+                                    <div className="p-4 space-y-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <h3 className="font-display text-lg leading-snug text-stone group-hover:text-ember transition-colors font-semibold">
+                                                {adv.title}
+                                            </h3>
+                                            {adv.rating > 0 && (
+                                                <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                                                    <Star size={12} className="text-ember fill-current" />
+                                                    <span className="text-sm font-bold text-stone">{adv.rating}</span>
+                                                </div>
+                                            )}
+                                        </div>
 
-                                {/* Price & CTA */}
-                                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                                    <div>
-                                        <p className="text-[10px] text-gray-700 font-bold uppercase tracking-wide mb-0.5">
-                                            Starting at
-                                        </p>
-                                        <p className="text-lg sm:text-xl md:text-2xl font-black text-black">
-                                            ₹{adv.price}
-                                        </p>
-                                    </div>
-                                    <button className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-black text-white flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:scale-110 transition-all shadow-lg">
-                                        <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
-                                    </button>
-                                </div>
+                                        <div className="flex items-center gap-3 text-sm text-muted">
+                                            <span className="inline-flex items-center gap-1">
+                                                <MapPin size={12} className="text-ember" />
+                                                {adv.location}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1">
+                                                <Clock size={12} className="text-ember" />
+                                                {adv.duration}
+                                            </span>
+                                        </div>
 
-                                {/* Reviews Count */}
-                                <p className="text-xs text-gray-600 font-medium">
-                                    {adv.reviews_count > 0 ? `Based on ${adv.reviews_count} reviews` : 'Be the first to review!'}
-                                </p>
-                            </div>
-                        </motion.div>
-                    ))}
+                                        <div className="flex items-baseline justify-between pt-3 border-t border-stone/8">
+                                            <div>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted block">From</span>
+                                                <span className="font-display text-xl text-stone font-semibold">₹{adv.price?.toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <span className="text-sm font-bold text-ember inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+                                                Book <ArrowRight size={14} />
+                                            </span>
+                                        </div>
+                                    </div>
+                                </Link>
+                            </motion.article>
+                        );
+                    })}
                 </div>
 
-                {/* Mobile View All Button */}
-                <motion.button
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    className="md:hidden btn btn-outline w-full mt-8 flex items-center justify-center gap-2 text-black border-[#D4AF37] hover:bg-[#D4AF37] hover:text-white"
-                >
-                    View All Treks
-                    <ArrowRight size={18} />
-                </motion.button>
+                <div className="md:hidden mt-10">
+                    <Link to="/adventures" className="btn btn-primary w-full">
+                        Browse all adventures
+                        <ArrowRight size={16} />
+                    </Link>
+                </div>
             </div>
         </section>
     );

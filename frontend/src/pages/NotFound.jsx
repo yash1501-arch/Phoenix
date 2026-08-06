@@ -1,43 +1,80 @@
 import { Link } from 'react-router-dom';
 import { Home, Compass, ArrowLeft } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import Navbar from '../components/Navbar';
-import Footer, { MobileTabBarSpacer } from '../components/Footer';
+import Footer from '../components/Footer';
 import Seo from '../components/Seo';
+import { EASE, IconMotion } from '../components/ui/Motion';
 
-const NotFound = () => (
-    <>
-        <Seo title="404 | Page Not Found" description="The page you are looking for has wandered off the trail." />
-        <Navbar />
-        <main id="main-content" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-black via-[#0b0b0b] to-black px-4 pt-24 text-white">
-            <div aria-hidden className="pointer-events-none absolute -top-32 -right-20 h-96 w-96 rounded-full bg-[#D4AF37]/20 blur-3xl" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-[#D4AF37]/10 blur-3xl" />
-            <div className="relative z-10 max-w-2xl text-center">
-                <div className="font-display text-[140px] font-black leading-none text-transparent bg-gradient-to-br from-[#D4AF37] to-[#F0E68C] bg-clip-text md:text-[200px]">
-                    404
-                </div>
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
-                    <Compass size={14} /> Off the trail
-                </div>
-                <h1 className="text-3xl font-extrabold sm:text-4xl">This path leads nowhere… yet.</h1>
-                <p className="mx-auto mt-3 max-w-md text-base text-white/70">
-                    The page you are looking for has wandered into the Sahyadris. Let's get you back to base camp.
-                </p>
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                    <Link to="/" className="btn btn-primary">
-                        <Home size={16} /> Back to Home
-                    </Link>
-                    <Link to="/adventures" className="btn btn-outline border-white/30 text-white hover:border-[#D4AF37] hover:bg-[#D4AF37] hover:text-white">
-                        <Compass size={16} /> Explore Adventures
-                    </Link>
-                </div>
-                <Link to="/" className="mt-8 inline-flex items-center gap-1 text-sm text-white/50 hover:text-white">
-                    <ArrowLeft size={14} /> Or go back
-                </Link>
-            </div>
-        </main>
-    <MobileTabBarSpacer />
-    <Footer />
-    </>
-);
+const NotFound = () => {
+  const reduced = useReducedMotion();
+
+  return (
+    <div className="min-h-screen bg-stone">
+      <Seo title="404 | Page Not Found" description="The page you are looking for has wandered off the trail." />
+      <Navbar />
+      <main id="main-content" className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 pt-24 text-mist">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(240,89,30,0.12),_transparent_55%)]"
+        />
+        <div className="relative z-10 max-w-2xl text-center">
+          <motion.div
+            initial={reduced ? false : { opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="font-display text-[140px] font-semibold leading-none text-ember md:text-[200px]"
+          >
+            404
+          </motion.div>
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
+            className="mb-6 inline-flex items-center gap-2 rounded-md border border-ember/40 bg-ember/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-ember"
+          >
+            <IconMotion>
+              <Compass size={14} />
+            </IconMotion>
+            Off the trail
+          </motion.div>
+          <motion.h1
+            initial={reduced ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.15, ease: EASE }}
+            className="font-display text-3xl font-semibold sm:text-4xl !text-mist"
+          >
+            This path leads nowhere… yet.
+          </motion.h1>
+          <motion.p
+            initial={reduced ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.25, ease: EASE }}
+            className="mx-auto mt-3 max-w-md text-base text-mist/70"
+          >
+            The page you are looking for has wandered into the Sahyadris. Let&apos;s get you back to base camp.
+          </motion.p>
+          <motion.div
+            initial={reduced ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35, ease: EASE }}
+            className="mt-8 flex flex-wrap items-center justify-center gap-3"
+          >
+            <Link to="/" className="btn btn-primary">
+              <Home size={16} /> Back to Home
+            </Link>
+            <Link to="/adventures" className="btn btn-outline !border-mist/30 !text-mist hover:!border-ember hover:!bg-ember hover:!text-white">
+              <Compass size={16} /> Explore Adventures
+            </Link>
+          </motion.div>
+          <Link to="/" className="mt-8 inline-flex items-center gap-1 text-sm text-mist/50 hover:text-mist transition-colors">
+            <ArrowLeft size={14} /> Or go back
+          </Link>
+        </div>
+      </main>
+            <Footer />
+    </div>
+  );
+};
 
 export default NotFound;

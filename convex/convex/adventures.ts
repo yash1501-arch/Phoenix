@@ -1,14 +1,15 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 // Get all adventures with optional filters
-export const getAll = query({
+export const getAll = internalQuery({
   args: {
     page: v.optional(v.number()),
     limit: v.optional(v.number()),
     status: v.optional(v.string()),
     difficulty: v.optional(v.string()),
     location: v.optional(v.string()),
+    category: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const page = args.page ?? 1;
@@ -17,12 +18,14 @@ export const getAll = query({
 
     // Use an index when only one equality filter is provided; fall back to a full scan otherwise.
     let adventuresList;
-    const filterCount = [args.status, args.difficulty, args.location].filter(Boolean).length;
+    const filterCount = [args.status, args.difficulty, args.location, args.category].filter(Boolean).length;
     if (filterCount === 1) {
       if (args.status) {
         adventuresList = await ctx.db.query("adventures").withIndex("status", (q) => q.eq("status", args.status)).collect();
       } else if (args.difficulty) {
         adventuresList = await ctx.db.query("adventures").withIndex("difficulty", (q) => q.eq("difficulty", args.difficulty)).collect();
+      } else if (args.category) {
+        adventuresList = await ctx.db.query("adventures").withIndex("category", (q) => q.eq("category", args.category)).collect();
       } else if (args.location) {
         const needle = args.location.toLowerCase();
         adventuresList = (await ctx.db.query("adventures").withIndex("location", (q) => q.eq("location", args.location)).collect())
@@ -32,6 +35,7 @@ export const getAll = query({
       adventuresList = await ctx.db.query("adventures").collect();
       if (args.status) adventuresList = adventuresList.filter((a) => a.status === args.status);
       if (args.difficulty) adventuresList = adventuresList.filter((a) => a.difficulty === args.difficulty);
+      if (args.category) adventuresList = adventuresList.filter((a) => a.category === args.category);
       if (args.location) {
         const needle = args.location.toLowerCase();
         adventuresList = adventuresList.filter((a) => a.location.toLowerCase().includes(needle));
@@ -66,7 +70,7 @@ export const getAll = query({
 });
 
 // Get adventure by ID
-export const getById = query({
+export const getById = internalQuery({
   args: { id: v.id("adventures") },
   handler: async (ctx, args) => {
     const adventure = await ctx.db.get(args.id);
@@ -75,7 +79,7 @@ export const getById = query({
 });
 
 // Create new adventure
-export const create = mutation({
+export const create = internalMutation({
   args: {
     title: v.string(),
     description: v.string(),
@@ -83,6 +87,7 @@ export const create = mutation({
     price: v.number(),
     duration: v.string(),
     difficulty: v.string(),
+    category: v.optional(v.string()),
     endurance_level: v.optional(v.string()),
     image_url: v.optional(v.string()),
     status: v.string(),
@@ -115,7 +120,7 @@ export const create = mutation({
 });
 
 // Update adventure
-export const update = mutation({
+export const update = internalMutation({
   args: {
     id: v.id("adventures"),
     title: v.optional(v.string()),
@@ -124,6 +129,7 @@ export const update = mutation({
     price: v.optional(v.number()),
     duration: v.optional(v.string()),
     difficulty: v.optional(v.string()),
+    category: v.optional(v.string()),
     endurance_level: v.optional(v.string()),
     image_url: v.optional(v.string()),
     status: v.optional(v.string()),
@@ -157,7 +163,7 @@ export const update = mutation({
 });
 
 // Delete adventure
-export const remove = mutation({
+export const remove = internalMutation({
   args: { id: v.id("adventures") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.id);
@@ -166,51 +172,19 @@ export const remove = mutation({
 });
 
 // Get dashboard stats
-export const getDashboardStats = query({
+export const getDashboardStats = internalQuery({
   args: {},
   handler: async (ctx, args) => {
     // Get all adventures
     const adventures = await ctx.db.query("adventures").collect();
-    
-    // Get all bookings
-    const bookings = await ctx.db.query("bookings").collect();
-    
+
     // Calculate stats
     const totalAdventures = adventures.length;
     const activeAdventures = adventures.filter(a => a.status === 'active').length;
-    const totalBookings = bookings.length;
-    const pendingBookings = bookings.filter(b => b.status === 'pending').length;
-    
-    // Calculate total revenue
-    const totalRevenue = bookings
-      .filter(b => b.status === 'confirmed' || b.status === 'completed')
-      .reduce((sum, booking) => sum + (parseFloat(booking.total_amount?.toString() || '0') || 0), 0);
-    
-    // Get recent bookings (last 5), enriched with adventure and user info
-    const sortedBookings = [...bookings].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    const recentBookings = await Promise.all(
-      sortedBookings.slice(0, 5).map(async (booking) => {
-        try {
-          const adventure = await ctx.db.get(booking.adventure_id as any);
-          const user = await ctx.db.get(booking.user_id as any);
-          return {
-            ...booking,
-            adventures: adventure ? { title: adventure.title, location: adventure.location, image_url: adventure.image_url } : null,
-            user: user ? { name: user.name, email: user.email } : null,
-          };
-        } catch {
-          return { ...booking, adventures: null, user: null };
-        }
-      })
-    );
-    
+
     return {
       totalAdventures,
       activeAdventures,
-      totalBookings,
-      pendingBookings,
-      totalRevenue,
-      recentBookings
     };
   },
 });

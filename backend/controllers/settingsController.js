@@ -21,8 +21,19 @@ exports.set = async (req, res) => {
 };
 
 // Public read for a single whitelisted key. No auth required.
-// Whitelist anything safe to expose to the world.
-const PUBLIC_KEYS = new Set(['instagram_posts', 'instagram_handle', 'site_name', 'contact_email', 'whatsapp', 'instagram', 'maps_url', 'cancellation_window_days', 'advance_per_person']);
+const PUBLIC_KEYS = new Set([
+    'instagram_posts', 'instagram_handle', 'instagram_url',
+    'facebook_url', 'youtube_url',
+    'google_maps_url', 'google_place_id', 'google_lat', 'google_lng',
+    'google_rating', 'google_review_count',
+    'site_name', 'site_tagline', 'tagline', 'contact_email', 'contact_phone',
+    'contact_phone_secondary', 'contact_address', 'contact_hours', 'whatsapp',
+    'maps_url', 'established', 'cancellation_window_days', 'advance_per_person',
+    'upi_id', 'upi_payee_name', 'seat_hold_minutes',
+    // Curated Google reviews JSON (4–5★). Admin-editable; seed from verified GBP quotes.
+    // TODO: refresh via Places Details API when GOOGLE_MAPS_API_KEY is available.
+    'google_reviews',
+]);
 
 exports.getPublic = async (req, res) => {
     try {

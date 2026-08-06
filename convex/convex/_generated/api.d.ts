@@ -10,9 +10,11 @@
 
 import type * as adventures from "../adventures.js";
 import type * as auditLog from "../auditLog.js";
+import type * as blog from "../blog.js";
 import type * as bookings from "../bookings.js";
+import type * as contact from "../contact.js";
+import type * as crons from "../crons.js";
 import type * as newsletter from "../newsletter.js";
-import type * as payments from "../payments.js";
 import type * as reviews from "../reviews.js";
 import type * as settings from "../settings.js";
 import type * as users from "../users.js";
@@ -27,9 +29,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   adventures: typeof adventures;
   auditLog: typeof auditLog;
+  blog: typeof blog;
   bookings: typeof bookings;
+  contact: typeof contact;
+  crons: typeof crons;
   newsletter: typeof newsletter;
-  payments: typeof payments;
   reviews: typeof reviews;
   settings: typeof settings;
   users: typeof users;

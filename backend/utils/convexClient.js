@@ -1,9 +1,15 @@
-const axios = require('axios');
+const { ConvexHttpClient } = require('convex/browser');
+const { makeFunctionReference } = require('convex/server');
 const logger = require('./logger');
 
 let instance = null;
 let lastEnvKey = null;
 
+/**
+ * Backend-only Convex access.
+ * All Convex functions are internalQuery/internalMutation — public clients cannot call them.
+ * CONVEX_ADMIN_KEY (deploy key) is required via setAdminAuth.
+ */
 class ConvexClient {
   constructor(url, apiKey) {
     if (url === undefined || apiKey === undefined) {
@@ -25,15 +31,9 @@ class ConvexClient {
     this.baseUrl = url;
     this.apiKey = apiKey;
 
-    this.client = axios.create({
-      baseURL: this.baseUrl,
-      headers: {
-        'Authorization': `Convex ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      timeout: 30000,
-    });
+    this.http = new ConvexHttpClient(url);
+    // Admin/deploy key — required to invoke internal functions
+    this.http.setAdminAuth(apiKey);
 
     instance = this;
     lastEnvKey = `${url}|${apiKey}`;
@@ -44,42 +44,46 @@ class ConvexClient {
     lastEnvKey = null;
   }
 
+  // Explicit query names — anything not listed here is treated as a mutation.
+  static QUERY_NAMES = new Set([
+    'adventures:getAll', 'adventures:getById', 'adventures:getDashboardStats',
+    'users:getAll', 'users:getById', 'users:getByEmail',
+    'reviews:getByAdventure', 'reviews:getByUser', 'reviews:getRatingSummary',
+    'wishlist:getByUser', 'wishlist:isWishlisted',
+    'newsletter:getAll',
+    'auditLog:list',
+    'settings:getAll',
+    'blog:getAll', 'blog:getPublished', 'blog:getBySlug', 'blog:getById',
+    'contact:list',
+    'bookings:getById', 'bookings:getByCode', 'bookings:getByUser',
+    'bookings:getPaymentDetails', 'bookings:listPendingPayments', 'bookings:listAll',
+  ]);
+
   getFunctionType(functionPath) {
+    if (ConvexClient.QUERY_NAMES.has(functionPath)) return 'query';
     const path = functionPath.toLowerCase();
-    if (path.includes('getall') || path.includes('getby') || path.includes('getdashboard')) return 'query';
-    if (path.includes('create') || path.includes('update') || path.includes('remove') || path.includes('delete')) return 'mutation';
-    return path.includes('get') ? 'query' : 'mutation';
+    if (path.includes(':get') || path.includes(':list') || path.includes('iswishlisted')) return 'query';
+    return 'mutation';
   }
 
   async callFunction(functionPath, args = {}) {
     try {
       const type = this.getFunctionType(functionPath);
-      const endpoint = type === 'query' ? '/api/query' : '/api/mutation';
+      // Path stays "module:name" for internal functions; admin auth unlocks them
+      const ref = makeFunctionReference(functionPath);
 
-      const response = await this.client.post(endpoint, {
-        path: functionPath,
-        args: args,
-        format: 'json',
-      });
-
-      if (response.data.status === 'success') {
-        return response.data.value;
-      } else if (response.data.status === 'error') {
-        throw new Error(response.data.errorMessage || 'Unknown error from Convex');
+      if (type === 'query') {
+        return await this.http.query(ref, args);
       }
-
-      return response.data;
+      return await this.http.mutation(ref, args);
     } catch (error) {
-      if (error.response?.status === 401) {
-        logger.error(`Auth error for Convex function ${functionPath}. Verify admin key.`);
-      } else if (error.response?.status === 404) {
-        logger.error(`Function not found: ${functionPath}.`);
-      } else if (error.response?.status === 400) {
-        logger.error(`Bad request for Convex function ${functionPath}:`, error.response?.data?.message);
-      }
-
-      if (!error.message?.includes('Convex function')) {
-        logger.error(`Error calling Convex function ${functionPath}:`, error.response?.data || error.message);
+      const msg = error?.message || String(error);
+      if (/auth|unauthorized|admin/i.test(msg)) {
+        logger.error(`Auth error for Convex function ${functionPath}. Verify CONVEX_ADMIN_KEY (deploy key).`);
+      } else if (/not found|Could not find/i.test(msg)) {
+        logger.error(`Function not found: ${functionPath}. Deploy Convex after converting to internal*.`);
+      } else {
+        logger.error(`Error calling Convex function ${functionPath}:`, msg);
       }
       throw error;
     }
@@ -95,20 +99,13 @@ class ConvexClient {
   async getUserByEmail(email) { return this.callFunction('users:getByEmail', { email }); }
   async createUser(data) { return this.callFunction('users:create', data); }
   async updateUser(id, data) { return this.callFunction('users:update', { id, ...data }); }
+  async setUserTotp(id, totp_secret, totp_enabled) {
+    return this.callFunction('users:setTotp', { id, totp_secret, totp_enabled });
+  }
+  async clearUserTotp(id) { return this.callFunction('users:clearTotp', { id }); }
   async deleteUser(id) { return this.callFunction('users:remove', { id }); }
-  async getBookings(filters = {}) { return this.callFunction('bookings:getAll', filters); }
-  async getBookingsByUser(userId) { return this.callFunction('bookings:getByUser', { userId }); }
-  async createBooking(data) { return this.callFunction('bookings:create', data); }
-  async updateBooking(id, data) { return this.callFunction('bookings:update', { id, ...data }); }
-  async getBookingById(id) { return this.callFunction('bookings:getById', { id }); }
-  async updateBookingStatus(id, status) { return this.callFunction('bookings:update', { id, status }); }
   async getDashboardStats() { return this.callFunction('adventures:getDashboardStats', {}); }
 
-  async createPayment(data) { return this.callFunction('payments:create', data); }
-  async getPaymentsByBookingId(bookingId) { return this.callFunction('payments:getByBookingId', { booking_id: bookingId }); }
-  async updatePaymentStatus(id, status) { return this.callFunction('payments:updateStatus', { id, status }); }
-
-  // Reviews
   async addReview(data) { return this.callFunction('reviews:add', data); }
   async getReviewsForAdventure(adventureId, opts = {}) { return this.callFunction('reviews:getByAdventure', { adventure_id: adventureId, ...opts }); }
   async getReviewsByUser(userId) { return this.callFunction('reviews:getByUser', { user_id: userId }); }
@@ -116,23 +113,49 @@ class ConvexClient {
   async approveReview(id) { return this.callFunction('reviews:approve', { id }); }
   async deleteReview(id) { return this.callFunction('reviews:remove', { id }); }
 
-  // Wishlist
   async addToWishlist(userId, adventureId) { return this.callFunction('wishlist:add', { user_id: userId, adventure_id: adventureId }); }
   async removeFromWishlist(userId, adventureId) { return this.callFunction('wishlist:remove', { user_id: userId, adventure_id: adventureId }); }
   async getWishlistByUser(userId) { return this.callFunction('wishlist:getByUser', { user_id: userId }); }
   async isWishlisted(userId, adventureId) { return this.callFunction('wishlist:isWishlisted', { user_id: userId, adventure_id: adventureId }); }
 
-  // Newsletter
   async subscribeNewsletter(email) { return this.callFunction('newsletter:subscribe', { email }); }
   async unsubscribeNewsletter(email) { return this.callFunction('newsletter:unsubscribe', { email }); }
   async getNewsletterSubscribers() { return this.callFunction('newsletter:getAll', {}); }
 
-  // Audit log
   async listAuditLog(opts = {}) { return this.callFunction('auditLog:list', opts); }
+  async logAudit(entry) { return this.callFunction('auditLog:log', entry); }
 
-  // Settings
   async getSettings() { return this.callFunction('settings:getAll', {}); }
   async setSetting(key, value) { return this.callFunction('settings:set', { key, value }); }
+
+  async getBlogPosts(opts = {}) { return this.callFunction('blog:getAll', opts); }
+  async getPublishedPosts(opts = {}) { return this.callFunction('blog:getPublished', opts); }
+  async getBlogPostBySlug(slug) { return this.callFunction('blog:getBySlug', { slug }); }
+  async getBlogPostById(id) { return this.callFunction('blog:getById', { id }); }
+  async createBlogPost(data) { return this.callFunction('blog:create', data); }
+  async updateBlogPost(id, data) { return this.callFunction('blog:update', { id, ...data }); }
+  async deleteBlogPost(id) { return this.callFunction('blog:remove', { id }); }
+
+  async submitContactMessage(data) { return this.callFunction('contact:submit', data); }
+  async listContactMessages(opts = {}) { return this.callFunction('contact:list', opts); }
+  async setContactMessageStatus(id, status) { return this.callFunction('contact:setStatus', { id, status }); }
+  async deleteContactMessage(id) { return this.callFunction('contact:remove', { id }); }
+
+  async createManualBooking(data) { return this.callFunction('bookings:createManual', data); }
+  async getBookingById(id) { return this.callFunction('bookings:getById', { id }); }
+  async getBookingByCode(code) { return this.callFunction('bookings:getByCode', { booking_code: code }); }
+  async getBookingsByUser(userId) { return this.callFunction('bookings:getByUser', { user_id: userId }); }
+  async getBookingPaymentDetails(bookingId) { return this.callFunction('bookings:getPaymentDetails', { booking_id: bookingId }); }
+  async submitManualPayment(data) { return this.callFunction('bookings:submitPayment', data); }
+  async verifyPayment(bookingId, verifiedBy) { return this.callFunction('bookings:verifyPayment', { booking_id: bookingId, verified_by: verifiedBy }); }
+  async rejectPayment(bookingId, verifiedBy, reason) { return this.callFunction('bookings:rejectPayment', { booking_id: bookingId, verified_by: verifiedBy, rejection_reason: reason }); }
+  async releaseBooking(bookingId, reason) { return this.callFunction('bookings:releaseBooking', { booking_id: bookingId, reason }); }
+  async listPendingPayments() { return this.callFunction('bookings:listPendingPayments', {}); }
+  async listAllBookings(status) { return this.callFunction('bookings:listAll', status ? { status } : {}); }
+  async getPaymentByBookingId(bookingId) {
+    const details = await this.getBookingPaymentDetails(bookingId);
+    return details?.payment || null;
+  }
 }
 
 function getConvexClient() {

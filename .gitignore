@@ -40,6 +40,14 @@ pnpm-debug.log*
 
 # Tool directories
 .qoder/
+.zcode/
+.impeccable/
 
 # OS files
 Thumbs.db
+desktop.ini
+
+# Legacy / local dumps
+*.docx
+prd_ext/
+scripts/

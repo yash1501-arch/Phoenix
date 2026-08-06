@@ -33,6 +33,25 @@
     height: 42px;
 }
 
+.login-logo-mark {
+    width: 72px;
+    height: 72px;
+    border-radius: 999px;
+    object-fit: cover;
+    background: #fff;
+    display: block;
+}
+
+.login-logo-mark-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
 .login-logo-text {
     font-size: 1.5rem;
     font-weight: 800;

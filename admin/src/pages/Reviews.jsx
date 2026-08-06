@@ -20,13 +20,19 @@ const Reviews = () => {
     const fetchAllReviews = async () => {
         try {
             const list = adventures.length > 0 ? adventures : await adventuresAPI.getAll({ limit: 200 }).then((r) => r.data?.data || []);
+            // Parallelize per-adventure requests (no more sequential N+1)
+            const results = await Promise.allSettled(
+                list.map((adv) =>
+                    reviewsAPI.getForAdventure(adv.id || adv._id, { approved_only: false, limit: 100 })
+                        .then((res) => ({ adv, data: Array.isArray(res.data?.data) ? res.data.data : [] }))
+                )
+            );
             const all = [];
-            for (const adv of list) {
-                try {
-                    const res = await reviewsAPI.getForAdventure(adv.id || adv._id, { approved_only: false, limit: 100 });
-                    const data = Array.isArray(res.data?.data) ? res.data.data : [];
-                    data.forEach((r) => all.push({ ...r, adventureTitle: adv.title }));
-                } catch { /* skip */ }
+            for (const r of results) {
+                if (r.status === 'fulfilled') {
+                    const { adv, data } = r.value;
+                    data.forEach((rev) => all.push({ ...rev, adventureTitle: adv.title }));
+                }
             }
             all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             setReviews(all);
@@ -72,7 +78,8 @@ const Reviews = () => {
     const filtered = reviews.filter((r) => {
         if (filter.approved === 'yes' && !r.approved) return false;
         if (filter.approved === 'no' && r.approved) return false;
-        if (filter.adventure !== 'all' && r.adventure_id !== filter.adventure) return false;
+        // Normalize IDs for comparison (handle both string and ObjectId-style)
+        if (filter.adventure !== 'all' && String(r.adventure_id) !== String(filter.adventure)) return false;
         return true;
     });
 

@@ -1,146 +1,143 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Clock, Filter, Frown } from 'lucide-react';
+import { MapPin, Clock, Filter, Frown } from 'lucide-react';
 import api from '../utils/api';
 import Navbar from '../components/Navbar';
-import Footer, { MobileTabBarSpacer } from '../components/Footer';
+import Footer from '../components/Footer';
 import Seo from '../components/Seo';
 import PageHero from '../components/ui/PageHero';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import { getImageUrl } from '../utils/api';
-import { motion } from 'framer-motion';
+import { Reveal, StaggerContainer, StaggerItem } from '../components/ui/Motion';
 
 const SearchResults = () => {
-    const [params, setParams] = useSearchParams();
-    const q = params.get('q') || '';
-    const difficulty = params.get('difficulty') || 'all';
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [params, setParams] = useSearchParams();
+  const q = params.get('q') || '';
+  const difficulty = params.get('difficulty') || 'all';
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        let alive = true;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setLoading(true);
-        const p = { status: 'active', limit: 50 };
-        if (q) p.search = q;
-        if (difficulty !== 'all') p.difficulty = difficulty;
-        api.get('/adventures', { params: p })
-            .then((res) => {
-                if (!alive) return;
-                const list = Array.isArray(res.data?.data) ? res.data.data
-                    : Array.isArray(res.data) ? res.data : [];
-                // Client-side substring match for resilience
-                const filtered = q
-                    ? list.filter((a) => {
-                        const hay = `${a.title || ''} ${a.location || ''} ${a.description || ''}`.toLowerCase();
-                        return hay.includes(q.toLowerCase());
-                    })
-                    : list;
-                setItems(filtered);
-            })
-            .catch(() => alive && setItems([]))
-            .finally(() => alive && setLoading(false));
-        return () => { alive = false; };
-    }, [q, difficulty]);
+  useEffect(() => {
+    let alive = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    const p = { status: 'active', limit: 50 };
+    if (q) p.search = q;
+    if (difficulty !== 'all') p.difficulty = difficulty;
+    api.get('/adventures', { params: p })
+      .then((res) => {
+        if (!alive) return;
+        const list = Array.isArray(res.data?.data) ? res.data.data
+          : Array.isArray(res.data) ? res.data : [];
+        const filtered = q
+          ? list.filter((a) => {
+            const hay = `${a.title || ''} ${a.location || ''} ${a.description || ''}`.toLowerCase();
+            return hay.includes(q.toLowerCase());
+          })
+          : list;
+        setItems(filtered);
+      })
+      .catch(() => alive && setItems([]))
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [q, difficulty]);
 
-    const setDiff = (d) => {
-        const next = new URLSearchParams(params);
-        if (d === 'all') next.delete('difficulty');
-        else next.set('difficulty', d);
-        setParams(next, { replace: true });
-    };
+  const setDiff = (d) => {
+    const next = new URLSearchParams(params);
+    if (d === 'all') next.delete('difficulty');
+    else next.set('difficulty', d);
+    setParams(next, { replace: true });
+  };
 
-    return (
-        <>
-            <Seo
-                title={q ? `Search "${q}"` : 'Search'}
-                description="Find your next Indian adventure."
-            />
-            <Navbar />
-            <PageHero
-                eyebrow="Discover"
-                title={q ? `Results for "${q}"` : 'Search Adventures'}
-                subtitle="Trekking, camping, expeditions — all across India."
-                breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Search' }]}
-            />
-            <section className="bg-white py-12 md:py-16">
-                <div className="container">
-                    <div className="mb-8 flex flex-wrap items-center gap-3">
-                        <Filter size={18} className="text-gray-500" />
-                        {['all', 'easy', 'moderate', 'challenging'].map((d) => (
-                            <button
-                                key={d}
-                                onClick={() => setDiff(d)}
-                                className={`rounded-full border-2 px-4 py-1.5 text-xs font-bold uppercase tracking-widest transition-all ${
-                                    difficulty === d
-                                        ? 'border-[#D4AF37] bg-[#D4AF37] text-white'
-                                        : 'border-gray-200 text-gray-600 hover:border-[#D4AF37]'
-                                }`}
-                            >
-                                {d}
-                            </button>
-                        ))}
-                    </div>
+  return (
+    <div className="min-h-screen bg-mist">
+      <Seo
+        title={q ? `Search "${q}"` : 'Search'}
+        description="Find your next Indian adventure."
+      />
+      <Navbar />
+      <PageHero
+        eyebrow="Discover"
+        title={q ? `Results for "${q}"` : 'Search Adventures'}
+        subtitle="Trekking, camping, expeditions — all across India."
+        breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Search' }]}
+      />
+      <section className="bg-white py-12 md:py-16">
+        <div className="container">
+          <Reveal variant="fade" className="mb-8 flex flex-wrap items-center gap-3">
+            <Filter size={18} className="text-muted" />
+            {['all', 'easy', 'moderate', 'challenging'].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDiff(d)}
+                className={`rounded-md border px-4 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${
+                  difficulty === d
+                    ? 'border-stone bg-stone text-mist'
+                    : 'border-stone/15 text-muted hover:border-ember hover:text-ember'
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </Reveal>
 
-                    {loading ? (
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {Array.from({ length: 6 }).map((_, i) => (
-                                <SkeletonCard key={i} />
-                            ))}
-                        </div>
-                    ) : items.length === 0 ? (
-                        <EmptyState
-                            icon={Frown}
-                            title={q ? `No matches for "${q}"` : 'No adventures found'}
-                            description="Try a different keyword, difficulty, or browse all adventures."
-                            action={
-                                <Link to="/adventures" className="btn btn-primary">
-                                    All Adventures
-                                </Link>
-                            }
+          {loading ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : items.length === 0 ? (
+            <Reveal variant="scale">
+              <EmptyState
+                icon={Frown}
+                title={q ? `No matches for "${q}"` : 'No adventures found'}
+                description="Try a different keyword, difficulty, or browse all adventures."
+                action={
+                  <Link to="/adventures" className="btn btn-primary">
+                    All Adventures
+                  </Link>
+                }
+              />
+            </Reveal>
+          ) : (
+            <StaggerContainer className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map((a, i) => {
+                const id = a.id || a._id || i;
+                return (
+                  <StaggerItem key={id} as="article" className="group flex flex-col overflow-hidden rounded-lg border border-stone/8 bg-white shadow-smoke transition-shadow hover:shadow-card h-full">
+                    <Link to={`/adventure/${id}`} className="flex flex-col flex-1">
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <img
+                          src={getImageUrl(a.image_url) || '/placeholder.jpg'}
+                          alt={a.title}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          onError={(e) => (e.currentTarget.src = '/placeholder.jpg')}
                         />
-                    ) : (
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {items.map((a, i) => (
-                                <motion.article
-                                    key={a.id || a._id || i}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: i * 0.04 }}
-                                    className="group overflow-hidden rounded-2xl border border-[#D4AF37]/30 bg-white shadow-professional transition-all hover:-translate-y-1 hover:shadow-professional-lg"
-                                >
-                                    <div className="img-wrapper rounded-none pb-[60%]">
-                                        <img
-                                            src={getImageUrl(a.image_url) || '/placeholder.jpg'}
-                                            alt={a.title}
-                                            onError={(e) => (e.currentTarget.src = '/placeholder.jpg')}
-                                        />
-                                    </div>
-                                    <div className="p-5">
-                                        <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
-                                            <span className="inline-flex items-center gap-1"><MapPin size={12} /> {a.location || 'India'}</span>
-                                            <span className="inline-flex items-center gap-1"><Clock size={12} /> {a.duration || '—'}</span>
-                                        </div>
-                                        <h3 className="text-base font-bold text-gray-900 group-hover:text-[#B8860B]">{a.title}</h3>
-                                        <div className="mt-3 flex items-center justify-between">
-                                            <span className="text-lg font-extrabold text-[#B8860B]">₹{Number(a.price || 0).toLocaleString('en-IN')}</span>
-                                            <Link to={`/adventure/${a.id || a._id}`} className="rounded-lg border-2 border-[#D4AF37] px-3 py-1.5 text-xs font-bold text-[#B8860B] hover:bg-[#D4AF37] hover:text-white">
-                                                View
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </motion.article>
-                            ))}
+                      </div>
+                      <div className="flex flex-1 flex-col p-5">
+                        <div className="mb-2 flex items-center justify-between text-xs text-muted">
+                          <span className="inline-flex items-center gap-1"><MapPin size={12} className="text-ember" /> {a.location || 'India'}</span>
+                          <span className="inline-flex items-center gap-1"><Clock size={12} className="text-ember" /> {a.duration || '—'}</span>
                         </div>
-                    )}
-                </div>
-            </section>
-    <MobileTabBarSpacer />
-    <Footer />
-        </>
-    );
+                        <h3 className="font-display line-clamp-2 text-base font-semibold text-stone group-hover:text-ember transition-colors">{a.title}</h3>
+                        <div className="mt-auto flex items-center justify-between pt-4 border-t border-stone/8">
+                          <span className="font-display text-lg font-semibold text-stone">₹{Number(a.price || 0).toLocaleString('en-IN')}</span>
+                          <span className="text-xs font-bold text-ember">View</span>
+                        </div>
+                      </div>
+                    </Link>
+                  </StaggerItem>
+                );
+              })}
+            </StaggerContainer>
+          )}
+        </div>
+      </section>
+            <Footer />
+    </div>
+  );
 };
 
 export default SearchResults;

@@ -1,100 +1,139 @@
 import { useState } from 'react';
-import { Instagram, Facebook, ArrowUpRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Instagram, Facebook, Youtube } from 'lucide-react';
 import { businessInstagram } from '../../data/founders';
+import { IconMotion, EASE } from './Motion';
 
 const fallbackImage = '/placeholder.jpg';
 
-export default function FounderCard({ founder }) {
+const socialBtn =
+  'w-10 h-10 flex items-center justify-center border border-stone/15 text-stone/55 hover:text-ember hover:border-ember rounded-md transition-colors';
+
+const FounderCard = ({ founder }) => {
   const [imgSrc, setImgSrc] = useState(founder.image);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  const socials = [
+    { href: founder.social?.instagram, icon: Instagram, label: 'Instagram' },
+    { href: founder.social?.facebook, icon: Facebook, label: 'Facebook' },
+  ].filter((s) => s.href);
 
   return (
-    <div className="group bg-white rounded-2xl p-6 shadow-professional border border-[#D4AF37]/20 text-center h-full transition-all hover:-translate-y-1 hover:shadow-professional-lg">
-      <div className="relative w-28 h-28 mx-auto mb-4">
-        <img
-          src={imgSrc}
-          alt={founder.name}
-          onError={() => setImgSrc(fallbackImage)}
-          className="w-28 h-28 rounded-full object-cover border-4 border-[#D4AF37] mx-auto"
-        />
-      </div>
-      <h3 className="text-xl font-bold text-black mb-1">{founder.name}</h3>
-      <p className="text-[#D4AF37] font-semibold mb-3">{founder.role}</p>
-      <p className="text-gray-600 text-sm leading-relaxed mb-5">{founder.bio}</p>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.5, ease: EASE }}
+      className="group relative"
+    >
+      <div className="relative rounded-md border border-stone/10 bg-white p-6 sm:p-8 text-center h-full transition-shadow duration-300 group-hover:shadow-lift">
+        <div className="relative w-28 h-28 mx-auto mb-5">
+          <div className="absolute inset-0 rounded-full ring-2 ring-ember/20 ring-offset-2 ring-offset-white" />
+          {!imgLoaded && (
+            <div className="absolute inset-0 rounded-full bg-mist animate-pulse" />
+          )}
+          <img
+            src={imgSrc}
+            alt={founder.name}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgSrc(fallbackImage)}
+            className={`absolute inset-0 w-full h-full rounded-full object-cover transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+        </div>
 
-      <div className="flex items-center justify-center gap-3">
-        <a
-          href={founder.social.instagram}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`${founder.name} on Instagram`}
-          className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 via-fuchsia-500 to-amber-500 text-white shadow-md hover:scale-110 transition-transform"
-        >
-          <Instagram size={18} />
-        </a>
-        <a
-          href={founder.social.facebook}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`${founder.name} on Facebook`}
-          className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[#1877F2] text-white shadow-md hover:scale-110 transition-transform"
-        >
-          <Facebook size={18} />
-        </a>
+        <h3 className="font-display text-xl font-semibold text-stone mb-0.5">
+          {founder.name}
+        </h3>
+
+        <span className="inline-block text-[10px] font-bold text-ember uppercase tracking-[0.18em] mb-3">
+          {founder.role}
+        </span>
+
+        <p className="text-sm text-muted leading-relaxed mb-6 line-clamp-3">
+          {founder.bio}
+        </p>
+
+        {socials.length > 0 && (
+          <div className="flex items-center justify-center gap-2.5">
+            {socials.map((s) => (
+              <IconMotion key={s.label} hoverScale={1.1} hoverRotate={0}>
+                <a
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${founder.name} on ${s.label}`}
+                  className={socialBtn}
+                >
+                  <s.icon size={17} strokeWidth={2} />
+                </a>
+              </IconMotion>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
-}
+};
+
+export default FounderCard;
 
 export function BusinessInstagramCTA() {
   return (
     <section className="container my-12 md:my-16">
-      <a
-        href={businessInstagram.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group block relative overflow-hidden rounded-3xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-amber-500 p-8 sm:p-10 shadow-professional-lg hover:shadow-2xl transition-shadow"
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-60px' }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="relative overflow-hidden bg-stone rounded-md p-8 sm:p-12"
       >
-        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-white">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-              <Instagram size={28} className="sm:size-8" />
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm font-semibold uppercase tracking-widest opacity-90">Follow us</p>
-              <h3 className="text-2xl sm:text-3xl font-black">@{businessInstagram.handle}</h3>
-              <p className="text-sm sm:text-base opacity-90">Real-time dispatches from the field.</p>
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+          <div className="max-w-lg">
+            <p className="meta !text-ember mb-3">Follow the journey</p>
+            <h3 className="font-display text-3xl sm:text-4xl text-mist leading-tight">Live dispatches from the trail</h3>
+            <p className="text-mist/60 mt-3 text-sm md:text-base">
+              Real photos and reels from ongoing trips — posted by the guides leading them.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 w-full lg:w-auto">
+            <a
+              href={businessInstagram.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary justify-center"
+            >
+              <IconMotion hoverScale={1.08} hoverRotate={-6}>
+                <Instagram size={16} />
+              </IconMotion>
+              @{businessInstagram.handle}
+            </a>
+            <div className="grid grid-cols-2 gap-3">
+              <a
+                href={businessInstagram.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-outline text-xs justify-center !text-mist !border-mist/25 hover:!border-ember hover:!text-ember"
+              >
+                <IconMotion hoverScale={1.08} hoverRotate={0}>
+                  <Facebook size={14} />
+                </IconMotion>
+                Facebook
+              </a>
+              <a
+                href={businessInstagram.youtube}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-outline text-xs justify-center !text-mist !border-mist/25 hover:!border-ember hover:!text-ember"
+              >
+                <IconMotion hoverScale={1.08} hoverRotate={0}>
+                  <Youtube size={14} />
+                </IconMotion>
+                YouTube
+              </a>
             </div>
           </div>
-          <span className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-pink-600 font-bold text-sm shadow-lg group-hover:scale-105 transition-transform">
-            Open Instagram <ArrowUpRight size={18} />
-          </span>
         </div>
-      </a>
+      </motion.div>
     </section>
-  );
-}
-
-export function BusinessSocialButtons({ className = '' }) {
-  return (
-    <div className={`inline-flex items-center gap-3 ${className}`}>
-      <a
-        href={businessInstagram.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Phoenix Adventures on Instagram"
-        className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 via-fuchsia-500 to-amber-500 text-white shadow-md hover:scale-110 transition-transform"
-      >
-        <Instagram size={18} />
-      </a>
-      <a
-        href={businessInstagram.facebook}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Phoenix Adventures on Facebook"
-        className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-[#1877F2] text-white shadow-md hover:scale-110 transition-transform"
-      >
-        <Facebook size={18} />
-      </a>
-    </div>
   );
 }

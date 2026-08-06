@@ -26,11 +26,13 @@ const PRESETS = {
     sandhanavalley: { lat: 19.4900, lon: 73.7600, name: 'Sandhan Valley' },
 };
 
-export default function WeatherWidget({ preset = 'kalsubai' }) {
+export default function WeatherWidget({ preset = 'kalsubai', locationName }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const { lat, lon, name } = PRESETS[preset] || PRESETS.kalsubai;
+    // Show the adventure's own location name even when we use a nearby preset for coordinates
+    const displayName = locationName || name;
 
     useEffect(() => {
         let active = true;
@@ -67,7 +69,7 @@ export default function WeatherWidget({ preset = 'kalsubai' }) {
             <div>
                 <div className="text-white font-semibold">{Math.round(temperature_2m)}°C · {label}</div>
                 <div className="text-zinc-400 text-xs flex items-center gap-2">
-                    <span>{name}</span>
+                    <span>{displayName}</span>
                     <Wind size={11} /> {Math.round(wind_speed_2m)} km/h
                 </div>
             </div>

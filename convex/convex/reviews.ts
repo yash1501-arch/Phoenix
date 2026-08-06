@@ -1,11 +1,12 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 
-export const add = mutation({
+export const add = internalMutation({
     args: {
         user_id: v.string(),
         adventure_id: v.string(),
-        booking_id: v.optional(v.string()),
+        booking_id: v.string(),
         rating: v.number(),
         title: v.optional(v.string()),
         comment: v.optional(v.string()),
@@ -15,6 +16,29 @@ export const add = mutation({
         if (args.rating < 1 || args.rating > 5) {
             throw new Error("Rating must be between 1 and 5");
         }
+
+        const booking = await ctx.db.get(args.booking_id as Id<"bookings">);
+        if (!booking) {
+            throw new Error("Booking not found");
+        }
+        if (booking.user_id !== args.user_id) {
+            throw new Error("You can only review your own bookings");
+        }
+        if (booking.adventure_id !== args.adventure_id) {
+            throw new Error("Booking does not match this adventure");
+        }
+        if (booking.booking_status !== "confirmed") {
+            throw new Error("Only completed bookings can be reviewed");
+        }
+
+        const existing = await ctx.db
+            .query("reviews")
+            .withIndex("booking_id", (q) => q.eq("booking_id", args.booking_id))
+            .first();
+        if (existing) {
+            throw new Error("You have already reviewed this booking");
+        }
+
         const id = await ctx.db.insert("reviews", {
             user_id: args.user_id,
             adventure_id: args.adventure_id,
@@ -23,14 +47,14 @@ export const add = mutation({
             title: args.title,
             comment: args.comment,
             photos: args.photos,
-            approved: false, // moderation required
+            approved: false,
             created_at: new Date().toISOString(),
         });
         return id;
     },
 });
 
-export const getByAdventure = query({
+export const getByAdventure = internalQuery({
     args: {
         adventure_id: v.string(),
         approved_only: v.optional(v.boolean()),
@@ -48,7 +72,6 @@ export const getByAdventure = query({
         const limit = args.limit ?? 50;
         reviews = reviews.slice(0, limit);
 
-        // Enrich with user names
         const enriched = await Promise.all(
             reviews.map(async (r) => {
                 let userName = "Anonymous";
@@ -63,7 +86,7 @@ export const getByAdventure = query({
     },
 });
 
-export const getByUser = query({
+export const getByUser = internalQuery({
     args: { user_id: v.string() },
     handler: async (ctx, args) => {
         return await ctx.db
@@ -73,23 +96,56 @@ export const getByUser = query({
     },
 });
 
-export const approve = mutation({
+async function syncAdventureRating(ctx: any, adventureId: string) {
+    const reviews = await ctx.db
+        .query("reviews")
+        .withIndex("adventure_id", (q: any) => q.eq("adventure_id", adventureId))
+        .filter((q: any) => q.eq(q.field("approved"), true))
+        .collect();
+
+    const count = reviews.length;
+    const avg = count > 0
+        ? Math.round((reviews.reduce((s: number, r: any) => s + r.rating, 0) / count) * 10) / 10
+        : 0;
+
+    const adventures = await ctx.db
+        .query("adventures")
+        .collect();
+    const adventure = adventures.find((a: any) => a._id === adventureId || String(a._id) === String(adventureId));
+
+    if (adventure) {
+        await ctx.db.patch(adventure._id, {
+            rating: avg,
+            reviews_count: count,
+        });
+    }
+}
+
+export const approve = internalMutation({
     args: { id: v.id("reviews") },
     handler: async (ctx, args) => {
+        const review = await ctx.db.get(args.id);
         await ctx.db.patch(args.id, { approved: true });
+        if (review?.adventure_id) {
+            await syncAdventureRating(ctx, review.adventure_id);
+        }
         return args.id;
     },
 });
 
-export const remove = mutation({
+export const remove = internalMutation({
     args: { id: v.id("reviews") },
     handler: async (ctx, args) => {
+        const review = await ctx.db.get(args.id);
         await ctx.db.delete(args.id);
+        if (review?.adventure_id) {
+            await syncAdventureRating(ctx, review.adventure_id);
+        }
         return args.id;
     },
 });
 
-export const getRatingSummary = query({
+export const getRatingSummary = internalQuery({
     args: { adventure_id: v.string() },
     handler: async (ctx, args) => {
         const reviews = await ctx.db

@@ -5,40 +5,47 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const api = axios.create({
     baseURL: `${API_BASE_URL}/api`,
     headers: {
-        'Content-Type': 'application/json'
-    }
-});
-
-// Request interceptor for adding auth token
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('adminToken');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
+        'Content-Type': 'application/json',
     },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
+    withCredentials: true,
+});
 
 // Response interceptor for handling errors
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            localStorage.removeItem('adminToken');
-            window.location.href = '/login';
+            window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         }
         return Promise.reject(error);
     }
 );
 
+/**
+ * Normalize adventure/user/review objects to always have `id` field
+ */
+const normalizeId = (obj) => {
+    if (!obj) return obj;
+    return { ...obj, id: obj._id || obj.id };
+};
+
+const normalizeArray = (arr) => {
+    if (!Array.isArray(arr)) return arr;
+    return arr.map(normalizeId);
+};
+
 // Adventures API
 export const adventuresAPI = {
-    getAll: (params = {}) => api.get('/adventures', { params: { ...params, includeAllDates: true } }),
-    getById: (id) => api.get(`/adventures/${id}`, { params: { includeAllDates: true } }),
+    getAll: async (params = {}) => {
+        const res = await api.get('/adventures', { params: { ...params, includeAllDates: true } });
+        if (res.data?.data) res.data.data = normalizeArray(res.data.data);
+        return res;
+    },
+    getById: async (id) => {
+        const res = await api.get(`/adventures/${id}`, { params: { includeAllDates: true } });
+        if (res.data?.data) res.data.data = normalizeId(res.data.data);
+        return res;
+    },
     create: (data) => api.post('/adventures', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),
@@ -46,7 +53,6 @@ export const adventuresAPI = {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),
     delete: (id) => api.delete(`/adventures/${id}`),
-    getStats: () => api.get('/adventures/stats'),
 
     // AI features
     optimizeItinerary: (data) => api.post('/adventures/ai/optimize-itinerary', data),
@@ -59,46 +65,55 @@ export const adventuresAPI = {
     })
 };
 
-// Bookings API
-export const bookingsAPI = {
-    getAll: (params) => api.get('/bookings', { params }),
-    getById: (id) => api.get(`/bookings/${id}`),
-    updateStatus: (id, status) => api.patch(`/bookings/${id}/status`, { status })
-};
-
-// Users API
-export const usersAPI = {
-    getAll: (params) => api.get('/users', { params }),
-    getById: (id) => api.get(`/users/${id}`)
-};
-
 // Reviews API
 export const reviewsAPI = {
-    getAll: (params) => api.get('/reviews', { params }),
-    getForAdventure: (adventureId, params) => api.get(`/reviews/adventure/${adventureId}`, { params }),
+    getForAdventure: async (adventureId, params) => {
+        const res = await api.get(`/reviews/adventure/${adventureId}`, { params });
+        if (res.data?.data) res.data.data = normalizeArray(res.data.data);
+        return res;
+    },
     approve: (id) => api.put(`/reviews/${id}/approve`),
     delete: (id) => api.delete(`/reviews/${id}`),
-};
-
-// Wishlist API
-export const wishlistAPI = {
-    getForUser: (userId) => api.get(`/wishlist/user/${userId}`),
-};
-
-// Newsletter API
-export const newsletterAPI = {
-    getAll: () => api.get('/newsletter'),
-};
-
-// Audit log API
-export const auditAPI = {
-    getAll: (params) => api.get('/audit', { params }),
 };
 
 // Settings API
 export const settingsAPI = {
     getAll: () => api.get('/settings'),
     set: (key, value) => api.put('/settings', { key, value }),
+};
+
+// Blog (admin)
+export const blogAdminAPI = {
+    getAll: () => api.get('/blog/admin/all'),
+    getById: (id) => api.get(`/blog/admin/${id}`),
+    create: (data) => api.post('/blog/admin', data),
+    update: (id, data) => api.put(`/blog/admin/${id}`, data),
+    delete: (id) => api.delete(`/blog/admin/${id}`),
+};
+
+// Contact messages (admin)
+export const contactAdminAPI = {
+    getAll: () => api.get('/contact'),
+    setStatus: (id, status) => api.put(`/contact/${id}/status`, { status }),
+    delete: (id) => api.delete(`/contact/${id}`),
+};
+
+export const paymentsAdminAPI = {
+    getPending: () => api.get('/payments/admin/manual/pending'),
+    verify: (booking_id) => api.post('/payments/admin/manual/verify', { booking_id }),
+    reject: (booking_id, rejection_reason) => api.post('/payments/admin/manual/reject', { booking_id, rejection_reason }),
+};
+
+export const bookingsAdminAPI = {
+    getAll: (params) => api.get('/bookings/admin/all', { params }),
+    release: (bookingId, reason) => api.post(`/bookings/admin/${bookingId}/release`, { reason }),
+};
+
+export const twoFactorAPI = {
+    status: () => api.get('/auth/2fa/status'),
+    setup: () => api.post('/auth/2fa/setup'),
+    enable: (secret, code) => api.post('/auth/2fa/enable', { secret, code }),
+    disable: (code, password) => api.post('/auth/2fa/disable', { code, password }),
 };
 
 export default api;

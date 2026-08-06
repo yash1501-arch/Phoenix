@@ -46,37 +46,51 @@ export const WishlistProvider = ({ children }) => {
     const add = useCallback(async (adventure) => {
         if (!adventure) return;
         const advId = adventure.id || adventure._id;
+        let wasAdded = false;
         // Optimistic update
         setItems((prev) => {
             if (prev.some((i) => i.adventure_id === advId)) return prev;
+            wasAdded = true;
             return [...prev, { adventure, adventure_id: advId, created_at: new Date().toISOString() }];
         });
+        if (!wasAdded) return;
         if (isAuthenticated && user?.id) {
             try {
-                await api.post('/wishlist', { user_id: user.id, adventure_id: advId });
-                toast.success('Added to wishlist');
+                await api.post('/wishlist', { adventure_id: advId });
+                toast.success('Saved to your wishlist');
             } catch {
-                toast.error('Could not sync to server');
+                // Rollback optimistic add on server failure
+                setItems((prev) => prev.filter((i) => i.adventure_id !== advId));
+                toast.error('Could not save — please try again');
             }
         } else {
-            toast.success('Added to wishlist');
+            toast.success('Saved to your wishlist');
         }
     }, [isAuthenticated, user?.id]);
 
     const remove = useCallback(async (adventureId) => {
-        setItems((prev) => prev.filter((i) => i.adventure_id !== adventureId));
+        let removedItem = null;
+        setItems((prev) => {
+            removedItem = prev.find((i) => i.adventure_id === adventureId);
+            return prev.filter((i) => i.adventure_id !== adventureId);
+        });
         if (isAuthenticated && user?.id) {
             try {
-                await api.delete('/wishlist', { data: { user_id: user.id, adventure_id: adventureId } });
+                await api.delete('/wishlist', { data: { adventure_id: adventureId } });
                 toast.success('Removed from wishlist');
-            } catch { /* local-only removal ok */ }
+            } catch {
+                // Rollback on server failure
+                if (removedItem) setItems((prev) => [...prev, removedItem]);
+                toast.error('Could not remove — please try again');
+            }
         } else {
-            toast.success('Removed');
+            toast.success('Removed from wishlist');
         }
     }, [isAuthenticated, user?.id]);
 
     const toggle = useCallback((adventure) => {
-        const advId = adventure.id || adventure._id;
+        const advId = adventure?.id || adventure?._id || (typeof adventure === 'string' ? adventure : null);
+        if (!advId) return;
         if (items.some((i) => i.adventure_id === advId)) {
             remove(advId);
         } else {
@@ -89,7 +103,7 @@ export const WishlistProvider = ({ children }) => {
     const count = items.length;
 
     return (
-        <WishlistContext.Provider value={{ items, count, add, remove, toggle, has }}>
+        <WishlistContext.Provider value={{ items, count, add, remove, toggle, has, isWishlisted: has }}>
             {children}
         </WishlistContext.Provider>
     );
@@ -97,6 +111,6 @@ export const WishlistProvider = ({ children }) => {
 
 export const useWishlist = () => {
     const ctx = useContext(WishlistContext);
-    if (!ctx) return { items: [], addItem: () => {}, removeItem: () => {}, isInWishlist: () => false, clear: () => {} };
+    if (!ctx) return { items: [], count: 0, add: () => {}, remove: () => {}, toggle: () => {}, has: () => false, isWishlisted: () => false };
     return ctx;
 };
