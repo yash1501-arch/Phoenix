@@ -29,6 +29,7 @@ const ADVENTURE_FIELDS = new Set([
   'itinerary',
   'images',
   'available_dates',
+  'start_time',
 ]);
 
 function normalizeItinerary(itinerary) {

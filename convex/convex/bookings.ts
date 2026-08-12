@@ -189,6 +189,25 @@ async function countHeldSeats(
   return held;
 }
 
+const MEAL_PREFERENCES = new Set(["veg", "non_veg", "jain"]);
+
+function buildPickupOptions(adventure: {
+  pickup_mumbai?: string[];
+  pickup_pune?: string[];
+}) {
+  const mumbai = adventure.pickup_mumbai || [];
+  const pune = adventure.pickup_pune || [];
+  const bothRegions = mumbai.length > 0 && pune.length > 0;
+  const options: string[] = [];
+  for (const point of mumbai) {
+    options.push(bothRegions ? `Mumbai — ${point}` : point);
+  }
+  for (const point of pune) {
+    options.push(bothRegions ? `Pune — ${point}` : point);
+  }
+  return options;
+}
+
 export const createManual = internalMutation({
   args: {
     user_id: v.string(),
@@ -199,6 +218,20 @@ export const createManual = internalMutation({
     customer_name: v.optional(v.string()),
     customer_email: v.optional(v.string()),
     customer_phone: v.optional(v.string()),
+    emergency_contact: v.optional(v.string()),
+    pickup_point: v.optional(v.string()),
+    participants: v.optional(v.array(v.object({
+      name: v.string(),
+      phone: v.string(),
+      meal_preference: v.string(),
+      pickup_point: v.string(),
+    }))),
+    additional_travelers: v.optional(v.array(v.object({
+      name: v.string(),
+      phone: v.string(),
+      meal_preference: v.string(),
+      pickup_point: v.optional(v.string()),
+    }))),
   },
   handler: async (ctx, args) => {
     if (args.number_of_seats < 1) throw new Error("At least 1 seat required");
@@ -216,6 +249,66 @@ export const createManual = internalMutation({
     if (dates.length > 0 && !dates.includes(args.adventure_date)) {
       throw new Error("Selected date is not available");
     }
+
+    // Close bookings N hours before start (IST). start_time like "20:30", default 08:00
+    const cutoffHours = 3;
+    const startTimeRaw = (adventure as { start_time?: string }).start_time || "08:00";
+    const timeMatch = String(startTimeRaw).trim().match(/^(\d{1,2}):(\d{2})$/);
+    const hh = timeMatch ? String(Number(timeMatch[1])).padStart(2, "0") : "08";
+    const mm = timeMatch ? timeMatch[2] : "00";
+    const startMs = Date.parse(`${args.adventure_date}T${hh}:${mm}:00+05:30`);
+    if (!Number.isNaN(startMs)) {
+      const cutoffMs = startMs - cutoffHours * 60 * 60 * 1000;
+      if (Date.now() >= cutoffMs) {
+        throw new Error(
+          `Bookings closed ${cutoffHours} hours before start (${hh}:${mm} IST). No more bookings accepted.`
+        );
+      }
+    }
+
+    const emergencyDigits = (args.emergency_contact || "").replace(/\D/g, "");
+    if (!emergencyDigits || emergencyDigits.length < 10) {
+      throw new Error("Emergency contact number is required");
+    }
+
+    const pickupOptions = buildPickupOptions(adventure);
+    if (pickupOptions.length === 0) {
+      throw new Error("This adventure has no pickup points configured");
+    }
+
+    const participantList = args.participants || [];
+    if (participantList.length !== args.number_of_seats) {
+      throw new Error(`Details required for all ${args.number_of_seats} participant(s)`);
+    }
+
+    const sanitizedParticipants = [];
+    for (let i = 0; i < participantList.length; i++) {
+      const p = participantList[i];
+      if (!p.name?.trim()) {
+        throw new Error(`Participant ${i + 1}: name is required`);
+      }
+      const phoneDigits = (p.phone || "").replace(/\D/g, "");
+      if (!phoneDigits || phoneDigits.length < 10) {
+        throw new Error(`Participant ${i + 1}: valid contact number is required`);
+      }
+      const meal = (p.meal_preference || "").trim().toLowerCase();
+      if (!MEAL_PREFERENCES.has(meal)) {
+        throw new Error(`Participant ${i + 1}: invalid meal preference`);
+      }
+      const pickup = (p.pickup_point || "").trim();
+      if (!pickup || !pickupOptions.includes(pickup)) {
+        throw new Error(`Participant ${i + 1}: invalid pickup point`);
+      }
+      sanitizedParticipants.push({
+        name: p.name.trim(),
+        phone: p.phone.trim(),
+        meal_preference: meal,
+        pickup_point: pickup,
+      });
+    }
+
+    const pickupPoint = sanitizedParticipants[0].pickup_point;
+    const extraTravelers = sanitizedParticipants.slice(1);
 
     const maxParticipants = adventure.max_participants || 50;
     await expireStaleHoldsForDate(ctx, args.adventure_id, args.adventure_date);
@@ -254,6 +347,15 @@ export const createManual = internalMutation({
       customer_name: args.customer_name,
       customer_email: args.customer_email,
       customer_phone: args.customer_phone,
+      emergency_contact: args.emergency_contact?.trim(),
+      pickup_point: pickupPoint,
+      participants: sanitizedParticipants,
+      additional_travelers: extraTravelers.map((t) => ({
+        name: t.name,
+        phone: t.phone,
+        meal_preference: t.meal_preference,
+        pickup_point: t.pickup_point,
+      })),
       created_at: ts,
       updated_at: ts,
     });
@@ -460,7 +562,33 @@ export const verifyPayment = internalMutation({
       updated_at: ts,
     });
 
-    return { success: true };
+    // Count confirmed seats after this verification
+    const confirmedBookings = await ctx.db
+      .query("bookings")
+      .withIndex("adventure_date", (q) =>
+        q.eq("adventure_id", refreshed.adventure_id).eq("adventure_date", refreshed.adventure_date)
+      )
+      .collect();
+    let confirmedSeats = 0;
+    const confirmedList = [];
+    for (const b of confirmedBookings) {
+      const status = b._id === refreshed._id ? "confirmed" : b.booking_status;
+      if (status === "confirmed") {
+        confirmedSeats += b.number_of_seats;
+        confirmedList.push({ ...b, booking_status: "confirmed" });
+      }
+    }
+
+    return {
+      success: true,
+      adventure_id: refreshed.adventure_id,
+      adventure_date: refreshed.adventure_date,
+      confirmed_seats: confirmedSeats,
+      max_participants: maxParticipants,
+      is_full: confirmedSeats >= maxParticipants,
+      confirmed_bookings: confirmedList,
+      adventure,
+    };
   },
 });
 

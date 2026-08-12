@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Filter, Mountain } from 'lucide-react';
+import { Filter, Mountain, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adventuresAPI } from '../utils/api';
+import { DEPARTURE_CITIES, filterByDepartureCity } from '../utils/adventureFields';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Seo from '../components/Seo';
@@ -17,7 +18,9 @@ const DIFFICULTIES = ['all', 'easy', 'moderate', 'challenging'];
 const Treks = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initial = searchParams.get('difficulty') || 'all';
+  const initialCity = searchParams.get('city') || 'all';
   const [difficulty, setDifficulty] = useState(initial);
+  const [city, setCity] = useState(initialCity);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +53,19 @@ const Treks = () => {
     setSearchParams(next, { replace: true });
   };
 
+  const onCityChange = (c) => {
+    setCity(c);
+    const next = new URLSearchParams(searchParams);
+    if (c === 'all') next.delete('city');
+    else next.set('city', c);
+    setSearchParams(next, { replace: true });
+  };
+
+  const visibleItems = useMemo(
+    () => filterByDepartureCity(items, city),
+    [items, city],
+  );
+
   return (
     <div className="min-h-screen bg-mist">
       <Seo
@@ -72,24 +88,45 @@ const Treks = () => {
 
       <section className="bg-mist py-14 md:py-20">
         <div className="container">
-          <Reveal variant="fade" className="mb-10 flex flex-wrap items-center gap-3">
-            <IconMotion className="text-ember">
-              <Filter size={18} />
-            </IconMotion>
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => onChange(d)}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-colors ${
-                  difficulty === d
-                    ? 'bg-stone text-mist'
-                    : 'border border-stone/15 text-stone hover:border-ember hover:text-ember'
-                }`}
-              >
-                {d}
-              </button>
-            ))}
+          <Reveal variant="fade" className="mb-10 space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <IconMotion className="text-ember">
+                <Filter size={18} />
+              </IconMotion>
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => onChange(d)}
+                  className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-colors ${
+                    difficulty === d
+                      ? 'bg-stone text-mist'
+                      : 'border border-stone/15 text-stone hover:border-ember hover:text-ember'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <IconMotion className="text-ember">
+                <MapPin size={18} />
+              </IconMotion>
+              {DEPARTURE_CITIES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onCityChange(c.id)}
+                  className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-colors ${
+                    city === c.id
+                      ? 'bg-stone text-mist'
+                      : 'border border-stone/15 text-stone hover:border-ember hover:text-ember'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
           </Reveal>
 
           {loading ? (
@@ -98,11 +135,11 @@ const Treks = () => {
                 <SkeletonCard key={i} />
               ))}
             </div>
-          ) : items.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <EmptyState
               icon={Mountain}
               title="No treks match this filter"
-              description="Try changing the difficulty or browse all adventures."
+              description="Try changing the difficulty or departure city, or browse all adventures."
               action={
                 <Link to="/adventures" className="btn btn-primary">
                   All Adventures
@@ -111,7 +148,7 @@ const Treks = () => {
             />
           ) : (
             <StaggerContainer className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((a, i) => (
+              {visibleItems.map((a, i) => (
                 <AdventureCard key={a.id || a._id || i} adventure={a} index={i} />
               ))}
             </StaggerContainer>

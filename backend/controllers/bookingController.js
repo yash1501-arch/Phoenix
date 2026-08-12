@@ -1,5 +1,7 @@
 const { getConvexClient } = require('../utils/convexClient');
 const { generateUpiLink } = require('../utils/upi');
+const { validateBookingExtras } = require('../utils/bookingFields');
+const { isBookingOpen } = require('../utils/bookingWindow');
 const logger = require('../utils/logger');
 
 async function isDbAdmin(userId) {
@@ -22,6 +24,8 @@ exports.createManual = async (req, res) => {
       adventure_date,
       number_of_seats,
       customer_phone,
+      emergency_contact,
+      participants,
     } = req.body;
 
     if (!adventure_id || !adventure_date || !number_of_seats) {
@@ -41,6 +45,14 @@ exports.createManual = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Adventure not found' });
     }
 
+    const windowCheck = isBookingOpen(adventure, adventure_date);
+    if (!windowCheck.open) {
+      return res.status(400).json({
+        success: false,
+        message: windowCheck.reason || 'Bookings are closed for this departure',
+      });
+    }
+
     const perPerson = Number(adventure.price) || 0;
     if (perPerson <= 0) {
       return res.status(400).json({ success: false, message: 'Adventure price is not set' });
@@ -55,6 +67,16 @@ exports.createManual = async (req, res) => {
       });
     }
 
+    const extras = validateBookingExtras({
+      adventure,
+      number_of_seats: seats,
+      emergency_contact,
+      participants,
+    });
+    if (!extras.ok) {
+      return res.status(400).json({ success: false, message: extras.message });
+    }
+
     const result = await getConvexClient().createManualBooking({
       user_id: req.user.id,
       adventure_id,
@@ -64,6 +86,10 @@ exports.createManual = async (req, res) => {
       customer_name: req.user.name,
       customer_email: req.user.email,
       customer_phone: String(phone).trim(),
+      emergency_contact: extras.data.emergency_contact,
+      pickup_point: extras.data.pickup_point,
+      participants: extras.data.participants,
+      additional_travelers: extras.data.additional_travelers,
     });
 
     return res.status(201).json({

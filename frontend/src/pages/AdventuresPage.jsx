@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Star, MapPin, Clock } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -8,6 +8,7 @@ import Seo from '../components/Seo';
 import WishlistButton from '../components/ui/WishlistButton';
 import { Reveal, StaggerContainer, StaggerItem, IconMotion } from '../components/ui/Motion';
 import { adventuresAPI, getImageUrl } from '../utils/api';
+import { DEPARTURE_CITIES, filterByDepartureCity } from '../utils/adventureFields';
 
 const FILTERS = [
   { id: 'all', label: 'All trips' },
@@ -17,9 +18,11 @@ const FILTERS = [
 ];
 
 const AdventuresPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [adventures, setAdventures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [city, setCity] = useState(searchParams.get('city') || 'all');
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -39,7 +42,8 @@ const AdventuresPage = () => {
   }, []);
 
   const filteredAdventures = useMemo(() => {
-    return adventures.filter((adv) => {
+    const byCity = filterByDepartureCity(adventures, city);
+    return byCity.filter((adv) => {
       const q = searchTerm.toLowerCase().trim();
       const matchesSearch = !q ||
         (adv.title || '').toLowerCase().includes(q) ||
@@ -47,7 +51,15 @@ const AdventuresPage = () => {
       const matchesFilter = filter === 'all' || adv.difficulty?.toLowerCase() === filter.toLowerCase();
       return matchesSearch && matchesFilter;
     });
-  }, [adventures, searchTerm, filter]);
+  }, [adventures, searchTerm, filter, city]);
+
+  const onCityChange = (c) => {
+    setCity(c);
+    const next = new URLSearchParams(searchParams);
+    if (c === 'all') next.delete('city');
+    else next.set('city', c);
+    setSearchParams(next, { replace: true });
+  };
 
   // Group by category for an editorial index
   const grouped = useMemo(() => {
@@ -121,9 +133,28 @@ const AdventuresPage = () => {
               ))}
             </div>
 
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar" role="tablist" aria-label="Filter by departure city">
+              {DEPARTURE_CITIES.map((c) => (
+                <button
+                  key={c.id}
+                  role="tab"
+                  aria-selected={city === c.id}
+                  onClick={() => onCityChange(c.id)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition whitespace-nowrap ${
+                    city === c.id
+                      ? 'bg-stone text-mist'
+                      : 'text-stone hover:bg-mist-muted border border-stone/10'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
             <p className="text-xs text-muted md:ml-auto">
               {filteredAdventures.length} {filteredAdventures.length === 1 ? 'trip' : 'trips'}
               {filter !== 'all' && ` · ${FILTERS.find((f) => f.id === filter)?.label}`}
+              {city !== 'all' && ` · ${DEPARTURE_CITIES.find((c) => c.id === city)?.label}`}
               {searchTerm && ` · matching "${searchTerm}"`}
             </p>
           </div>
@@ -138,7 +169,7 @@ const AdventuresPage = () => {
               Try a different difficulty or clear the search to see everything we run.
             </p>
             <button
-              onClick={() => { setFilter('all'); setSearchTerm(''); }}
+              onClick={() => { setFilter('all'); setCity('all'); setSearchTerm(''); }}
               className="btn btn-primary"
             >
               Clear filters
@@ -177,11 +208,12 @@ const AdventuresPage = () => {
                       <Link to={`/adventure/${advId}`} className="group block">
                         <div className="relative mb-5 aspect-[4/3] overflow-hidden rounded-lg">
                           <img
-                            src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800&auto=format&fit=crop'}
+                            src={getImageUrl(adv.image_url) || '/placeholder.jpg'}
                             alt={`${adv.title} — ${adv.location}`}
                             loading="lazy"
                             decoding="async"
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            onError={(e) => { e.currentTarget.src = '/placeholder.jpg'; }}
                           />
                           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-stone/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                           <div className="absolute top-3 left-3 bg-stone/90 text-mist text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">

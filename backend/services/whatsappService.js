@@ -164,8 +164,81 @@ async function sendBookingConfirmationWhatsApp(phone, userName, adventureTitle, 
   }
 }
 
+async function postWhatsAppMessage(payload) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneNumberId) {
+    return { skipped: true, reason: 'not_configured' };
+  }
+  const version = process.env.WHATSAPP_API_VERSION || 'v21.0';
+  const url = `https://graph.facebook.com/${version}/${phoneNumberId}/messages`;
+  const res = await axios.post(url, payload, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    timeout: 20000,
+  });
+  return { ok: true, messageId: res.data?.messages?.[0]?.id, data: res.data };
+}
+
+/**
+ * Free-form text to admin phone (ADMIN_WHATSAPP). Requires WHATSAPP_USE_TEXT or open session.
+ */
+async function sendAdminWhatsAppText(body) {
+  const phone = process.env.ADMIN_WHATSAPP || process.env.ADMIN_PHONE;
+  if (!phone) {
+    logger.warn('ADMIN_WHATSAPP not set — skipping admin WhatsApp');
+    return { skipped: true, reason: 'no_admin_phone' };
+  }
+  const to = toWhatsAppNumber(phone);
+  if (!to) return { skipped: true, reason: 'invalid_admin_phone' };
+
+  try {
+    const result = await postWhatsAppMessage({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { preview_url: true, body: String(body).slice(0, 4000) },
+    });
+    if (result.skipped) return result;
+    logger.info(`Admin WhatsApp sent to ${to}`);
+    return result;
+  } catch (error) {
+    const detail = error.response?.data || error.message;
+    logger.error('Admin WhatsApp failed:', detail);
+    return { ok: false, error: detail };
+  }
+}
+
+async function sendWhatsAppDocument(phone, { link, filename, caption }) {
+  const to = toWhatsAppNumber(phone);
+  if (!to) return { skipped: true, reason: 'invalid_phone' };
+  if (!link) return { skipped: true, reason: 'no_link' };
+
+  try {
+    const result = await postWhatsAppMessage({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'document',
+      document: {
+        link,
+        filename: filename || 'participants.xlsx',
+        caption: caption || 'Participant list',
+      },
+    });
+    return result;
+  } catch (error) {
+    const detail = error.response?.data || error.message;
+    logger.error('WhatsApp document failed:', detail);
+    return { ok: false, error: detail };
+  }
+}
+
 module.exports = {
   sendBookingConfirmationWhatsApp,
+  sendAdminWhatsAppText,
+  sendWhatsAppDocument,
   toWhatsAppNumber,
   buildConfirmationText,
 };

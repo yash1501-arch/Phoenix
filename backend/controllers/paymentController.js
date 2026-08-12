@@ -1,12 +1,6 @@
 const { getConvexClient } = require('../utils/convexClient');
-const {
-  sendBookingConfirmation,
-  sendAdminAlert,
-  sendPaymentSubmittedAlert,
-  sendPaymentRejectedAlert,
-} = require('../services/emailService');
-const { sendBookingConfirmationWhatsApp } = require('../services/whatsappService');
 const { getSignedScreenshotUrl } = require('../utils/cloudinaryClient');
+const { enqueue, JOBS } = require('../utils/jobQueue');
 const logger = require('../utils/logger');
 
 function withSignedScreenshot(payment) {
@@ -72,24 +66,16 @@ exports.submitManual = async (req, res) => {
     });
 
     const adminEmail = process.env.ADMIN_EMAIL;
-    if (adminEmail) {
-      try {
-        await sendPaymentSubmittedAlert(adminEmail, {
-          bookingCode: details.booking.booking_code,
-          customerName: req.user.name,
-          adventureTitle: details.adventure?.title || 'Adventure',
-          amount: details.booking.amount,
-          upiReference: upi_reference,
-        });
-      } catch (alertErr) {
-        logger.error(
-          'ADMIN ALERT FAILED — payment submitted but admin was not notified:',
-          alertErr.message || alertErr
-        );
-      }
-    } else {
-      logger.warn('ADMIN_EMAIL not set — skipping payment submitted alert');
-    }
+    enqueue(JOBS.PAYMENT_SUBMITTED_ALERT, {
+      adminEmail,
+      details: {
+        bookingCode: details.booking.booking_code,
+        customerName: req.user.name,
+        adventureTitle: details.adventure?.title || 'Adventure',
+        amount: details.booking.amount,
+        upiReference: upi_reference,
+      },
+    }).catch((err) => logger.error('Failed to enqueue payment alert:', err.message));
 
     return res.json({
       success: true,
@@ -126,10 +112,25 @@ exports.verify = async (req, res) => {
       return res.status(400).json({ success: false, message: 'booking_id is required' });
     }
 
-    await getConvexClient().verifyPayment(booking_id, req.user.id);
+    const verifyResult = await getConvexClient().verifyPayment(booking_id, req.user.id);
 
     const details = await getConvexClient().getBookingPaymentDetails(booking_id);
     const adv = details?.adventure || {};
+
+    if (verifyResult?.is_full) {
+      enqueue(JOBS.PARTICIPANTS_ROSTER_FULL, {
+        adminEmail: process.env.ADMIN_EMAIL,
+        adventure: {
+          title: adv.title,
+          _id: adv._id || adv.id,
+        },
+        adventureDate: verifyResult.adventure_date || details?.booking?.adventure_date,
+        bookings: verifyResult.confirmed_bookings || [],
+        maxParticipants: verifyResult.max_participants,
+        reason: 'fully booked',
+      }).catch((err) => logger.error('Failed to enqueue roster:', err.message));
+    }
+
     const parseList = (val) => {
       if (Array.isArray(val)) return val;
       if (typeof val === 'string') {
@@ -143,6 +144,11 @@ exports.verify = async (req, res) => {
       return [];
     };
 
+    const participants = details?.booking?.participants || [];
+    const pickupSummary = participants.length
+      ? [...new Set(participants.map((p) => p.pickup_point).filter(Boolean))].join('; ')
+      : details?.booking?.pickup_point || adv.meeting_point || adv.pickup_point;
+
     const confirmationDetails = {
       date: details?.booking?.adventure_date,
       participants: details?.booking?.number_of_seats,
@@ -151,7 +157,7 @@ exports.verify = async (req, res) => {
       location: adv.location,
       duration: adv.duration,
       difficulty: adv.difficulty,
-      meetingPoint: adv.meeting_point || adv.pickup_point,
+      meetingPoint: pickupSummary,
       itinerary: parseList(adv.itinerary),
       included: parseList(adv.included),
       excluded: parseList(adv.excluded),
@@ -167,40 +173,26 @@ exports.verify = async (req, res) => {
 
     const deliveryWarnings = [];
 
-    if (customerEmail) {
-      try {
-        await sendBookingConfirmation(
-          customerEmail,
-          customerName,
-          adventureTitle,
-          confirmationDetails
-        );
-      } catch (err) {
-        logger.error('Confirmation email failed:', err.message);
-        deliveryWarnings.push('confirmation_email_failed');
-      }
-    } else {
-      deliveryWarnings.push('no_customer_email');
+    if (!customerEmail) deliveryWarnings.push('no_customer_email');
+    if (!customerPhone) {
+      logger.warn(`No phone on booking ${booking_id} — skipped WhatsApp confirmation`);
+      deliveryWarnings.push('no_customer_phone');
     }
 
-    if (customerPhone) {
+    // Off the request path — Redis queue or inline async
+    if (customerEmail || customerPhone) {
       try {
-        const waResult = await sendBookingConfirmationWhatsApp(
+        await enqueue(JOBS.BOOKING_CONFIRMATION, {
+          customerEmail,
           customerPhone,
           customerName,
           adventureTitle,
-          confirmationDetails
-        );
-        if (waResult?.skipped) {
-          deliveryWarnings.push(`whatsapp_${waResult.reason || 'skipped'}`);
-        }
+          confirmationDetails,
+        });
       } catch (err) {
-        logger.error('Confirmation WhatsApp failed:', err.message);
-        deliveryWarnings.push('confirmation_whatsapp_failed');
+        logger.error('Failed to enqueue booking confirmation:', err.message);
+        deliveryWarnings.push('confirmation_queue_failed');
       }
-    } else {
-      logger.warn(`No phone on booking ${booking_id} — skipped WhatsApp confirmation`);
-      deliveryWarnings.push('no_customer_phone');
     }
 
     getConvexClient().logAudit({
@@ -246,12 +238,12 @@ exports.reject = async (req, res) => {
     );
 
     if (details?.user?.email) {
-      sendPaymentRejectedAlert(
-        details.user.email,
-        details.user.name || 'Adventurer',
-        details.booking?.booking_code,
-        rejection_reason
-      ).catch(() => {});
+      enqueue(JOBS.PAYMENT_REJECTED, {
+        email: details.user.email,
+        name: details.user.name || 'Adventurer',
+        bookingCode: details.booking?.booking_code,
+        reason: rejection_reason,
+      }).catch((err) => logger.error('Failed to enqueue rejection email:', err.message));
     }
 
     getConvexClient().logAudit({

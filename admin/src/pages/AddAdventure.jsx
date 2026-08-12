@@ -48,6 +48,7 @@ const AddAdventure = () => {
         trek_guidelines: [],
         price: '',
         max_participants: '',
+        start_time: '08:00',
         image: null,
         imagePreview: null,
         galleryFiles: [],
@@ -234,6 +235,7 @@ const AddAdventure = () => {
             submitData.append('price_note', formData.price_note || '');
             submitData.append('price', formData.price);
             submitData.append('max_participants', formData.max_participants);
+            submitData.append('start_time', formData.start_time || '08:00');
             submitData.append('status', formData.status);
 
             // If there are gallery images, we must upload them first to get their URLs
@@ -420,6 +422,23 @@ const AddAdventure = () => {
                                 className="form-input"
                                 placeholder="e.g., 15"
                             />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">
+                                <CalendarDays size={16} />
+                                Start time (IST)
+                            </label>
+                            <input
+                                type="time"
+                                name="start_time"
+                                value={formData.start_time || '08:00'}
+                                onChange={handleChange}
+                                className="form-input"
+                            />
+                            <p className="form-hint" style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Bookings auto-close 3 hours before this time (e.g. 20:30 → closes at 17:30).
+                            </p>
                         </div>
 
                         <div className="form-group">

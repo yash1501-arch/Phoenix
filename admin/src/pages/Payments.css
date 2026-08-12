@@ -96,6 +96,12 @@
   grid-column: 1 / -1;
 }
 
+.traveler-list {
+  margin: 0;
+  padding-left: 1rem;
+  list-style: disc;
+}
+
 .payment-reject-note dd {
   color: var(--danger);
 }
@@ -144,4 +150,10 @@
     align-items: center;
     text-align: left;
   }
+}
+
+.traveler-list {
+  margin: 0;
+  padding-left: 1rem;
+  list-style: disc;
 }

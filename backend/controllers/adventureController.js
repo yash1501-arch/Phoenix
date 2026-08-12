@@ -2,8 +2,17 @@ const aiService = require('../services/aiService');
 const { getConvexClient } = require('../utils/convexClient');
 const { applyBrochureFields } = require('../utils/parseBrochureFields');
 const { pickAdventureFields } = require('../utils/sanitizeAdventurePayload');
+const {
+  cacheGet,
+  cacheSet,
+  CACHE_KEYS,
+  invalidateAdventureCache,
+} = require('../utils/cache');
 const logger = require('../utils/logger');
 require('dotenv').config();
+
+const LIST_CACHE_TTL = Number(process.env.CACHE_TTL_ADVENTURES || 120);
+const DETAIL_CACHE_TTL = Number(process.env.CACHE_TTL_ADVENTURE_DETAIL || 180);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -87,10 +96,25 @@ const getAdventures = async (req, res) => {
         const { page = 1, limit = 10, status, difficulty, location, search, category, includeAllDates } = req.query;
         const includeAll = includeAllDates === 'true' || includeAllDates === '1';
         const effectiveStatus = status || (includeAll ? undefined : 'active');
+        const isAdmin = await isRequestAdmin(req);
+
+        // Cache only public (non-admin) list reads — admin includeAllDates bypasses cache
+        const cacheable = !isAdmin && !includeAll;
+        const cacheKey = cacheable
+            ? `${CACHE_KEYS.adventuresList}${[page, limit, effectiveStatus, difficulty, location, category, search || ''].join(':')}`
+            : null;
+
+        if (cacheKey) {
+            const cached = await cacheGet(cacheKey);
+            if (cached) {
+                res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+                res.set('X-Cache', 'HIT');
+                return res.json(cached);
+            }
+        }
 
         const convexFilters = { page: parseInt(page), limit: parseInt(limit), status: effectiveStatus, difficulty, location, category };
         const result = await getConvexClient().getAdventures(convexFilters);
-        const isAdmin = await isRequestAdmin(req);
 
         if (result && Array.isArray(result.data)) {
             result.data = result.data
@@ -107,6 +131,14 @@ const getAdventures = async (req, res) => {
             }
         }
 
+        if (cacheKey) {
+            await cacheSet(cacheKey, result, LIST_CACHE_TTL);
+            res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+            res.set('X-Cache', 'MISS');
+        } else {
+            res.set('Cache-Control', 'private, no-store');
+        }
+
         res.json(result);
     } catch (error) {
         logger.error('Error fetching adventures:', error);
@@ -121,6 +153,18 @@ const getAdventureById = async (req, res) => {
     try {
         const { id } = req.params;
         const includeAll = req.query.includeAllDates === 'true' || req.query.includeAllDates === '1';
+        const isAdmin = await isRequestAdmin(req);
+        const cacheable = !isAdmin && !includeAll;
+        const cacheKey = cacheable ? `${CACHE_KEYS.adventureById}${id}` : null;
+
+        if (cacheKey) {
+            const cached = await cacheGet(cacheKey);
+            if (cached) {
+                res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=180');
+                res.set('X-Cache', 'HIT');
+                return res.json(cached);
+            }
+        }
 
         const result = await getConvexClient().getAdventureById(id);
 
@@ -128,19 +172,27 @@ const getAdventureById = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
 
-        const isAdmin = await isRequestAdmin(req);
-
         if (result.status !== 'active' && !isAdmin) {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
 
-        res.json({
+        const payload = {
             success: true,
             data: stripInternalFields(
                 attachAvailableDates(result, { includeAllDates: includeAll }),
                 isAdmin
             ),
-        });
+        };
+
+        if (cacheKey) {
+            await cacheSet(cacheKey, payload, DETAIL_CACHE_TTL);
+            res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=180');
+            res.set('X-Cache', 'MISS');
+        } else {
+            res.set('Cache-Control', 'private, no-store');
+        }
+
+        res.json(payload);
     } catch (error) {
         logger.error('Error fetching adventure:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch adventure' });
@@ -215,6 +267,7 @@ const createAdventure = async (req, res) => {
         if (adventureData.reviews_count === '') delete adventureData.reviews_count;
 
         const result = await getConvexClient().createAdventure(pickAdventureFields(adventureData));
+        await invalidateAdventureCache();
 
         res.status(201).json({
             success: true,
@@ -300,6 +353,8 @@ const updateAdventure = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
 
+        await invalidateAdventureCache();
+
         res.json({
             success: true,
             message: 'Adventure updated successfully',
@@ -322,6 +377,7 @@ const deleteAdventure = async (req, res) => {
         if (!result) {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
+        await invalidateAdventureCache();
         res.json({ success: true, message: 'Adventure deleted successfully' });
     } catch (error) {
         logger.error('Error deleting adventure:', error);

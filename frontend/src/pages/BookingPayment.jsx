@@ -341,6 +341,47 @@ const BookingPayment = () => {
                         </div>
                     </div>
 
+                    {(booking?.emergency_contact || (booking?.participants?.length > 0) || booking?.pickup_point || (booking?.additional_travelers?.length > 0)) && (
+                        <div className="px-6 pb-6 space-y-3 text-sm border-t border-stone/10 pt-4">
+                            {booking?.emergency_contact && (
+                                <div>
+                                    <p className="text-muted mb-0.5">Emergency contact</p>
+                                    <p className="font-semibold text-stone">{booking.emergency_contact}</p>
+                                </div>
+                            )}
+                            {(booking?.participants?.length > 0 ? booking.participants : null)?.map((p, i) => (
+                                <div key={i} className="bg-mist-subtle rounded-lg p-3 border border-stone/10">
+                                    <p className="font-semibold text-stone mb-1">
+                                        {i === 0 ? 'Primary participant' : `Participant ${i + 1}`}
+                                    </p>
+                                    <p className="text-stone">{p.name} · {p.phone}</p>
+                                    <p className="text-muted text-xs mt-1">
+                                        Pickup: {p.pickup_point} · Meal: {String(p.meal_preference || '').replace(/_/g, '-')}
+                                    </p>
+                                </div>
+                            ))}
+                            {!booking?.participants?.length && booking?.pickup_point && (
+                                <div>
+                                    <p className="text-muted mb-0.5">Pickup point</p>
+                                    <p className="font-semibold text-stone">{booking.pickup_point}</p>
+                                </div>
+                            )}
+                            {!booking?.participants?.length && booking?.additional_travelers?.length > 0 && (
+                                <div>
+                                    <p className="text-muted mb-1">Additional travelers</p>
+                                    <ul className="space-y-1">
+                                        {booking.additional_travelers.map((t, i) => (
+                                            <li key={i} className="text-stone">
+                                                {t.name} · {t.phone} · {t.meal_preference?.replace('_', '-')}
+                                                {t.pickup_point ? ` · ${t.pickup_point}` : ''}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {status === 'pending_payment' && remaining != null && (
                         <div className="mx-6 mb-6 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded-lg px-4 py-3">
                             <Clock size={16} className="shrink-0" />

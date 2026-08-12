@@ -128,6 +128,13 @@ const Payments = () => {
                                             {' · '}
                                             {booking.number_of_seats} seat(s)
                                         </p>
+                                        {(booking.pickup_point || booking.emergency_contact) && (
+                                            <p className="payment-meta">
+                                                {booking.pickup_point && <>Pickup: {booking.pickup_point}</>}
+                                                {booking.pickup_point && booking.emergency_contact && ' · '}
+                                                {booking.emergency_contact && <>Emergency: {booking.emergency_contact}</>}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="payment-amount">
                                         <span className="payment-amount-value">
@@ -161,6 +168,38 @@ const Payments = () => {
                                                 <dd>{payment.rejection_reason}</dd>
                                             </div>
                                         )}
+                                    </dl>
+                                )}
+
+                                {(booking.participants?.length > 0 || booking.additional_travelers?.length > 0) && (
+                                    <dl className="payment-details">
+                                        <div className="payment-details-wide">
+                                            <dt>Participants</dt>
+                                            <dd>
+                                                <ul className="traveler-list">
+                                                    {(booking.participants?.length
+                                                        ? booking.participants
+                                                        : [
+                                                            {
+                                                                name: booking.customer_name,
+                                                                phone: booking.customer_phone,
+                                                                pickup_point: booking.pickup_point,
+                                                                meal_preference: '—',
+                                                            },
+                                                            ...(booking.additional_travelers || []),
+                                                        ]
+                                                    ).map((t, i) => (
+                                                        <li key={i}>
+                                                            {t.name} · {t.phone}
+                                                            {t.pickup_point ? ` · Pickup: ${t.pickup_point}` : ''}
+                                                            {t.meal_preference && t.meal_preference !== '—'
+                                                                ? ` · ${String(t.meal_preference).replace(/_/g, '-')}`
+                                                                : ''}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </dd>
+                                        </div>
                                     </dl>
                                 )}
 

@@ -300,10 +300,49 @@ const sendPasswordReset = async (userEmail, userName, resetLink) => {
     }
 };
 
+const sendParticipantsRoster = async (adminEmail, {
+    adventureTitle,
+    adventureDate,
+    participantCount,
+    maxParticipants,
+    buffer,
+    filename,
+    reason,
+}) => {
+    if (!process.env.SMTP_USER) {
+        logger.warn('SMTP not configured — cannot send participant roster');
+        return { skipped: true, reason: 'not_configured' };
+    }
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2f4a3d;">Participant list ready</h2>
+        <p><strong>${escapeHtml(adventureTitle)}</strong> on <strong>${escapeHtml(adventureDate)}</strong> is ${escapeHtml(reason || 'full')}.</p>
+        <ul>
+          <li>Participants: ${escapeHtml(participantCount)} / ${escapeHtml(maxParticipants || '—')}</li>
+        </ul>
+        <p>Excel sheet attached with all confirmed participant details (name, phone, meal, pickup, emergency contact).</p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+        from: `"Phoenix System" <${process.env.SMTP_USER}>`,
+        to: adminEmail,
+        subject: `Participants: ${adventureTitle} (${adventureDate})`,
+        html,
+        attachments: buffer
+            ? [{ filename: filename || 'participants.xlsx', content: buffer }]
+            : [],
+    });
+    logger.info(`Participant roster emailed to ${adminEmail}`);
+    return { sent: true };
+};
+
 module.exports = {
     sendBookingConfirmation,
     sendAdminAlert,
     sendPaymentSubmittedAlert,
     sendPaymentRejectedAlert,
     sendPasswordReset,
+    sendParticipantsRoster,
 };

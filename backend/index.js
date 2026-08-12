@@ -5,9 +5,10 @@ const hpp = require('hpp');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+require('dotenv').config();
 const logger = require('./utils/logger');
 const requestId = require('./middleware/requestId');
-require('dotenv').config();
+const { initRedis, getRedis, isRedisReady } = require('./utils/redis');
 
 // ── Startup env validation ────────────────────────────────────────────────────
 const isProd = process.env.NODE_ENV === 'production';
@@ -22,6 +23,9 @@ const requiredProd = [
   'ADMIN_EMAIL',
 ];
 const requiredDev = ['CONVEX_URL', 'CONVEX_ADMIN_KEY', 'JWT_SECRET'];
+
+async function boot() {
+await initRedis();
 
 if (isProd) {
   const missingProd = requiredProd.filter((k) => !process.env[k]);
@@ -93,12 +97,29 @@ app.use(cors({
 // Environment check (used by rate limiters below)
 const isDev = process.env.NODE_ENV !== 'production';
 
+function buildRateLimitStore(prefix) {
+    if (!isRedisReady()) return undefined;
+    const redis = getRedis();
+    if (!redis) return undefined;
+    try {
+        const { RedisStore } = require('rate-limit-redis');
+        return new RedisStore({
+            sendCommand: (...args) => redis.call(...args),
+            prefix: `rl:${prefix}:`,
+        });
+    } catch (err) {
+        logger.warn('Redis rate-limit store unavailable:', err.message);
+        return undefined;
+    }
+}
+
 // Rate limiting — general API (skip health checks and public settings reads)
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     limit: isDev ? 500 : 200,
     standardHeaders: true,
     legacyHeaders: false,
+    store: buildRateLimitStore('api'),
     skip: (req) => req.path === '/health'
         || req.path === '/settings/public'
         || req.method === 'GET' && req.path.startsWith('/adventures'),
@@ -113,6 +134,7 @@ const authLimiter = rateLimit({
     skip: isDev ? (req) => ['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(req.ip) : undefined,
     standardHeaders: true,
     legacyHeaders: false,
+    store: buildRateLimitStore('auth'),
     message: { success: false, message: 'Too many login attempts, please try again later.' },
 });
 app.use('/api/auth/', authLimiter);
@@ -123,6 +145,7 @@ const writeLimiter = rateLimit({
     limit: isDev ? 100 : 20,
     standardHeaders: true,
     legacyHeaders: false,
+    store: buildRateLimitStore('write'),
     message: { success: false, message: 'Too many requests, please slow down.' },
 });
 app.use('/api/newsletter/subscribe', writeLimiter);
@@ -183,23 +206,13 @@ app.get('/', (req, res) => {
     res.json({ message: 'Welcome to Phoenix Adventures API' });
 });
 
-// Health check — shallow (always 200 if server is up)
+// Health check — shallow (always 200 if server is up; used by load balancers)
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Health check — deep (verifies Convex connectivity)
+// Health check — deep (verifies Convex + optional Redis)
 app.get('/api/health', async (req, res) => {
-    if (process.env.NODE_ENV === 'production') {
-        try {
-            const { getConvexClient } = require('./utils/convexClient');
-            getConvexClient();
-            return res.status(200).json({ status: 'OK' });
-        } catch {
-            return res.status(503).json({ status: 'UNAVAILABLE' });
-        }
-    }
-
     const startedAt = Date.now();
     let convexOk = false;
     let convexError = null;
@@ -210,6 +223,24 @@ app.get('/api/health', async (req, res) => {
     } catch (err) {
         convexError = err.message;
     }
+
+    let redisOk = null;
+    let redisMode = 'memory';
+    let redisError = null;
+    if (process.env.REDIS_URL) {
+        redisMode = isRedisReady() ? 'redis' : 'fallback';
+        redisOk = isRedisReady();
+        if (!redisOk) redisError = 'not connected';
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+        const redisRequired = process.env.REQUIRE_REDIS === 'true';
+        const healthy = convexOk && (!redisRequired || redisOk);
+        return res.status(healthy ? 200 : 503).json({
+            status: healthy ? 'OK' : 'UNAVAILABLE',
+        });
+    }
+
     const ok = convexOk && process.env.JWT_SECRET;
     res.status(ok ? 200 : 503).json({
         status: ok ? 'OK' : 'DEGRADED',
@@ -220,6 +251,7 @@ app.get('/api/health', async (req, res) => {
         checks: {
             convex: { ok: convexOk, error: convexError },
             jwt: { ok: Boolean(process.env.JWT_SECRET) },
+            redis: { mode: redisMode, ok: redisOk, error: redisError },
         },
         response_ms: Date.now() - startedAt,
     });
@@ -268,6 +300,20 @@ const server = app.listen(PORT);
 server.on('listening', () => {
     logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
     logger.info('Press Ctrl+C to stop');
+
+    const inlineWorker = process.env.ENABLE_INLINE_WORKER !== 'false';
+    if (inlineWorker && isRedisReady()) {
+        try {
+            const { startWorker } = require('./utils/jobQueue');
+            startWorker();
+        } catch (err) {
+            logger.warn('Inline job worker not started:', err.message);
+        }
+    } else if (process.env.REDIS_URL && !isRedisReady()) {
+        logger.info('Jobs will run inline until Redis is available (docker compose up -d redis)');
+    } else if (!process.env.REDIS_URL) {
+        logger.info('Jobs will run inline (no REDIS_URL).');
+    }
 });
 
 server.on('error', (err) => {
@@ -281,4 +327,10 @@ server.on('error', (err) => {
         logger.error('Server failed to start:', err.message);
     }
     process.exit(1);
+});
+} // end boot()
+
+boot().catch((err) => {
+  logger.error('Failed to boot server:', err.message || err);
+  process.exit(1);
 });

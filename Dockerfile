@@ -19,5 +19,7 @@ EXPOSE 8080
 # Environment variable to run on port 8080 by default
 ENV PORT=8080
 
-# Start the Express server
+# Web API (default). For a dedicated job worker on Koyeb, override command to:
+#   node worker.js
+# and set REDIS_URL + ENABLE_INLINE_WORKER=false on the web service.
 CMD ["node", "index.js"]

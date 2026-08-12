@@ -46,10 +46,15 @@ export const getImageUrl = (path) => {
     if (/^https?:\/\//i.test(path) || path.startsWith('//')) {
         return path.startsWith('//') ? `https:${path}` : path;
     }
+    // Legacy local uploads served by backend (dev only)
     if (path.startsWith('/uploads/')) {
         return `${API_BASE_URL}${path}`;
     }
-    return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+    // Frontend public assets (/placeholder.jpg, /founders/, etc.)
+    if (path.startsWith('/')) {
+        return path;
+    }
+    return `/${path}`;
 };
 
 export const adventuresAPI = {

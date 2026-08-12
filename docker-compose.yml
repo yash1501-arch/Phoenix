@@ -1,0 +1,23 @@
+# Local / staging infra for scaling foundations.
+# Usage:
+#   docker compose up -d redis
+#   Then set REDIS_URL=redis://127.0.0.1:6379 in backend/.env and restart the API.
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: phoenix-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - phoenix_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  phoenix_redis_data:

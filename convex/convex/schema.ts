@@ -38,6 +38,7 @@ export default defineSchema({
       accommodation: v.optional(v.string()),
     }))),
     images: v.optional(v.array(v.string())),
+    start_time: v.optional(v.string()), // HH:mm IST, e.g. "20:30"
     available_dates: v.optional(v.array(v.string())),
     created_at: v.string(), // ISO string
     updated_at: v.string(), // ISO string
@@ -145,6 +146,20 @@ export default defineSchema({
     customer_name: v.optional(v.string()),
     customer_email: v.optional(v.string()),
     customer_phone: v.optional(v.string()),
+    emergency_contact: v.optional(v.string()),
+    pickup_point: v.optional(v.string()),
+    participants: v.optional(v.array(v.object({
+      name: v.string(),
+      phone: v.string(),
+      meal_preference: v.string(),
+      pickup_point: v.string(),
+    }))),
+    additional_travelers: v.optional(v.array(v.object({
+      name: v.string(),
+      phone: v.string(),
+      meal_preference: v.string(),
+      pickup_point: v.optional(v.string()),
+    }))),
     created_at: v.string(),
     updated_at: v.string(),
   })

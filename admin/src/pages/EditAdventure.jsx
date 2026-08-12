@@ -52,6 +52,7 @@ const EditAdventure = () => {
         trek_guidelines: [],
         price: '',
         max_participants: '',
+        start_time: '08:00',
         image: null,
         imagePreview: null,
         existingGalleryUrls: [],
@@ -126,6 +127,7 @@ const EditAdventure = () => {
                 trek_guidelines: asStringList(adventure.trek_guidelines),
                 price: adventure.price || '',
                 max_participants: adventure.max_participants || '',
+                start_time: adventure.start_time || '08:00',
                 image: null,
                 imagePreview,
                 existingGalleryUrls,
@@ -342,6 +344,7 @@ const EditAdventure = () => {
             submitData.append('price_note', formData.price_note || '');
             submitData.append('price', formData.price);
             submitData.append('max_participants', formData.max_participants);
+            submitData.append('start_time', formData.start_time || '08:00');
             submitData.append('status', formData.status);
 
             // Handle gallery images: upload new ones, combine with existing ones
@@ -543,6 +546,20 @@ const EditAdventure = () => {
                                 className="form-input"
                                 placeholder="e.g., 15"
                             />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Start time (IST)</label>
+                            <input
+                                type="time"
+                                name="start_time"
+                                value={formData.start_time || '08:00'}
+                                onChange={handleChange}
+                                className="form-input"
+                            />
+                            <p style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Bookings auto-close 3 hours before this time.
+                            </p>
                         </div>
 
                         <div className="form-group">
