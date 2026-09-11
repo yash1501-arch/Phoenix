@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Cookie, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLanguage } from '../../context/LanguageContext';
 
 const STORAGE_KEY = 'phoenix-cookie-consent';
 
@@ -19,7 +18,6 @@ export function getCookieConsent() {
 
 export default function CookieConsent() {
     const [visible, setVisible] = useState(false);
-    const { t } = useLanguage();
 
     useEffect(() => {
         try {
@@ -58,23 +56,23 @@ export default function CookieConsent() {
                             <Cookie size={18} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white text-sm mb-1">{t.cookie.title}</h3>
+                            <h3 className="font-semibold text-white text-sm mb-1">Cookies & privacy</h3>
                             <p className="text-xs text-zinc-300 leading-relaxed">
-                                {t.cookie.body}{' '}
-                                <Link to="/privacy" className="text-primary hover:underline">{t.cookie.privacy}</Link>
+                                We use cookies for authentication and to remember your wishlist. No ad trackers.{' '}
+                                <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 <button
                                     onClick={accept}
                                     className="px-4 py-1.5 rounded-full bg-primary text-black text-xs font-bold hover:brightness-110 transition"
                                 >
-                                    {t.cookie.accept}
+                                    Accept all
                                 </button>
                                 <button
                                     onClick={decline}
                                     className="px-4 py-1.5 rounded-full border border-zinc-700 text-zinc-200 text-xs font-semibold hover:bg-zinc-800 transition"
                                 >
-                                    {t.cookie.essential}
+                                    Essential only
                                 </button>
                             </div>
                         </div>

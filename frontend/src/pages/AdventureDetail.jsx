@@ -20,7 +20,6 @@ import BookingModal from '../components/BookingModal';
 import { Reveal, IconMotion } from '../components/ui/Motion';
 import { IMG_FALLBACK } from '../data/indiaImages';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
 
 const asStringList = (value) => {
@@ -112,7 +111,6 @@ const ItineraryItem = ({ day }) => {
 
 const WaitlistInline = ({ adventure }) => {
     const { user } = useAuth();
-    const { t } = useLanguage();
     const [email, setEmail] = useState(user?.email || '');
     const [phone, setPhone] = useState('');
     const [busy, setBusy] = useState(false);
@@ -139,14 +137,14 @@ const WaitlistInline = ({ adventure }) => {
     if (done) {
         return (
             <p className="text-xs text-center text-moss bg-moss/10 py-2.5 px-3 rounded border border-moss/20">
-                {t.booking.waitlistDone}
+                We'll email/WhatsApp you when dates or seats open.
             </p>
         );
     }
 
     return (
         <form onSubmit={submit} className="space-y-2 rounded border border-stone/10 bg-mist-subtle p-3">
-            <p className="text-xs text-center text-muted font-medium">{t.booking.waitlistHint}</p>
+            <p className="text-xs text-center text-muted font-medium">No upcoming departures — join the waitlist</p>
             <input
                 type="email"
                 required
@@ -163,7 +161,7 @@ const WaitlistInline = ({ adventure }) => {
                 className="w-full rounded-md border border-stone/15 bg-mist-subtle px-3 py-2 text-sm"
             />
             <button type="submit" disabled={busy} className="btn btn-outline w-full !py-2 text-xs">
-                {busy ? t.booking.joining : t.booking.waitlist}
+                {busy ? 'Joining…' : 'Join waitlist'}
             </button>
         </form>
     );
@@ -171,7 +169,6 @@ const WaitlistInline = ({ adventure }) => {
 
 // ── Booking card (mobile: under About; desktop: sticky sidebar) ─────────────
 const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animated = false }) => {
-    const { t } = useLanguage();
     const nextDeparture = (() => {
         try {
             const raw = typeof adventure.available_dates === 'string'
@@ -190,7 +187,9 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animat
     })();
 
     const isTour = String(adventure.category || '').toLowerCase() === 'tour';
-    const payHint = isTour ? t.booking.payHintTour : t.booking.payHintTrek;
+    const payHint = isTour
+        ? 'Tours: pay a UPI advance now (options extra). Remaining balance is due before departure.'
+        : 'Treks: pay the full trip amount via UPI. Booking is confirmed after we verify your transfer.';
 
     const card = (
         <div className="card border-ink/10 overflow-hidden">
@@ -233,13 +232,13 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animat
 
                 <button type="button" onClick={onBook} className="btn btn-primary w-full">
                     <CalendarCheck size={18} />
-                    {canBook ? (isTour ? t.booking.bookTour : t.booking.bookTrek) : t.booking.loginToBook}
+                    {canBook ? (isTour ? 'Book Now — Pay advance via UPI' : 'Book Now — Pay full via UPI') : 'Log in to book'}
                 </button>
                 <button type="button" onClick={() => openWhatsApp(adventure, whatsappNumber)} className="btn btn-outline w-full">
                     <MessageCircle size={18} /> Ask on WhatsApp
                 </button>
                 <p className="text-center text-xs text-muted">
-                    {canBook ? payHint : t.booking.browseHint}
+                    {canBook ? payHint : 'Browse freely — sign in when you are ready to reserve seats.'}
                 </p>
 
                 <div className="pt-5 border-t border-stone/10 space-y-3">

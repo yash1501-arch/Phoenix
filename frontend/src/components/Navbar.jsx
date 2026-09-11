@@ -9,8 +9,6 @@ import BrandLogo from './BrandLogo';
 import AccountMenu from './ui/AccountMenu';
 import UserAvatar, { firstName } from './ui/UserAvatar';
 import ThemeToggle from './ui/ThemeToggle';
-import LanguageToggle from './ui/LanguageToggle';
-import { useLanguage } from '../context/LanguageContext';
 
 const dropdownItems = [
   { name: 'Treks And Adventures', href: '/treks', hint: 'Sahyadri fort day-hikes' },
@@ -38,7 +36,6 @@ const Navbar = () => {
   const dropdownRef = useRef(null);
   const { isAuthenticated, user } = useAuth();
   const { count: wishlistCount } = useWishlist();
-  const { t } = useLanguage();
   const [whatsappNumber, setWhatsappNumber] = useState('919372506447');
   const [socials, setSocials] = useState({
     instagram: 'https://www.instagram.com/phoenix_adventures__/',
@@ -73,16 +70,6 @@ const Navbar = () => {
 
   const isActive = (href) => location.pathname === href;
   const isInDropdown = dropdownItems.some((item) => isActive(item.href));
-  const exploreItems = [
-    { name: t.nav.treks, href: '/treks', hint: t.nav.treksHint },
-    { name: t.nav.camping, href: '/camping', hint: t.nav.campingHint },
-  ];
-  const links = [
-    { name: t.nav.tours, href: '/tours' },
-    { name: t.nav.gallery, href: '/gallery' },
-    { name: t.nav.about, href: '/about' },
-    { name: t.nav.contact, href: '/contact' },
-  ];
 
   return (
     <>
@@ -107,7 +94,7 @@ const Navbar = () => {
                   aria-expanded={dropdownOpen}
                   className={linkClass(isInDropdown)}
                 >
-                  {t.nav.explore}
+                  Explore
                   <ChevronDown
                     size={14}
                     strokeWidth={2.25}
@@ -124,7 +111,7 @@ const Navbar = () => {
                       onMouseLeave={() => setDropdownOpen(false)}
                       className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 bg-mist-subtle border border-stone/10 shadow-lift rounded-lg overflow-hidden"
                     >
-                      {exploreItems.map((item) => (
+                      {dropdownItems.map((item) => (
                         <Link
                           key={item.name}
                           to={item.href}
@@ -148,7 +135,7 @@ const Navbar = () => {
                 </AnimatePresence>
               </div>
 
-              {links.map((link) => (
+              {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
@@ -168,7 +155,6 @@ const Navbar = () => {
             {/* Right — utilities + CTA (desktop) / menu (mobile) */}
             <div className="col-start-3 justify-self-end">
               <div className="hidden lg:flex items-center gap-1">
-                <LanguageToggle />
                 <ThemeToggle className="!p-0 w-10 h-10" />
                 <Link to="/wishlist" className={`relative ${iconBtn}`} aria-label="Wishlist">
                   <Heart size={18} strokeWidth={2.25} className={wishlistCount > 0 ? 'fill-ember/20 text-ember' : ''} />
@@ -189,7 +175,7 @@ const Navbar = () => {
                     className="inline-flex items-center gap-1.5 h-10 px-3 text-[13px] font-semibold text-stone/80 hover:text-ember rounded-md hover:bg-stone/[0.04] transition-colors"
                   >
                     <LogIn size={15} strokeWidth={2.25} />
-                    {t.nav.login}
+                    Login
                   </Link>
                 )}
 
@@ -197,12 +183,11 @@ const Navbar = () => {
                   to="/adventures"
                   className="ml-1.5 inline-flex items-center justify-center h-10 px-4 rounded-md bg-ember text-cream text-[13px] font-bold hover:bg-ember-bright transition-colors whitespace-nowrap"
                 >
-                  {t.nav.bookNow}
+                  Book now
                 </Link>
               </div>
 
               <div className="flex lg:hidden items-center gap-0.5">
-                <LanguageToggle className="mr-1" />
                 <ThemeToggle className="!p-0 w-10 h-10" />
                 <button
                   type="button"
@@ -238,16 +223,16 @@ const Navbar = () => {
               className="absolute inset-y-0 right-0 w-full max-w-sm bg-panel flex flex-col"
             >
               <div className="flex items-center justify-between px-6 h-16 border-b border-cream/10">
-                <span className="font-display text-lg text-cream font-semibold">{t.nav.menu}</span>
+                <span className="font-display text-lg text-cream font-semibold">Menu</span>
                 <button type="button" onClick={() => setMenuOpen(false)} className="p-2 text-cream/70" aria-label="Close">
                   <X size={22} />
                 </button>
               </div>
 
               <nav className="flex-1 overflow-y-auto px-6 py-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cream/50 mb-2">{t.nav.explore}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cream/50 mb-2">Explore</p>
                 <ul className="space-y-1 mb-4">
-                  {exploreItems.map((link, i) => (
+                  {dropdownItems.map((link, i) => (
                     <motion.li
                       key={link.name}
                       initial={{ opacity: 0, x: 24 }}
@@ -271,7 +256,7 @@ const Navbar = () => {
                   ))}
                 </ul>
                 <ul className="space-y-1">
-                  {links.map((link, i) => (
+                  {navLinks.map((link, i) => (
                     <motion.li
                       key={link.name}
                       initial={{ opacity: 0, x: 24 }}
@@ -293,7 +278,7 @@ const Navbar = () => {
                 </ul>
                 <div className="mt-8 space-y-3">
                   <Link to="/adventures" onClick={() => setMenuOpen(false)} className="btn btn-primary w-full">
-                    {t.nav.bookATrek}
+                    Book a trek
                   </Link>
                   {isAuthenticated ? (
                     <Link
@@ -304,7 +289,7 @@ const Navbar = () => {
                       <UserAvatar user={user} size="sm" ring={false} animated={false} />
                       <span className="flex flex-col items-start leading-tight">
                         <span className="text-sm font-semibold">{firstName(user?.name)}</span>
-                        <span className="text-[11px] font-normal opacity-70">{t.nav.myTrips}</span>
+                        <span className="text-[11px] font-normal opacity-70">My trips & profile</span>
                       </span>
                     </Link>
                   ) : (
@@ -314,7 +299,7 @@ const Navbar = () => {
                       className="btn btn-outline w-full"
                     >
                       <LogIn size={16} />
-                      {t.nav.signIn}
+                      Sign in
                     </Link>
                   )}
                 </div>

@@ -5,7 +5,6 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import ScrollProgress from './components/ui/ScrollProgress';
@@ -68,7 +67,6 @@ function App() {
           }}
         />
         <ThemeProvider>
-          <LanguageProvider>
         <CookieConsent />
         <BackToTop />
           <AuthProvider>
@@ -108,7 +106,6 @@ function App() {
                 <MobileTabBar />
               </WishlistProvider>
           </AuthProvider>
-          </LanguageProvider>
           </ThemeProvider>
       </Router>
     </HelmetProvider>

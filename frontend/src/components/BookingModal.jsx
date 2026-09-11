@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import { X, Calendar, Users, Phone, IndianRupee, MapPin, UserPlus, UtensilsCrossed, Wallet, CreditCard } from 'lucide-react';
 import { bookingsAPI, publicSettingsAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { buildPickupOptions } from '../utils/adventureFields';
 import { isBookingOpen, formatCutoffLabel, normalizeStartTime, BOOKING_CUTOFF_HOURS } from '../utils/bookingWindow';
 import {
@@ -42,7 +41,6 @@ const emptyParticipant = (pickupDefault = '', travelCoach = 'sleeper') => ({
 const BookingModal = ({ adventure, onClose }) => {
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuth();
-    const { t } = useLanguage();
     const [loading, setLoading] = useState(false);
     const [holdMinutes, setHoldMinutes] = useState(15);
     const [advancePerPerson, setAdvancePerPerson] = useState(() =>
@@ -488,8 +486,8 @@ const BookingModal = ({ adventure, onClose }) => {
 
                         {tour && (
                             <p className="text-sm text-muted bg-mist-subtle border border-stone/10 rounded-lg px-3 py-2.5">
-                                <strong className="text-stone">{t.booking.stayNote.split(':')[0]}:</strong>{' '}
-                                {t.booking.stayNote.replace(/^[^:]+:\s*/, '')}
+                                <strong className="text-stone">Stay:</strong>{' '}
+                                Group stay — rooms are shared between 3 people (included in the package price).
                             </p>
                         )}
 
@@ -517,7 +515,7 @@ const BookingModal = ({ adventure, onClose }) => {
                                                 onChange={() => setPaymentPreference('advance')}
                                                 className="accent-ember"
                                             />
-                                            {t.booking.payAdvance}
+                                            Pay advance
                                         </span>
                                         <span className="text-xs text-muted pl-5">
                                             ₹{(advancePerPerson * form.number_of_seats).toLocaleString('en-IN')} now
@@ -542,7 +540,7 @@ const BookingModal = ({ adventure, onClose }) => {
                                                 onChange={() => setPaymentPreference('full')}
                                                 className="accent-ember"
                                             />
-                                            {t.booking.payFull}
+                                            Pay in full
                                         </span>
                                         <span className="text-xs text-muted pl-5">
                                             ₹{priced.total_amount.toLocaleString('en-IN')} now
@@ -604,7 +602,7 @@ const BookingModal = ({ adventure, onClose }) => {
                             disabled={loading || !form.adventure_date || tripPrice <= 0 || pickupOptions.length === 0 || !windowStatus.open}
                             className="btn btn-primary w-full"
                         >
-                            {loading ? t.common.loading : !windowStatus.open ? 'Bookings closed' : t.booking.proceed}
+                            {loading ? 'Loading...' : !windowStatus.open ? 'Bookings closed' : 'Proceed to Payment'}
                         </button>
                     </form>
                 </motion.div>

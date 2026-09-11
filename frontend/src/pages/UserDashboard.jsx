@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { useWishlist } from '../context/WishlistContext';
 import {
     Mail, Calendar, Award, LogOut, Phone,
@@ -20,14 +19,13 @@ import { IMG_FALLBACK } from '../data/indiaImages';
 
 const UserDashboard = () => {
     const { user, logout, updateUserContext } = useAuth();
-    const { t } = useLanguage();
     const STATUS_BADGE = {
-        pending_payment: { label: t.dashboard.payNow, cls: 'bg-amber-100 text-amber-800' },
-        payment_submitted: { label: t.dashboard.underReview, cls: 'bg-blue-100 text-blue-800' },
-        confirmed: { label: t.dashboard.confirmed, cls: 'bg-emerald-100 text-emerald-800' },
-        rejected: { label: t.dashboard.rejected, cls: 'bg-red-100 text-red-800' },
-        expired: { label: t.dashboard.expired, cls: 'bg-gray-100 text-gray-600' },
-        cancelled: { label: t.dashboard.cancelled, cls: 'bg-gray-100 text-gray-600' },
+        pending_payment: { label: 'Pay Now', cls: 'bg-amber-100 text-amber-800' },
+        payment_submitted: { label: 'Under Review', cls: 'bg-blue-100 text-blue-800' },
+        confirmed: { label: 'Confirmed', cls: 'bg-emerald-100 text-emerald-800' },
+        rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-800' },
+        expired: { label: 'Expired', cls: 'bg-gray-100 text-gray-600' },
+        cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-600' },
     };
     const { items: wishlistItems, count: wishlistCount } = useWishlist();
     const [whatsappNumber, setWhatsappNumber] = useState('919372506447');
@@ -309,7 +307,7 @@ const UserDashboard = () => {
                                                             to={`/booking/${bookingId}/payment`}
                                                             className="shrink-0 px-4 py-2 bg-[#c9a961] text-white text-sm font-bold rounded-xl hover:bg-[#b8954f] transition"
                                                         >
-                                                            {booking.booking_status === 'payment_submitted' ? t.dashboard.underReview : t.dashboard.payNow}
+                                                            {booking.booking_status === 'payment_submitted' ? 'Under Review' : 'Pay Now'}
                                                         </Link>
                                                     ) : booking.booking_status === 'confirmed' ? (
                                                         <div className="flex flex-col sm:flex-row gap-2 shrink-0">
