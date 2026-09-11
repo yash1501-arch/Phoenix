@@ -124,7 +124,7 @@ const AdventuresPage = () => {
                   onClick={() => setFilter(f.id)}
                   className={`px-4 py-2 text-sm font-medium rounded-md transition whitespace-nowrap ${
                     filter === f.id
-                      ? 'bg-stone text-mist'
+                      ? 'bg-panel text-cream'
                       : 'text-stone hover:bg-mist-muted border border-stone/10'
                   }`}
                 >
@@ -142,7 +142,7 @@ const AdventuresPage = () => {
                   onClick={() => onCityChange(c.id)}
                   className={`px-4 py-2 text-sm font-medium rounded-md transition whitespace-nowrap ${
                     city === c.id
-                      ? 'bg-stone text-mist'
+                      ? 'bg-panel text-cream'
                       : 'text-stone hover:bg-mist-muted border border-stone/10'
                   }`}
                 >
@@ -215,8 +215,8 @@ const AdventuresPage = () => {
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                             onError={(e) => { e.currentTarget.src = '/placeholder.jpg'; }}
                           />
-                          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-stone/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <div className="absolute top-3 left-3 bg-stone/90 text-mist text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
+                          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-panel/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
                             {adv.difficulty || 'Moderate'}
                           </div>
                           <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition">

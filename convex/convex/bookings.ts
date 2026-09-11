@@ -31,6 +31,266 @@ async function getSeatHoldMinutes(ctx: any) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : HOLD_MINUTES_DEFAULT;
 }
 
+async function getAdvancePerPerson(ctx: any) {
+  const row = await ctx.db
+    .query("settings")
+    .withIndex("key", (q: any) => q.eq("key", "advance_per_person"))
+    .first();
+  const parsed = parseFloat(row?.value || "1000");
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1000;
+}
+
+async function getCancellationWindowDays(ctx: any) {
+  const row = await ctx.db
+    .query("settings")
+    .withIndex("key", (q: any) => q.eq("key", "cancellation_window_days"))
+    .first();
+  const parsed = parseInt(row?.value || "14", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 14;
+}
+
+function resolveAdvancePerPerson(adventure: any, settingsAdvance: number) {
+  const raw = adventure?.advance_per_person;
+  if (raw !== undefined && raw !== null) {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  return settingsAdvance;
+}
+
+function daysUntilDeparture(adventureDate: string) {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const dep = Date.parse(`${adventureDate}T00:00:00.000Z`);
+  if (Number.isNaN(dep)) return 0;
+  return Math.floor((dep - today.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function money(n: number) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
+function isTourAdventure(adventure: any) {
+  return String(adventure?.category || "").toLowerCase() === "tour";
+}
+
+function paymentKindFromType(paymentType: string | undefined) {
+  return paymentType === "advance" ? "advance" : "full";
+}
+
+async function listPaymentsForBooking(ctx: any, bookingId: string) {
+  return await ctx.db
+    .query("payments")
+    .withIndex("booking_id", (q: any) => q.eq("booking_id", bookingId))
+    .collect();
+}
+
+function pickPrimaryPayment(payments: any[]) {
+  if (!Array.isArray(payments) || payments.length === 0) return null;
+  return (
+    payments.find((p) => p.payment_kind !== "balance") ||
+    payments[0]
+  );
+}
+
+function pickBalancePayment(payments: any[]) {
+  if (!Array.isArray(payments)) return null;
+  return payments.find((p) => p.payment_kind === "balance") || null;
+}
+
+/** Resolve train/room selections and compute amount due now vs full total.
+ *
+ * payment_preference: 'advance' | 'full' | undefined
+ *   - Tours:     default to 'advance' when advance_per_person > 0 (existing behaviour).
+ *   - Non-tours: default to 'full'. Advance applied only when payment_preference === 'advance'
+ *                AND advance_per_person > 0.
+ *   - Passing 'full' forces full payment for any adventure type.
+ */
+function findPricingGroup(adventure: any, groupKey: string) {
+  const groups = Array.isArray(adventure?.pricing_options) ? adventure.pricing_options : [];
+  return groups.find((g: any) => String(g.group) === groupKey);
+}
+
+function extraForTrainChoice(adventure: any, choiceId: string) {
+  const train = findPricingGroup(adventure, "train");
+  if (!train || !choiceId) return 0;
+  const choice = (train.choices || []).find((c: any) => String(c.id) === String(choiceId));
+  return Math.max(0, Number(choice?.extra_per_person) || 0);
+}
+
+function computeTourAwareAmounts(
+  adventure: any,
+  seats: number,
+  selections: { group: string; choice_id: string }[] | undefined,
+  advancePerPerson: number,
+  payment_preference?: "advance" | "full",
+  participantTravelCoaches?: string[]
+) {
+  const base = Number(adventure.price) || 0;
+  if (base <= 0) throw new Error("Adventure price is not set");
+
+  const adv = Math.max(0, Number(advancePerPerson) || 0);
+  // Tours default to advance; non-tours default to full unless explicitly requested
+  const wantsAdvance =
+    payment_preference === "advance" ||
+    (payment_preference !== "full" && isTourAdventure(adventure));
+
+  if (!isTourAdventure(adventure)) {
+    const full = money(base * seats);
+    if (wantsAdvance && adv > 0) {
+      const amountDue = money(Math.min(adv * seats, full));
+      return {
+        amount: amountDue,
+        total_amount: full,
+        balance_due: money(full - amountDue),
+        payment_type: (amountDue < full ? "advance" : "full") as "advance" | "full",
+        selected_options: [] as {
+          group: string;
+          choice_id: string;
+          label: string;
+          extra_per_person: number;
+        }[],
+      };
+    }
+    return {
+      amount: full,
+      total_amount: full,
+      balance_due: 0,
+      payment_type: "full" as const,
+      selected_options: [] as {
+        group: string;
+        choice_id: string;
+        label: string;
+        extra_per_person: number;
+      }[],
+    };
+  }
+
+  const coaches = Array.isArray(participantTravelCoaches)
+    ? participantTravelCoaches.map((c) => String(c || "").trim()).filter(Boolean)
+    : [];
+
+  const groups = Array.isArray(adventure.pricing_options)
+    ? adventure.pricing_options
+    : [];
+  const picked = Array.isArray(selections) ? selections : [];
+  const byGroup: Record<string, string> = {};
+  for (const s of picked) {
+    if (s?.group && s?.choice_id) byGroup[s.group] = s.choice_id;
+  }
+
+  const selected_options: {
+    group: string;
+    choice_id: string;
+    label: string;
+    extra_per_person: number;
+  }[] = [];
+
+  let total: number;
+
+  if (coaches.length === seats) {
+    let trainExtraSum = 0;
+    const train = findPricingGroup(adventure, "train");
+    const trainLines: string[] = [];
+    for (const choiceId of coaches) {
+      const extra = extraForTrainChoice(adventure, choiceId);
+      trainExtraSum += extra;
+      const choice = (train?.choices || []).find((c: any) => String(c.id) === choiceId);
+      if (choice) {
+        trainLines.push(`${choice.label}${extra > 0 ? ` (+₹${extra})` : ""}`);
+      }
+    }
+
+    for (const g of groups) {
+      const groupKey = String(g.group || "").trim();
+      if (!groupKey || groupKey === "train") continue;
+      const choices = Array.isArray(g.choices) ? g.choices : [];
+      if (choices.length === 0) continue;
+      const choiceId = byGroup[groupKey];
+      const required = g.required !== false;
+      if (!choiceId) {
+        if (required) throw new Error(`Please select ${g.label || groupKey}`);
+        continue;
+      }
+      const choice = choices.find((c: any) => String(c.id) === choiceId);
+      if (!choice) throw new Error(`Invalid option for ${g.label || groupKey}`);
+      const extra = Math.max(0, Number(choice.extra_per_person) || 0);
+      selected_options.push({
+        group: groupKey,
+        choice_id: String(choice.id),
+        label: `${g.label || groupKey}: ${choice.label}`,
+        extra_per_person: extra,
+      });
+    }
+
+    const roomExtraPerPerson = selected_options.reduce(
+      (sum, o) => sum + Math.max(0, Number(o.extra_per_person) || 0),
+      0
+    );
+
+    if (train && trainLines.length) {
+      selected_options.push({
+        group: "train",
+        choice_id: "per_person",
+        label: `Train: ${trainLines.join("; ")}`,
+        extra_per_person: money(trainExtraSum / seats),
+      });
+    }
+
+    total = money(seats * base + trainExtraSum + roomExtraPerPerson * seats);
+  } else {
+    let extraPerPerson = 0;
+    for (const g of groups) {
+      const groupKey = String(g.group || "").trim();
+      if (!groupKey) continue;
+      const choices = Array.isArray(g.choices) ? g.choices : [];
+      if (choices.length === 0) continue;
+      const choiceId = byGroup[groupKey];
+      const required = g.required !== false;
+      if (!choiceId) {
+        if (required) throw new Error(`Please select ${g.label || groupKey}`);
+        continue;
+      }
+      const choice = choices.find((c: any) => String(c.id) === choiceId);
+      if (!choice) throw new Error(`Invalid option for ${g.label || groupKey}`);
+      const extra = Math.max(0, Number(choice.extra_per_person) || 0);
+      extraPerPerson += extra;
+      selected_options.push({
+        group: groupKey,
+        choice_id: String(choice.id),
+        label: `${g.label || groupKey}: ${choice.label}`,
+        extra_per_person: extra,
+      });
+    }
+
+    for (const p of picked) {
+      if (!groups.some((g: any) => String(g.group) === p.group)) {
+        throw new Error(`Unknown option group: ${p.group}`);
+      }
+    }
+
+    total = money((base + extraPerPerson) * seats);
+  }
+
+  if (adv <= 0 || !wantsAdvance) {
+    return {
+      amount: total,
+      total_amount: total,
+      balance_due: 0,
+      payment_type: "full" as const,
+      selected_options,
+    };
+  }
+  const amountDue = money(Math.min(adv * seats, total));
+  return {
+    amount: amountDue,
+    total_amount: total,
+    balance_due: money(total - amountDue),
+    payment_type: (amountDue < total ? "advance" : "full") as "advance" | "full",
+    selected_options,
+  };
+}
+
 async function getOrCreateInventory(
   ctx: any,
   adventureId: string,
@@ -215,6 +475,12 @@ export const createManual = internalMutation({
     adventure_date: v.string(),
     number_of_seats: v.number(),
     amount: v.number(),
+    /** 'advance' | 'full' — caller's explicit payment preference */
+    payment_preference: v.optional(v.string()),
+    selected_options: v.optional(v.array(v.object({
+      group: v.string(),
+      choice_id: v.string(),
+    }))),
     customer_name: v.optional(v.string()),
     customer_email: v.optional(v.string()),
     customer_phone: v.optional(v.string()),
@@ -225,6 +491,7 @@ export const createManual = internalMutation({
       phone: v.string(),
       meal_preference: v.string(),
       pickup_point: v.string(),
+      travel_coach: v.optional(v.string()),
     }))),
     additional_travelers: v.optional(v.array(v.object({
       name: v.string(),
@@ -299,13 +566,32 @@ export const createManual = internalMutation({
       if (!pickup || !pickupOptions.includes(pickup)) {
         throw new Error(`Participant ${i + 1}: invalid pickup point`);
       }
+      const trainGroup = isTourAdventure(adventure)
+        ? findPricingGroup(adventure, "train")
+        : null;
+      const validTrainIds = new Set(
+        (trainGroup?.choices || []).map((c: any) => String(c.id)),
+      );
+      let travel_coach: string | undefined;
+      if (trainGroup && validTrainIds.size > 0) {
+        travel_coach = String(p.travel_coach || "").trim();
+        if (!travel_coach || !validTrainIds.has(travel_coach)) {
+          throw new Error(`Participant ${i + 1}: select Sleeper coach or 3AC`);
+        }
+      }
+
       sanitizedParticipants.push({
         name: p.name.trim(),
         phone: p.phone.trim(),
         meal_preference: meal,
         pickup_point: pickup,
+        ...(travel_coach ? { travel_coach } : {}),
       });
     }
+
+    const participantTravelCoaches = sanitizedParticipants
+      .map((p) => p.travel_coach)
+      .filter(Boolean) as string[];
 
     const pickupPoint = sanitizedParticipants[0].pickup_point;
     const extraTravelers = sanitizedParticipants.slice(1);
@@ -314,11 +600,22 @@ export const createManual = internalMutation({
     await expireStaleHoldsForDate(ctx, args.adventure_id, args.adventure_date);
     await reserveSeats(ctx, args.adventure_id, args.adventure_date, maxParticipants, args.number_of_seats);
 
-    const expectedAmount = (Number(adventure.price) || 0) * args.number_of_seats;
-    if (expectedAmount <= 0) {
+    const settingsAdvance = await getAdvancePerPerson(ctx);
+    const advancePerPerson = resolveAdvancePerPerson(adventure, settingsAdvance);
+    const priced = computeTourAwareAmounts(
+      adventure,
+      args.number_of_seats,
+      args.selected_options,
+      advancePerPerson,
+      args.payment_preference as "advance" | "full" | undefined,
+      participantTravelCoaches.length === args.number_of_seats
+        ? participantTravelCoaches
+        : undefined
+    );
+    if (priced.amount <= 0) {
       throw new Error("Adventure price is not set");
     }
-    if (Math.abs(args.amount - expectedAmount) > 0.01) {
+    if (Math.abs(args.amount - priced.amount) > 0.01) {
       throw new Error("Invalid booking amount");
     }
 
@@ -340,7 +637,11 @@ export const createManual = internalMutation({
       adventure_id: args.adventure_id,
       adventure_date: args.adventure_date,
       number_of_seats: args.number_of_seats,
-      amount: args.amount,
+      amount: priced.amount,
+      total_amount: priced.total_amount,
+      balance_due: priced.balance_due,
+      payment_type: priced.payment_type,
+      selected_options: priced.selected_options,
       booking_status: "pending_payment",
       payment_method: "upi_manual",
       seat_hold_expires_at: holdExpiresAt(holdMinutes),
@@ -363,8 +664,9 @@ export const createManual = internalMutation({
     await ctx.db.insert("payments", {
       booking_id: bookingId,
       method: "upi_manual",
-      amount: args.amount,
+      amount: priced.amount,
       payment_status: "pending",
+      payment_kind: paymentKindFromType(priced.payment_type),
       created_at: ts,
       updated_at: ts,
     });
@@ -374,7 +676,14 @@ export const createManual = internalMutation({
       throw new Error("Not enough seats available for this date");
     }
 
-    return { id: bookingId, booking_code: bookingCode };
+    return {
+      id: bookingId,
+      booking_code: bookingCode,
+      amount: priced.amount,
+      total_amount: priced.total_amount,
+      balance_due: priced.balance_due,
+      payment_type: priced.payment_type,
+    };
   },
 });
 
@@ -400,16 +709,64 @@ export const getByCode = internalQuery({
 });
 
 export const getByUser = internalQuery({
-  args: { user_id: v.string() },
+  args: {
+    user_id: v.string(),
+    email: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const bookings = await ctx.db
+    const byUser = await ctx.db
       .query("bookings")
       .withIndex("user_id", (q) => q.eq("user_id", args.user_id))
       .collect();
-    const result = [];
-    for (const b of bookings) {
-      result.push(readBookingState(b));
+
+    const byId = new Map<string, any>();
+    for (const b of byUser) {
+      byId.set(b._id, b);
     }
+
+    // Legacy / mismatch safety: also include bookings with the same customer email
+    const emailNorm = String(args.email || "")
+      .trim()
+      .toLowerCase();
+    if (emailNorm) {
+      const all = await ctx.db.query("bookings").collect();
+      for (const b of all) {
+        if (byId.has(b._id)) continue;
+        if (String(b.customer_email || "").trim().toLowerCase() === emailNorm) {
+          byId.set(b._id, b);
+        }
+      }
+    }
+
+    const result = [];
+    for (const b of byId.values()) {
+      const active = readBookingState(b);
+      let adventure = null;
+      try {
+        adventure = await ctx.db.get(active.adventure_id as Id<"adventures">);
+      } catch {
+        adventure = null;
+      }
+      const payment = await ctx.db
+        .query("payments")
+        .withIndex("booking_id", (q) => q.eq("booking_id", b._id))
+        .first();
+      result.push({
+        ...active,
+        adventure: adventure
+          ? {
+              _id: adventure._id,
+              title: adventure.title,
+              location: adventure.location,
+              image_url: adventure.image_url,
+              category: adventure.category,
+              duration: adventure.duration,
+            }
+          : null,
+        payment: payment || null,
+      });
+    }
+
     result.sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -424,10 +781,9 @@ export const getPaymentDetails = internalQuery({
     const booking = await ctx.db.get(args.booking_id as Id<"bookings">);
     if (!booking) return null;
     const activeBooking = readBookingState(booking);
-    const payment = await ctx.db
-      .query("payments")
-      .withIndex("booking_id", (q) => q.eq("booking_id", args.booking_id))
-      .first();
+    const payments = await listPaymentsForBooking(ctx, args.booking_id);
+    const payment = pickPrimaryPayment(payments);
+    const balancePayment = pickBalancePayment(payments);
     const adventure = await ctx.db.get(
       activeBooking.adventure_id as Id<"adventures">
     );
@@ -435,6 +791,8 @@ export const getPaymentDetails = internalQuery({
     return {
       booking: activeBooking,
       payment,
+      payments,
+      balance_payment: balancePayment,
       adventure,
       user: user
         ? {
@@ -475,10 +833,7 @@ export const submitPayment = internalMutation({
       throw new Error("Payment cannot be submitted for this booking");
     }
 
-    const payment = await ctx.db
-      .query("payments")
-      .withIndex("booking_id", (q) => q.eq("booking_id", args.booking_id))
-      .first();
+    const payment = pickPrimaryPayment(await listPaymentsForBooking(ctx, args.booking_id));
     if (!payment) throw new Error("Payment record not found");
 
     const upiRef = args.upi_reference.trim();
@@ -501,6 +856,7 @@ export const submitPayment = internalMutation({
       screenshot_url: args.screenshot_url,
       screenshot_public_id: args.screenshot_public_id,
       payment_status: "submitted_by_customer",
+      payment_kind: payment.payment_kind || paymentKindFromType(active.payment_type),
       submitted_at: ts,
       updated_at: ts,
     });
@@ -526,14 +882,35 @@ export const verifyPayment = internalMutation({
     await expireStaleHoldsForDate(ctx, booking.adventure_id, booking.adventure_date);
     await expireBookingIfNeeded(ctx, booking);
     const refreshed = await ctx.db.get(args.booking_id as Id<"bookings">);
-    if (!refreshed || refreshed.booking_status !== "payment_submitted") {
+    if (!refreshed) throw new Error("Booking not found");
+
+    const allPayments = await listPaymentsForBooking(ctx, args.booking_id);
+    const balanceSubmitted = allPayments.find(
+      (p: any) =>
+        p.payment_kind === "balance" && p.payment_status === "submitted_by_customer"
+    );
+
+    if (refreshed.booking_status === "confirmed" && balanceSubmitted) {
+      const ts = nowIso();
+      await ctx.db.patch(balanceSubmitted._id, {
+        payment_status: "verified",
+        verified_by: args.verified_by,
+        verified_at: ts,
+        updated_at: ts,
+      });
+      await ctx.db.patch(refreshed._id, {
+        balance_due: 0,
+        balance_status: "paid",
+        updated_at: ts,
+      });
+      return { success: true, kind: "balance" };
+    }
+
+    if (refreshed.booking_status !== "payment_submitted") {
       throw new Error("Booking is not awaiting verification");
     }
 
-    const payment = await ctx.db
-      .query("payments")
-      .withIndex("booking_id", (q) => q.eq("booking_id", args.booking_id))
-      .first();
+    const payment = pickPrimaryPayment(allPayments);
     if (!payment) throw new Error("Payment record not found");
 
     const held = await countHeldSeats(
@@ -559,6 +936,8 @@ export const verifyPayment = internalMutation({
     });
     await ctx.db.patch(refreshed._id, {
       booking_status: "confirmed",
+      balance_status:
+        Number(refreshed.balance_due || 0) > 0 ? "pending" : "paid",
       updated_at: ts,
     });
 
@@ -588,6 +967,7 @@ export const verifyPayment = internalMutation({
       is_full: confirmedSeats >= maxParticipants,
       confirmed_bookings: confirmedList,
       adventure,
+      kind: "deposit",
     };
   },
 });
@@ -621,6 +1001,62 @@ export const rejectPayment = internalMutation({
     });
     await ctx.db.patch(booking._id, {
       booking_status: "rejected",
+      updated_at: ts,
+    });
+    await releaseSeats(ctx, booking.adventure_id, booking.adventure_date, booking.number_of_seats);
+
+    return { success: true };
+  },
+});
+
+export const cancelByUser = internalMutation({
+  args: {
+    booking_id: v.string(),
+    user_id: v.string(),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const booking = await ctx.db.get(args.booking_id as Id<"bookings">);
+    if (!booking) throw new Error("Booking not found");
+    if (booking.user_id !== args.user_id) {
+      throw new Error("Access denied");
+    }
+    if (["cancelled", "expired", "rejected"].includes(booking.booking_status)) {
+      throw new Error("Booking cannot be cancelled");
+    }
+
+    const pendingStates = ["pending_payment", "payment_submitted"];
+    const isConfirmed = booking.booking_status === "confirmed";
+    if (!pendingStates.includes(booking.booking_status) && !isConfirmed) {
+      throw new Error("Booking cannot be cancelled in current state");
+    }
+
+    if (isConfirmed) {
+      const windowDays = await getCancellationWindowDays(ctx);
+      const daysLeft = daysUntilDeparture(booking.adventure_date);
+      if (daysLeft < windowDays) {
+        throw new Error(
+          `Cancellations must be at least ${windowDays} days before departure. Contact support on WhatsApp.`
+        );
+      }
+    }
+
+    const payment = await ctx.db
+      .query("payments")
+      .withIndex("booking_id", (q) => q.eq("booking_id", args.booking_id))
+      .first();
+
+    const ts = nowIso();
+    const cancelReason = args.reason?.trim() || "Cancelled by customer";
+    if (payment && payment.payment_status !== "verified") {
+      await ctx.db.patch(payment._id, {
+        payment_status: "rejected",
+        rejection_reason: cancelReason,
+        updated_at: ts,
+      });
+    }
+    await ctx.db.patch(booking._id, {
+      booking_status: "cancelled",
       updated_at: ts,
     });
     await releaseSeats(ctx, booking.adventure_id, booking.adventure_date, booking.number_of_seats);
@@ -679,7 +1115,13 @@ export const listPendingPayments = internalQuery({
       const booking = await ctx.db.get(payment.booking_id as Id<"bookings">);
       if (!booking) continue;
       const activeBooking = readBookingState(booking);
-      if (activeBooking.booking_status !== "payment_submitted") continue;
+      const isBalance = payment.payment_kind === "balance";
+      if (!isBalance && activeBooking.booking_status !== "payment_submitted") {
+        continue;
+      }
+      if (isBalance && activeBooking.booking_status !== "confirmed") {
+        continue;
+      }
 
       const adventure = await ctx.db.get(
         activeBooking.adventure_id as Id<"adventures">
@@ -769,5 +1211,149 @@ export const expireStaleHolds = internalMutation({
       }
     }
     return { expired };
+  },
+});
+
+export const submitBalancePayment = internalMutation({
+  args: {
+    booking_id: v.string(),
+    upi_reference: v.string(),
+    payer_name: v.string(),
+    payer_upi_id: v.optional(v.string()),
+    screenshot_url: v.optional(v.string()),
+    screenshot_public_id: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const booking = await ctx.db.get(args.booking_id as Id<"bookings">);
+    if (!booking) throw new Error("Booking not found");
+    if (booking.booking_status !== "confirmed") {
+      throw new Error("Balance can only be paid after the booking is confirmed");
+    }
+    const due = Number(booking.balance_due || 0);
+    if (due <= 0) throw new Error("No remaining balance on this booking");
+    if (booking.balance_status === "submitted") {
+      throw new Error("Balance payment is already under review");
+    }
+
+    const upiRef = args.upi_reference.trim();
+    if (!upiRef) throw new Error("UPI reference is required");
+    const duplicate = await ctx.db
+      .query("payments")
+      .withIndex("upi_reference", (q) => q.eq("upi_reference", upiRef))
+      .first();
+    if (duplicate && duplicate.booking_id !== args.booking_id) {
+      throw new Error("This UPI reference was already used for another booking");
+    }
+
+    const existing = pickBalancePayment(await listPaymentsForBooking(ctx, args.booking_id));
+    const ts = nowIso();
+    const patch = {
+      upi_reference: upiRef,
+      payer_name: args.payer_name.trim(),
+      payer_upi_id: args.payer_upi_id?.trim(),
+      screenshot_url: args.screenshot_url,
+      screenshot_public_id: args.screenshot_public_id,
+      payment_status: "submitted_by_customer",
+      payment_kind: "balance",
+      submitted_at: ts,
+      updated_at: ts,
+    };
+    if (existing && existing.payment_status !== "verified") {
+      await ctx.db.patch(existing._id, patch);
+    } else {
+      await ctx.db.insert("payments", {
+        booking_id: args.booking_id,
+        method: "upi_manual",
+        amount: due,
+        ...patch,
+        created_at: ts,
+      });
+    }
+    await ctx.db.patch(booking._id, {
+      balance_status: "submitted",
+      updated_at: ts,
+    });
+    return { success: true };
+  },
+});
+
+export const patchDeliveryWarnings = internalMutation({
+  args: {
+    booking_id: v.string(),
+    warnings: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const booking = await ctx.db.get(args.booking_id as Id<"bookings">);
+    if (!booking) return null;
+    await ctx.db.patch(booking._id, {
+      delivery_warnings: args.warnings,
+      updated_at: nowIso(),
+    });
+    return booking._id;
+  },
+});
+
+export const listDueReminders = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const confirmed = await ctx.db
+      .query("bookings")
+      .withIndex("booking_status", (q) => q.eq("booking_status", "confirmed"))
+      .collect();
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const todayKey = today.toISOString().slice(0, 10);
+    const preDeparture: any[] = [];
+    const reviewNudge: any[] = [];
+    const balanceDue: any[] = [];
+
+    for (const b of confirmed) {
+      const adventure = await ctx.db.get(b.adventure_id as Id<"adventures">);
+      const date = String(b.adventure_date || "");
+      const days = daysUntilDeparture(date);
+      if (!b.pre_departure_notified_at && days >= 0 && days <= 1) {
+        preDeparture.push({ booking: b, adventure });
+      }
+      if (!b.review_nudge_sent_at && date < todayKey) {
+        const existingReview = await ctx.db
+          .query("reviews")
+          .withIndex("booking_id", (q) => q.eq("booking_id", String(b._id)))
+          .first();
+        if (!existingReview) reviewNudge.push({ booking: b, adventure });
+      }
+      if (
+        Number(b.balance_due || 0) > 0 &&
+        b.balance_status !== "submitted" &&
+        b.balance_status !== "paid" &&
+        !b.balance_reminder_sent_at &&
+        days >= 0 &&
+        days <= 7
+      ) {
+        balanceDue.push({ booking: b, adventure });
+      }
+    }
+    return { preDeparture, reviewNudge, balanceDue };
+  },
+});
+
+export const markReminderSent = internalMutation({
+  args: {
+    booking_id: v.string(),
+    field: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const booking = await ctx.db.get(args.booking_id as Id<"bookings">);
+    if (!booking) return null;
+    const allowed = new Set([
+      "pre_departure_notified_at",
+      "review_nudge_sent_at",
+      "balance_reminder_sent_at",
+    ]);
+    if (!allowed.has(args.field)) throw new Error("Invalid reminder field");
+    await ctx.db.patch(booking._id, {
+      [args.field]: nowIso(),
+      updated_at: nowIso(),
+    });
+    return booking._id;
   },
 });

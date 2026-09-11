@@ -9,6 +9,7 @@ const SKIP_PREFIXES = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/auth/2fa/verify-login',
+  '/api/auth/2fa/emergency-reset',
   '/api/health',
   '/health',
 ];
@@ -16,10 +17,11 @@ const SKIP_PREFIXES = [
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 function getCookieOptions() {
+  const sameSite = (process.env.COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')).toLowerCase();
   return {
     httpOnly: false,
-    secure: isProduction,
-    sameSite: process.env.COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax'),
+    secure: isProduction || sameSite === 'none',
+    sameSite,
     path: '/',
     maxAge: 24 * 60 * 60 * 1000,
     ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),

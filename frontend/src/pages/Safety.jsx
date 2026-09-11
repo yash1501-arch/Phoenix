@@ -57,12 +57,12 @@ const Safety = () => (
       subtitle="Comprehensive protocols, certified guides, and real-time risk monitoring on every adventure we run."
       breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Safety Policy' }]}
     />
-    <section className="bg-white py-16 md:py-24">
+    <section className="bg-mist-subtle py-16 md:py-24">
       <div className="container">
         <StaggerContainer className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sections.map((s) => (
             <StaggerItem key={s.title} as="article" className="rounded-lg border border-stone/8 bg-mist/40 p-6 h-full transition-shadow hover:shadow-card">
-              <IconMotion className="mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-stone text-ember">
+              <IconMotion className="mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-panel text-ember">
                 <s.icon size={20} />
               </IconMotion>
               <h3 className="font-display text-lg font-semibold text-stone">{s.title}</h3>
@@ -72,10 +72,10 @@ const Safety = () => (
         </StaggerContainer>
 
         <Pop className="mx-auto mt-16 max-w-3xl">
-          <div className="rounded-lg border border-ember/25 bg-stone p-8 md:p-10 text-center text-mist">
+          <div className="rounded-lg border border-ember/25 bg-panel p-8 md:p-10 text-center text-cream">
             <Reveal variant="fade">
-              <h2 className="font-display text-2xl font-semibold !text-mist">24/7 Emergency Line</h2>
-              <p className="mt-2 text-sm text-mist/70">
+              <h2 className="font-display text-2xl font-semibold !text-cream">24/7 Emergency Line</h2>
+              <p className="mt-2 text-sm text-cream/70">
                 If a loved one is on an active trek and you need real-time updates, call our operations desk.
               </p>
               <a href="tel:+919372506447" className="btn btn-primary mt-5 inline-flex">

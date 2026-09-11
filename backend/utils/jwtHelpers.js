@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { isStaffRole } = require('./roles');
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -8,19 +9,24 @@ const getJwtSecret = () => {
   return secret;
 };
 
-const getTokenExpiry = (role) => (role === 'admin' ? '24h' : '7d');
+/** Absolute TTL: staff 24h, members 7d. Idle is enforced separately. */
+const getTokenExpiry = (role) => (isStaffRole(role) ? '24h' : '7d');
 
 const buildUserPayload = (user) => ({
-  id: user._id,
+  id: user._id || user.id,
   name: user.name,
   email: user.email,
   role: user.role,
   session_version: user.session_version ?? 0,
 });
 
-const signAuthToken = (user) => {
-  const payload = { user: buildUserPayload(user) };
-  return jwt.sign(payload, getJwtSecret(), { expiresIn: getTokenExpiry(user.role) });
+const signAuthToken = (user, options = {}) => {
+  const payload = {
+    user: buildUserPayload(user),
+    act: options.act || Date.now(),
+  };
+  const expiresIn = options.expiresIn || getTokenExpiry(user.role);
+  return jwt.sign(payload, getJwtSecret(), { expiresIn });
 };
 
 module.exports = {

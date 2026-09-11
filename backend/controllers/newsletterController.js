@@ -35,3 +35,29 @@ exports.getAll = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Failed to fetch subscribers' });
     }
 };
+
+exports.blast = async (req, res) => {
+    try {
+        const subject = String(req.body?.subject || '').trim();
+        const body = String(req.body?.body || '').trim();
+        if (!subject || !body) {
+            return res.status(400).json({ success: false, message: 'subject and body are required' });
+        }
+        const { enqueue, JOBS } = require('../utils/jobQueue');
+        await enqueue(JOBS.NEWSLETTER_BLAST, {
+            subject,
+            body,
+            actor_id: req.user?.id,
+        });
+        getConvexClient().logAudit({
+            actor_id: req.user.id,
+            actor_email: req.user.email,
+            action: 'newsletter.blast',
+            target_type: 'newsletter',
+            metadata: { subject },
+        }).catch(() => {});
+        return res.json({ success: true, message: 'Newsletter queued for delivery' });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: 'Failed to send newsletter' });
+    }
+};

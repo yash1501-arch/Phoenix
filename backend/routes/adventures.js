@@ -2,13 +2,16 @@ const express = require('express');
 const router = express.Router();
 const adventureController = require('../controllers/adventureController');
 const { uploadImage, uploadAdventure, uploadPDF, uploadImages } = require('../middleware/upload');
-const { auth, optionalAuth, adminOnly } = require('../middleware/auth');
+const { auth, optionalAuth, adminOnly, clerkOrAdmin } = require('../middleware/auth');
 
 // Get all adventures with filters (public; internal fields hidden unless admin)
 router.get('/', optionalAuth, adventureController.getAdventures);
 
 // Get dashboard statistics (admin only)
-router.get('/stats', auth, adminOnly, adventureController.getDashboardStats);
+router.get('/stats', auth, clerkOrAdmin, adventureController.getDashboardStats);
+
+// Professional itinerary PDF (staff) — must be before /:id if pattern conflicts
+router.get('/:id/itinerary.pdf', auth, clerkOrAdmin, adventureController.downloadItineraryPdf);
 
 // Get single adventure (public; inactive hidden unless admin)
 router.get('/:id', optionalAuth, adventureController.getAdventureById);

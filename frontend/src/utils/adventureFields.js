@@ -17,13 +17,24 @@ export const asStringList = (val) => {
   return [];
 };
 
+const normalizeCityId = (c) => String(c || '').trim().toLowerCase();
+
+export const getDepartureCities = (adventure) => {
+  const explicit = asStringList(adventure?.departure_cities)
+    .map(normalizeCityId)
+    .filter((c) => c === 'mumbai' || c === 'pune');
+  if (explicit.length > 0) return [...new Set(explicit)];
+
+  // Legacy: infer from pickup lists so older adventures still filter correctly
+  const cities = [];
+  if (asStringList(adventure?.pickup_mumbai).length > 0) cities.push('mumbai');
+  if (asStringList(adventure?.pickup_pune).length > 0) cities.push('pune');
+  return cities;
+};
+
 export const hasDepartureCity = (adventure, city) => {
   if (!city || city === 'all') return true;
-  const mumbai = asStringList(adventure?.pickup_mumbai);
-  const pune = asStringList(adventure?.pickup_pune);
-  if (city === 'mumbai') return mumbai.length > 0;
-  if (city === 'pune') return pune.length > 0;
-  return true;
+  return getDepartureCities(adventure).includes(normalizeCityId(city));
 };
 
 export const filterByDepartureCity = (adventures, city) =>

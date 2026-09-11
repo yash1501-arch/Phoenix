@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
@@ -8,8 +8,9 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { bookingsAPI } from '../utils/api';
+import { bookingsAPI, publicSettingsAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { canUserCancelBooking } from '../utils/bookingCancel';
 
 const UPI_QR_SRC = '/upi-merchant-qr.png';
 
@@ -72,13 +73,13 @@ const QrZoomModal = ({ src, onClose }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[70] bg-stone/90 backdrop-blur-sm flex flex-col"
+                className="fixed inset-0 z-[70] bg-panel/90 backdrop-blur-sm flex flex-col"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Zoom UPI QR code"
                 onClick={onClose}
             >
-                <div className="flex items-center justify-between px-4 py-3 text-mist shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3 text-cream shrink-0" onClick={(e) => e.stopPropagation()}>
                     <p className="text-sm font-semibold">Scan this QR — pinch/scroll or use + / −</p>
                     <div className="flex items-center gap-2">
                         <button
@@ -135,11 +136,11 @@ const QrZoomModal = ({ src, onClose }) => {
                             maxHeight: 'min(85vh, 720px)',
                             maxWidth: 'min(92vw, 720px)',
                         }}
-                        className="select-none rounded-xl bg-white shadow-overlay object-contain"
+                        className="select-none rounded-xl bg-mist-subtle shadow-overlay object-contain"
                     />
                 </div>
 
-                <p className="text-center text-mist/70 text-xs pb-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <p className="text-center text-cream/70 text-xs pb-4 shrink-0" onClick={(e) => e.stopPropagation()}>
                     Hold your phone camera up to the screen · Esc to close
                 </p>
             </motion.div>
@@ -149,6 +150,8 @@ const QrZoomModal = ({ src, onClose }) => {
 
 const BookingPayment = () => {
     const { bookingId } = useParams();
+    const [searchParams] = useSearchParams();
+    const payBalance = searchParams.get('kind') === 'balance';
     const navigate = useNavigate();
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
@@ -165,16 +168,28 @@ const BookingPayment = () => {
         screenshot: null,
     });
     const [preview, setPreview] = useState(null);
+    const [cancellationWindowDays, setCancellationWindowDays] = useState(14);
+    const [cancelling, setCancelling] = useState(false);
+
+    useEffect(() => {
+        publicSettingsAPI.getAll().then((all) => {
+            const days = parseInt(all.cancellation_window_days, 10);
+            if (Number.isFinite(days) && days >= 0) setCancellationWindowDays(days);
+        }).catch(() => {});
+    }, []);
 
     const load = useCallback(async () => {
         try {
-            const res = await bookingsAPI.getPaymentDetails(bookingId);
+            const res = await bookingsAPI.getPaymentDetails(bookingId, payBalance ? { kind: 'balance' } : undefined);
             const payload = res.data.data;
             setData(payload);
+            const due = payload.pay_balance
+                ? payload.upi_amount ?? payload.booking?.balance_due
+                : payload.booking?.amount;
             setForm((f) => ({
                 ...f,
                 payer_name: f.payer_name || payload.booking?.customer_name || user?.name || '',
-                amount_paid: String(payload.booking?.amount ?? ''),
+                amount_paid: String(due ?? ''),
             }));
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to load payment details');
@@ -182,7 +197,7 @@ const BookingPayment = () => {
         } finally {
             setLoading(false);
         }
-    }, [bookingId, navigate, user?.name]);
+    }, [bookingId, navigate, user?.name, payBalance]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -205,7 +220,28 @@ const BookingPayment = () => {
     const payeeName = upi.payee_name || 'PHEONIX ADVENTURES LLP';
     const holdMinutes = upi.hold_minutes || 15;
     const status = booking?.booking_status;
-    const alreadySubmitted = status === 'payment_submitted' || status === 'confirmed';
+    const payAmount = data?.pay_balance
+        ? Number(data.upi_amount ?? booking?.balance_due ?? 0)
+        : Number(booking?.amount || 0);
+    const isTour = String(adventure?.category || '').toLowerCase() === 'tour';
+    const alreadySubmitted = payBalance
+        ? booking?.balance_status === 'submitted' || Number(booking?.balance_due || 0) <= 0
+        : status === 'payment_submitted' || (status === 'confirmed' && !payBalance);
+    const showCancel = !payBalance && canUserCancelBooking(booking, cancellationWindowDays);
+
+    const handleCancelBooking = async () => {
+        if (!window.confirm('Cancel this booking and release your seats?')) return;
+        setCancelling(true);
+        try {
+            await bookingsAPI.cancel(bookingId);
+            toast.success('Booking cancelled');
+            navigate('/dashboard');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Could not cancel booking');
+        } finally {
+            setCancelling(false);
+        }
+    };
 
     const copyUpi = async () => {
         if (!upiId) {
@@ -259,9 +295,12 @@ const BookingPayment = () => {
                 payer_name: form.payer_name.trim(),
                 payer_upi_id: form.payer_upi_id.trim() || undefined,
                 amount_paid: form.amount_paid,
+                payment_kind: payBalance ? 'balance' : undefined,
                 screenshot: form.screenshot,
             });
-            toast.success('Submitted! Admin will verify and confirm your booking.');
+            toast.success(payBalance
+                ? 'Balance submitted. Admin will verify the remaining UPI transfer.'
+                : 'Submitted! Admin will verify and confirm your booking.');
             await load();
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to submit payment');
@@ -295,9 +334,9 @@ const BookingPayment = () => {
                 <motion.div
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-xl border border-stone/10 shadow-card overflow-hidden mb-6"
+                    className="bg-mist-subtle rounded-xl border border-stone/10 shadow-card overflow-hidden mb-6"
                 >
-                    <div className="bg-stone text-mist px-6 py-5 flex flex-wrap items-start justify-between gap-3">
+                    <div className="bg-panel text-cream px-6 py-5 flex flex-wrap items-start justify-between gap-3">
                         <div className="flex items-start gap-3">
                             <img
                                 src="/logo-mark.png?v=6"
@@ -307,15 +346,15 @@ const BookingPayment = () => {
                                 className="block w-12 h-12 shrink-0 select-none"
                             />
                             <div>
-                                <p className="meta !text-mist/50 mb-1">Booking ID</p>
+                                <p className="meta !text-cream/50 mb-1">Booking ID</p>
                                 <h1 className="font-display text-2xl font-semibold tracking-wide">{booking?.booking_code}</h1>
-                                <p className="text-mist/80 mt-1">{adventure?.title}</p>
+                                <p className="text-cream/80 mt-1">{adventure?.title}</p>
                             </div>
                         </div>
                         <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full ${
-                            status === 'confirmed' ? 'bg-moss/30 text-mist'
-                                : status === 'payment_submitted' ? 'bg-sky/30 text-mist'
-                                    : 'bg-ember/30 text-mist'
+                            status === 'confirmed' ? 'bg-moss/30 text-cream'
+                                : status === 'payment_submitted' ? 'bg-sky/30 text-cream'
+                                    : 'bg-ember/30 text-cream'
                         }`}>
                             {status === 'confirmed' ? 'Confirmed'
                                 : status === 'payment_submitted' ? 'Under review'
@@ -333,13 +372,53 @@ const BookingPayment = () => {
                             <p className="font-semibold text-stone">{booking?.number_of_seats}</p>
                         </div>
                         <div>
-                            <p className="text-muted mb-0.5">Amount</p>
+                            <p className="text-muted mb-0.5">
+                                {payBalance ? 'Pay remaining balance'
+                                    : booking?.payment_type === 'advance' ? 'Pay now (advance)'
+                                    : isTour ? 'Amount (tour)'
+                                    : 'Amount (full UPI)'}
+                            </p>
                             <p className="font-display text-2xl font-semibold text-stone inline-flex items-center gap-0.5">
                                 <IndianRupee size={18} />
-                                {Number(booking?.amount || 0).toLocaleString('en-IN')}
+                                {Number(payAmount || 0).toLocaleString('en-IN')}
                             </p>
                         </div>
                     </div>
+
+                    {(booking?.payment_type === 'advance' || (booking?.total_amount != null && booking.total_amount !== booking.amount)) && (
+                        <div className="px-6 pb-4 grid sm:grid-cols-2 gap-3 text-sm">
+                            <div className="bg-mist-subtle rounded-lg p-3 border border-stone/10">
+                                <p className="text-muted mb-0.5">Trip total</p>
+                                <p className="font-semibold text-stone">
+                                    ₹{Number(booking?.total_amount ?? booking?.amount ?? 0).toLocaleString('en-IN')}
+                                </p>
+                            </div>
+                            <div className="bg-mist-subtle rounded-lg p-3 border border-stone/10">
+                                <p className="text-muted mb-0.5">Balance before departure</p>
+                                <p className="font-semibold text-stone">
+                                    ₹{Number(booking?.balance_due ?? 0).toLocaleString('en-IN')}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {booking?.selected_options?.length > 0 && (
+                        <div className="px-6 pb-4 text-sm">
+                            <p className="text-muted mb-1.5">Selected options</p>
+                            <ul className="space-y-1">
+                                {booking.selected_options.map((o, i) => (
+                                    <li key={i} className="text-stone flex justify-between gap-2">
+                                        <span>{o.label}</span>
+                                        <span className="text-muted shrink-0">
+                                            {o.extra_per_person > 0
+                                                ? `+₹${Number(o.extra_per_person).toLocaleString('en-IN')}/person`
+                                                : 'Included'}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                     {(booking?.emergency_contact || (booking?.participants?.length > 0) || booking?.pickup_point || (booking?.additional_travelers?.length > 0)) && (
                         <div className="px-6 pb-6 space-y-3 text-sm border-t border-stone/10 pt-4">
@@ -396,15 +475,19 @@ const BookingPayment = () => {
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.05 }}
-                            className="bg-white rounded-xl border border-stone/10 shadow-card p-6 mb-6"
+                            className="bg-mist-subtle rounded-xl border border-stone/10 shadow-card p-6 mb-6"
                         >
                             <h2 className="font-display text-xl text-stone font-semibold mb-2 flex items-center gap-2">
                                 <QrCode size={20} className="text-ember" /> Pay via UPI
                             </h2>
                             <p className="text-sm text-muted mb-5">
-                                Pay exactly <strong className="text-stone">₹{Number(booking?.amount || 0).toLocaleString('en-IN')}</strong> to{' '}
+                                Pay exactly <strong className="text-stone">₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong>
+                                {payBalance ? ' remaining balance' : booking?.payment_type === 'advance' ? ' advance' : isTour ? ' (tour)' : ' (full trek amount)'} to{' '}
                                 <strong className="text-stone">{payeeName}</strong>.
                                 Use booking ID <strong className="text-stone">{booking?.booking_code}</strong> in the payment remark.
+                                {booking?.payment_type === 'advance' && Number(booking?.balance_due) > 0 ? (
+                                    <> Balance of ₹{Number(booking.balance_due).toLocaleString('en-IN')} is due before departure.</>
+                                ) : null}
                             </p>
 
                             <div className="grid md:grid-cols-2 gap-6 items-start">
@@ -412,7 +495,7 @@ const BookingPayment = () => {
                                     <button
                                         type="button"
                                         onClick={() => setQrOpen(true)}
-                                        className="group relative w-full max-w-[260px] rounded-lg border border-stone/10 bg-white overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
+                                        className="group relative w-full max-w-[260px] rounded-lg border border-stone/10 bg-mist-subtle overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
                                         aria-label="Open QR code fullscreen to scan"
                                     >
                                         <img
@@ -420,7 +503,7 @@ const BookingPayment = () => {
                                             alt={`${payeeName} UPI QR`}
                                             className="w-full block transition group-hover:scale-[1.02]"
                                         />
-                                        <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-stone/75 text-mist text-xs font-semibold py-2 opacity-0 group-hover:opacity-100 transition">
+                                        <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-panel/75 text-cream text-xs font-semibold py-2 opacity-0 group-hover:opacity-100 transition">
                                             <Maximize2 size={14} /> Click to enlarge &amp; zoom
                                         </span>
                                     </button>
@@ -453,7 +536,7 @@ const BookingPayment = () => {
 
                                     <div className="text-xs text-muted space-y-1 bg-mist-subtle rounded-lg p-3 border border-stone/10">
                                         <p className="font-semibold text-stone mb-1">Payment instructions</p>
-                                        <p>1. Pay exactly <strong>₹{Number(booking?.amount || 0).toLocaleString('en-IN')}</strong> to <strong>{upiId || payeeName}</strong></p>
+                                        <p>1. Pay exactly <strong>₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong>{payBalance ? ' remaining balance' : booking?.payment_type === 'advance' ? ' advance' : ''} to <strong>{upiId || payeeName}</strong></p>
                                         <p>2. Put <strong>{booking?.booking_code}</strong> in the remark / note</p>
                                         <p>3. Screenshot the success screen</p>
                                         <p>4. Submit details below for manual verification (no Razorpay fees)</p>
@@ -467,7 +550,7 @@ const BookingPayment = () => {
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="bg-white rounded-xl border border-stone/10 shadow-card p-6 space-y-4"
+                            className="bg-mist-subtle rounded-xl border border-stone/10 shadow-card p-6 space-y-4"
                         >
                             <h2 className="font-display text-xl text-stone font-semibold">Submit Payment Details</h2>
                             <p className="text-sm text-muted">
@@ -538,6 +621,16 @@ const BookingPayment = () => {
                             <button type="submit" disabled={submitting} className="btn btn-primary w-full">
                                 {submitting ? 'Submitting…' : 'Submit for verification'}
                             </button>
+                            {showCancel && (
+                                <button
+                                    type="button"
+                                    disabled={cancelling}
+                                    onClick={handleCancelBooking}
+                                    className="btn btn-outline w-full border-red-200 text-red-700 hover:bg-red-50"
+                                >
+                                    {cancelling ? 'Cancelling…' : 'Cancel booking'}
+                                </button>
+                            )}
                         </motion.form>
                     </>
                 )}
@@ -549,7 +642,19 @@ const BookingPayment = () => {
                             We received your details{payment?.upi_reference ? ` (UTR: ${payment.upi_reference})` : ''}.
                             Admin will confirm once the amount appears in our bank statement.
                         </p>
-                        <Link to="/dashboard" className="btn btn-outline mt-4 inline-flex">Go to dashboard</Link>
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+                            <Link to="/dashboard" className="btn btn-outline inline-flex">Go to dashboard</Link>
+                            {showCancel && (
+                                <button
+                                    type="button"
+                                    disabled={cancelling}
+                                    onClick={handleCancelBooking}
+                                    className="btn btn-outline border-red-200 text-red-700 hover:bg-red-50"
+                                >
+                                    {cancelling ? 'Cancelling…' : 'Cancel booking'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
 

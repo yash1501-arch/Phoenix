@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, X, Send, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -112,7 +113,7 @@ const ReviewForm = ({ adventureId, bookingId, onClose, onSubmitted }) => {
 const ReviewList = ({ reviews, summary }) => {
     if (!reviews.length) {
         return (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-mist-subtle p-8 text-center">
                 <p className="text-sm font-semibold text-gray-700">No reviews yet</p>
                 <p className="mt-1 text-xs text-gray-500">Be the first to share your experience on this adventure.</p>
             </div>
@@ -151,7 +152,7 @@ const ReviewList = ({ reviews, summary }) => {
             )}
             <div className="space-y-3">
                 {reviews.map((r) => (
-                    <article key={r._id || r.id} className="rounded-2xl border border-gray-200 bg-white p-5">
+                    <article key={r._id || r.id} className="rounded-2xl border border-gray-200 bg-mist-subtle p-5">
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#c9a961] to-[#9c7c3c] text-sm font-bold text-white">
@@ -178,6 +179,8 @@ const ReviewList = ({ reviews, summary }) => {
 };
 
 const Reviews = ({ adventureId, bookingId }) => {
+    const [params] = useSearchParams();
+    const resolvedBooking = bookingId || params.get('booking');
     const [reviews, setReviews] = useState([]);
     const [summary, setSummary] = useState(null);
     const [showForm, setShowForm] = useState(false);
@@ -207,7 +210,7 @@ const Reviews = ({ adventureId, bookingId }) => {
                     <div className="mb-5">
                         <ReviewForm
                             adventureId={adventureId}
-                            bookingId={bookingId}
+                            bookingId={resolvedBooking}
                             onClose={() => setShowForm(false)}
                             onSubmitted={load}
                         />

@@ -25,9 +25,77 @@ function toWhatsAppNumber(raw) {
   return digits;
 }
 
+function useTextMessages() {
+  return process.env.WHATSAPP_USE_TEXT === 'true' || !process.env.WHATSAPP_TEMPLATE_NAME;
+}
+
+/**
+ * Send a customer WhatsApp: template in production when WHATSAPP_USE_TEXT is not true,
+ * otherwise free-form text (local / 24h window).
+ */
+async function sendCustomerWhatsApp({
+  phone,
+  textBody,
+  templateName,
+  templateParams = [],
+}) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneNumberId) {
+    return { skipped: true, reason: 'not_configured' };
+  }
+  const to = toWhatsAppNumber(phone);
+  if (!to) return { skipped: true, reason: 'no_phone' };
+
+  const name = templateName || process.env.WHATSAPP_TEMPLATE_NAME;
+  const preferText = useTextMessages() || !name;
+
+  try {
+    if (preferText) {
+      return await postWhatsAppMessage({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { preview_url: false, body: String(textBody).slice(0, 4000) },
+      });
+    }
+    const params = templateParams.map((text) => ({
+      type: 'text',
+      text: String(text ?? '—').slice(0, 1024),
+    }));
+    return await postWhatsAppMessage({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name,
+        language: { code: process.env.WHATSAPP_TEMPLATE_LANG || 'en' },
+        components: [{ type: 'body', parameters: params }],
+      },
+    });
+  } catch (error) {
+    const detail = error.response?.data || error.message;
+    logger.error('WhatsApp send failed:', detail);
+    if (!preferText && textBody) {
+      try {
+        logger.warn('Template send failed — falling back to text (may fail outside 24h window)');
+        return await postWhatsAppMessage({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { preview_url: false, body: String(textBody).slice(0, 4000) },
+        });
+      } catch (fallbackErr) {
+        return { ok: false, error: fallbackErr.response?.data || fallbackErr.message };
+      }
+    }
+    return { ok: false, error: detail };
+  }
+}
+
 function buildConfirmationText(userName, adventureTitle, details = {}) {
   const lines = [
-    `✅ Adventure booked successfully`,
+    `✅ Booking confirmed`,
     ``,
     `Hi ${userName || 'Adventurer'},`,
     `Your payment is verified and your seats are confirmed.`,
@@ -37,8 +105,16 @@ function buildConfirmationText(userName, adventureTitle, details = {}) {
     details.date ? `Date: ${details.date}` : null,
     details.participants ? `Seats: ${details.participants}` : null,
     details.amountPaid != null ? `Amount paid: ₹${details.amountPaid}` : null,
+    details.totalAmount != null && Number(details.totalAmount) !== Number(details.amountPaid)
+      ? `Trip total: ₹${details.totalAmount}`
+      : null,
+    details.balanceDue != null && Number(details.balanceDue) > 0
+      ? `Balance due: ₹${details.balanceDue}`
+      : null,
     details.location ? `Location: ${details.location}` : null,
-    details.meetingPoint ? `Meeting point: ${details.meetingPoint}` : null,
+    details.meetingPoint ? `Pickup: ${details.meetingPoint}` : null,
+    details.travelCoachSummary ? `Train (per person): ${details.travelCoachSummary}` : null,
+    details.stayNote ? `Stay: ${details.stayNote}` : null,
     ``,
     `Bring a valid government ID. We'll share the exact reporting time on WhatsApp before departure.`,
     ``,
@@ -129,30 +205,49 @@ async function sendBookingConfirmationWhatsApp(phone, userName, adventureTitle, 
     const messageId = res.data?.messages?.[0]?.id;
     logger.info(`WhatsApp booking confirmation sent to ${to}${messageId ? ` (${messageId})` : ''}`);
 
+    const docs = [];
+    if (bookingDetails.itineraryPdfUrl) {
+      docs.push({
+        link: bookingDetails.itineraryPdfUrl,
+        filename: bookingDetails.itineraryPdfFilename || 'Phoenix-Itinerary.pdf',
+        caption: `Your trip itinerary for ${adventureTitle || 'your adventure'} — day plan, packing & pickups.`,
+      });
+    }
     if (bookingDetails.confirmationPdfUrl) {
-      const docPayload = {
-        messaging_product: 'whatsapp',
-        to,
-        type: 'document',
-        document: {
-          link: bookingDetails.confirmationPdfUrl,
-          filename: 'Phoenix-Trek-Details.pdf',
-          caption: `Your trek details for ${adventureTitle || 'your adventure'}. See you on the trail!`,
-        },
-      };
+      docs.push({
+        link: bookingDetails.confirmationPdfUrl,
+        filename: 'Phoenix-Trek-Brochure.pdf',
+        caption: `Brochure for ${adventureTitle || 'your adventure'}.`,
+      });
+    }
+
+    const failedLinks = [];
+    for (const doc of docs) {
+      const sent = await sendWhatsAppDocument(to, {
+        link: doc.link,
+        filename: doc.filename,
+        caption: doc.caption,
+      });
+      if (!sent?.ok) {
+        logger.error(`WhatsApp document failed (${doc.filename}):`, sent?.error || sent?.reason);
+        failedLinks.push(doc);
+      }
+    }
+
+    if (failedLinks.length) {
+      const fallbackBody = [
+        `We could not attach the PDF on WhatsApp. Download your itinerary here:`,
+        ...failedLinks.map((d) => d.link),
+      ].join('\n');
       try {
-        const docRes = await axios.post(url, docPayload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 20000,
+        await postWhatsAppMessage({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { preview_url: true, body: fallbackBody.slice(0, 4000) },
         });
-        const docId = docRes.data?.messages?.[0]?.id;
-        logger.info(`WhatsApp confirmation PDF sent to ${to}${docId ? ` (${docId})` : ''}`);
-      } catch (docErr) {
-        const detail = docErr.response?.data || docErr.message;
-        logger.error('WhatsApp confirmation PDF failed:', detail);
+      } catch (fallbackErr) {
+        logger.error('WhatsApp PDF download-link fallback failed:', fallbackErr.response?.data || fallbackErr.message);
       }
     }
 
@@ -160,6 +255,25 @@ async function sendBookingConfirmationWhatsApp(phone, userName, adventureTitle, 
   } catch (error) {
     const detail = error.response?.data || error.message;
     logger.error('WhatsApp booking confirmation failed:', detail);
+
+    const link = bookingDetails.itineraryPdfUrl || bookingDetails.confirmationPdfUrl;
+    if (link) {
+      try {
+        await postWhatsAppMessage({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: {
+            preview_url: true,
+            body: `Your booking is confirmed. Download your itinerary PDF:\n${link}`.slice(0, 4000),
+          },
+        });
+        return { ok: true, to, fallback: 'download_link' };
+      } catch (fallbackErr) {
+        logger.error('WhatsApp confirmation fallback failed:', fallbackErr.response?.data || fallbackErr.message);
+      }
+    }
+
     return { ok: false, error: detail };
   }
 }
@@ -239,6 +353,7 @@ module.exports = {
   sendBookingConfirmationWhatsApp,
   sendAdminWhatsAppText,
   sendWhatsAppDocument,
+  sendCustomerWhatsApp,
   toWhatsAppNumber,
   buildConfirmationText,
 };

@@ -61,7 +61,7 @@ export const create = internalMutation({
     name: v.string(),
     email: v.string(),
     password: v.string(),
-    role: v.string(),
+    role: v.union(v.literal("admin"), v.literal("clerk"), v.literal("user")),
     created_at: v.string(),
   },
   handler: async (ctx, args) => {
@@ -83,7 +83,7 @@ export const update = internalMutation({
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     password: v.optional(v.string()),
-    role: v.optional(v.string()),
+    role: v.optional(v.union(v.literal("admin"), v.literal("clerk"), v.literal("user"))),
     totp_secret: v.optional(v.string()),
     totp_enabled: v.optional(v.boolean()),
   },
@@ -93,7 +93,7 @@ export const update = internalMutation({
 
     const patch: Record<string, unknown> = { ...updateFields, updated_at: now };
 
-    if (updateFields.password) {
+    if (updateFields.password || updateFields.role) {
       const existing = await ctx.db.get(id);
       patch.session_version = (existing?.session_version ?? 0) + 1;
     }
@@ -129,11 +129,49 @@ export const setTotp = internalMutation({
     id: v.id("users"),
     totp_secret: v.string(),
     totp_enabled: v.boolean(),
+    totp_recovery_hashes: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
     await ctx.db.patch(args.id, {
       totp_secret: args.totp_secret,
       totp_enabled: args.totp_enabled,
+      totp_recovery_hashes: args.totp_recovery_hashes ?? [],
+      session_version: (existing?.session_version ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    });
+    return args.id;
+  },
+});
+
+export const recordLoginFailure = internalMutation({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.id);
+    if (!user) return { locked: false, failed: 0 };
+    const max = 5;
+    const lockMinutes = 15;
+    const failed = (user.login_failed_count || 0) + 1;
+    const patch: Record<string, unknown> = {
+      login_failed_count: failed,
+      updated_at: new Date().toISOString(),
+    };
+    let locked = false;
+    if (failed >= max) {
+      patch.locked_until = new Date(Date.now() + lockMinutes * 60 * 1000).toISOString();
+      locked = true;
+    }
+    await ctx.db.patch(args.id, patch);
+    return { locked, failed, locked_until: patch.locked_until as string | undefined };
+  },
+});
+
+export const clearLoginLock = internalMutation({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      login_failed_count: 0,
+      locked_until: undefined,
       updated_at: new Date().toISOString(),
     });
     return args.id;
@@ -143,9 +181,26 @@ export const setTotp = internalMutation({
 export const clearTotp = internalMutation({
   args: { id: v.id("users") },
   handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id);
     await ctx.db.patch(args.id, {
       totp_secret: undefined,
       totp_enabled: false,
+      totp_recovery_hashes: [],
+      session_version: (existing?.session_version ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    });
+    return args.id;
+  },
+});
+
+export const replaceRecoveryHashes = internalMutation({
+  args: {
+    id: v.id("users"),
+    totp_recovery_hashes: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.id, {
+      totp_recovery_hashes: args.totp_recovery_hashes,
       updated_at: new Date().toISOString(),
     });
     return args.id;

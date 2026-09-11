@@ -2,10 +2,9 @@ import { Link } from 'react-router-dom';
 import { MapPin, Clock, Star, ArrowRight } from 'lucide-react';
 import { getImageUrl } from '../../utils/api';
 import { StaggerItem } from './Motion';
+import { IMG_FALLBACK } from '../../data/indiaImages';
 
-const PLACEHOLDER =
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80';
-
+const PLACEHOLDER = IMG_FALLBACK;
 /**
  * Image-forward trip tile — shared by Treks / Camping / Tours / listings.
  */
@@ -16,9 +15,9 @@ const AdventureCard = ({ adventure, index = 0 }) => {
 
   return (
     <StaggerItem>
-      <article className="group flex flex-col overflow-hidden rounded-lg border border-stone/8 bg-white shadow-smoke hover:shadow-card transition-shadow h-full">
+      <article className="group flex flex-col overflow-hidden rounded-lg border border-stone/10 bg-mist-subtle shadow-smoke hover:shadow-card transition-shadow h-full">
         <Link to={`/adventure/${id}`} className="flex flex-col flex-1">
-          <div className="relative aspect-[4/5] overflow-hidden">
+          <div className="relative aspect-[4/3] overflow-hidden bg-mist-muted">
             <img
               src={img}
               alt={`${adventure.title || 'Adventure'} — ${adventure.location || 'India'}`}
@@ -26,16 +25,18 @@ const AdventureCard = ({ adventure, index = 0 }) => {
               decoding="async"
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               onError={(e) => {
-                e.currentTarget.src = PLACEHOLDER;
+                if (e.currentTarget.src !== PLACEHOLDER) {
+                  e.currentTarget.src = PLACEHOLDER;
+                }
               }}
             />
-            <span className="absolute top-3 left-3 bg-stone/90 text-mist text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
+            <span className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
               {adventure.difficulty || 'Moderate'}
             </span>
           </div>
 
-          <div className="flex flex-1 flex-col p-4 space-y-3">
-            <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-1 flex-col p-4">
+            <div className="flex items-start justify-between gap-2 min-h-[3.25rem]">
               <h3 className="font-display text-lg leading-snug text-stone group-hover:text-ember transition-colors font-semibold line-clamp-2">
                 {adventure.title || 'Adventure'}
               </h3>
@@ -47,12 +48,12 @@ const AdventureCard = ({ adventure, index = 0 }) => {
               )}
             </div>
 
-            <div className="flex items-center gap-3 text-sm text-muted">
-              <span className="inline-flex items-center gap-1">
-                <MapPin size={12} className="text-ember" />
-                {adventure.location || 'India'}
+            <div className="mt-3 flex items-center gap-3 text-sm text-muted min-h-[1.25rem]">
+              <span className="inline-flex items-center gap-1 min-w-0 truncate">
+                <MapPin size={12} className="text-ember shrink-0" />
+                <span className="truncate">{adventure.location || 'India'}</span>
               </span>
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1 shrink-0">
                 <Clock size={12} className="text-ember" />
                 {adventure.duration || '—'}
               </span>

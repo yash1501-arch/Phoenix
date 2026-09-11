@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Adventures from './pages/Adventures';
 import AddAdventure from './pages/AddAdventure';
+import AddTrekAdventure from './pages/AddTrekAdventure';
+import AddTourAdventure from './pages/AddTourAdventure';
 import EditAdventure from './pages/EditAdventure';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
@@ -17,10 +19,13 @@ import Payments from './pages/Payments';
 import Newsletter from './pages/Newsletter';
 import AuditLog from './pages/AuditLog';
 import Users from './pages/Users';
+import Security from './pages/Security';
 import Layout from './components/Layout';
 
+const isStaffRole = (role) => role === 'admin' || role === 'clerk';
+
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -30,11 +35,19 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !isStaffRole(user?.role)) {
     return <Navigate to="/login" replace />;
   }
 
   return <Layout>{children}</Layout>;
+};
+
+const AdminOnlyRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+  return children;
 };
 
 function App() {
@@ -74,49 +87,87 @@ function App() {
 
           <Route path="/adventures/add" element={
             <ProtectedRoute>
-              <AddAdventure />
+              <AdminOnlyRoute>
+                <AddAdventure />
+              </AdminOnlyRoute>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/adventures/new/trek" element={
+            <ProtectedRoute>
+              <AdminOnlyRoute>
+                <AddTrekAdventure />
+              </AdminOnlyRoute>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/adventures/new/tour" element={
+            <ProtectedRoute>
+              <AdminOnlyRoute>
+                <AddTourAdventure />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/adventures/edit/:id" element={
             <ProtectedRoute>
-              <EditAdventure />
+              <AdminOnlyRoute>
+                <EditAdventure />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/settings" element={
             <ProtectedRoute>
-              <Settings />
+              <AdminOnlyRoute>
+                <Settings />
+              </AdminOnlyRoute>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/security" element={
+            <ProtectedRoute>
+              <Security />
             </ProtectedRoute>
           } />
 
           <Route path="/reviews" element={
             <ProtectedRoute>
-              <Reviews />
+              <AdminOnlyRoute>
+                <Reviews />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/blog" element={
             <ProtectedRoute>
-              <BlogList />
+              <AdminOnlyRoute>
+                <BlogList />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/blog/new" element={
             <ProtectedRoute>
-              <BlogEditor />
+              <AdminOnlyRoute>
+                <BlogEditor />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/blog/edit/:id" element={
             <ProtectedRoute>
-              <BlogEditor />
+              <AdminOnlyRoute>
+                <BlogEditor />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/messages" element={
             <ProtectedRoute>
-              <Messages />
+              <AdminOnlyRoute>
+                <Messages />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
@@ -128,19 +179,25 @@ function App() {
 
           <Route path="/newsletter" element={
             <ProtectedRoute>
-              <Newsletter />
+              <AdminOnlyRoute>
+                <Newsletter />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/audit" element={
             <ProtectedRoute>
-              <AuditLog />
+              <AdminOnlyRoute>
+                <AuditLog />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 
           <Route path="/users" element={
             <ProtectedRoute>
-              <Users />
+              <AdminOnlyRoute>
+                <Users />
+              </AdminOnlyRoute>
             </ProtectedRoute>
           } />
 

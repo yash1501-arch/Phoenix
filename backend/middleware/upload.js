@@ -1,6 +1,6 @@
+require('dotenv').config();
 const multer = require('multer');
 const { uploadImageBuffer, uploadRawBuffer } = require('../utils/cloudinaryClient');
-require('dotenv').config();
 
 const memoryStorage = multer.memoryStorage();
 

@@ -45,7 +45,7 @@ const AccountMenu = ({ compact = false, onNavigate }) => {
         aria-haspopup="menu"
         className={[
           'inline-flex items-center gap-2 rounded-full transition-colors',
-          'hover:bg-stone/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40',
+          'hover:bg-panel/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember/40',
           compact ? 'p-0.5' : 'pl-0.5 pr-2.5 py-0.5',
         ].join(' ')}
       >
@@ -71,7 +71,7 @@ const AccountMenu = ({ compact = false, onNavigate }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.98 }}
             transition={{ duration: 0.18, ease: EASE }}
-            className="absolute right-0 top-full mt-2 w-56 bg-white border border-stone/10 shadow-lift rounded-md overflow-hidden z-50"
+            className="absolute right-0 top-full mt-2 w-56 bg-mist-subtle border border-stone/10 shadow-lift rounded-md overflow-hidden z-50"
           >
             <div className="px-3.5 py-3 border-b border-stone/8 bg-mist/40">
               <p className="text-sm font-semibold text-stone truncate">{user.name || name}</p>

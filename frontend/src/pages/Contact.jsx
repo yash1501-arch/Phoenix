@@ -116,8 +116,8 @@ const Contact = () => {
         breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Contact' }]}
       />
 
-      <main id="main-content" className="container py-16 md:py-24">
-        <div className="grid lg:grid-cols-5 gap-12 lg:gap-16">
+      <main id="main-content" className="container py-12 md:py-16">
+        <div className="grid lg:grid-cols-5 gap-12 lg:gap-16 items-start">
           <Reveal variant="rise" className="lg:col-span-3">
             <h2 className="font-display text-display-lg text-stone font-semibold mb-2">
               Send us a message
@@ -241,7 +241,7 @@ const Contact = () => {
                 <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full md:w-auto">
                   {isSubmitting ? (
                     <>
-                      <span className="w-4 h-4 border-2 border-mist border-t-transparent rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-cream border-t-transparent rounded-full animate-spin" />
                       Sending…
                     </>
                   ) : (
@@ -256,15 +256,15 @@ const Contact = () => {
 
           <aside className="lg:col-span-2 space-y-8">
             <Reveal variant="slideRight">
-              <h2 className="font-display text-display-lg text-stone font-semibold mb-6">
+              <h2 className="font-display text-display-lg text-stone font-semibold mb-2">
                 Other ways to reach us
               </h2>
-              <StaggerContainer className="space-y-5">
+              <StaggerContainer className="space-y-5 mt-8">
                 {contactMethods.map((m) => {
                   const Icon = m.icon;
                   const inner = (
-                    <div className="flex items-start gap-4 p-5 border border-stone/10 rounded-lg hover:border-ember transition-colors bg-white">
-                      <IconMotion className="w-11 h-11 bg-stone text-ember flex items-center justify-center shrink-0 rounded-md">
+                    <div className="flex items-start gap-4 p-5 border border-stone/10 rounded-lg hover:border-ember transition-colors bg-mist-subtle">
+                      <IconMotion className="w-11 h-11 bg-panel text-ember flex items-center justify-center shrink-0 rounded-md">
                         <Icon className="w-5 h-5" />
                       </IconMotion>
                       <div>
@@ -290,9 +290,9 @@ const Contact = () => {
             </Reveal>
 
             <Reveal variant="scale" delay={0.1}>
-              <div className="border border-stone/10 rounded-lg p-6 bg-stone text-mist">
-                <h3 className="font-display text-xl mb-3 !text-mist font-semibold">Fastest: WhatsApp</h3>
-                <p className="text-sm text-mist/70 mb-5">
+              <div className="border border-stone/10 rounded-lg p-6 bg-panel text-cream">
+                <h3 className="font-display text-xl mb-3 !text-cream font-semibold">Fastest: WhatsApp</h3>
+                <p className="text-sm text-cream/70 mb-5">
                   For date availability and last-minute seats, WhatsApp gets you an answer in minutes during office
                   hours.
                 </p>
@@ -308,7 +308,7 @@ const Contact = () => {
             </Reveal>
 
             <Reveal variant="fade" delay={0.15}>
-              <div className="border border-stone/10 rounded-lg p-6 bg-white">
+              <div className="border border-stone/10 rounded-lg p-6 bg-mist-subtle">
                 <h3 className="font-semibold text-stone mb-3 flex items-center gap-2">
                   <Clock size={16} className="text-ember" /> Office hours
                 </h3>
@@ -317,7 +317,7 @@ const Contact = () => {
             </Reveal>
 
             <Reveal variant="fade" delay={0.2}>
-              <div className="border border-stone/10 rounded-lg overflow-hidden bg-white">
+              <div className="border border-stone/10 rounded-lg overflow-hidden bg-mist-subtle">
                 <div className="p-4 flex items-center justify-between gap-3 border-b border-stone/8">
                   <h3 className="font-semibold text-stone text-sm">Find us</h3>
                   <a

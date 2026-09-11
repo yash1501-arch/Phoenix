@@ -63,7 +63,7 @@ export default function WeatherWidget({ preset = 'kalsubai', locationName }) {
         <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-sm"
+            className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-mist-subtle/5 border border-white/10 text-sm"
         >
             <Icon className={color} size={20} />
             <div>

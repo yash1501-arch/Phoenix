@@ -28,13 +28,15 @@ convex/                          ← npm workspace, holds the Convex CLI
 
 ## Deploying
 
-The backend (`backend/.env`) is configured to talk to a single production Convex deployment. After editing any function or schema file, push it with:
+**Rotate first:** a production deploy key was previously in git. Revoke it in Convex → Settings → Deploy Keys, then use only the new key in Render (`CONVEX_ADMIN_KEY`) and/or GitHub Actions secret `CONVEX_DEPLOY_KEY`. Never commit it or paste it in chat.
+
+The backend talks to Convex with `CONVEX_URL` + `CONVEX_ADMIN_KEY`. After editing functions or schema, push from this folder:
 
 ### PowerShell (Windows)
 
 ```powershell
 cd D:\Desktop\Phoenix\convex
-$env:CONVEX_DEPLOY_KEY = "prod:elated-eel-875|eyJ2MiI6IjlmMDhlNjY3ODE5YzQ0MjY4OTU5ODE0ODcyNzg5ZTA3In0="
+$env:CONVEX_DEPLOY_KEY = "<production deploy key from Convex dashboard>"
 npx convex deploy
 ```
 
@@ -42,7 +44,7 @@ npx convex deploy
 
 ```bash
 cd /path/to/Phoenix/convex
-export CONVEX_DEPLOY_KEY="prod:elated-eel-875|eyJ2MiI6IjlmMDhlNjY3ODE5YzQ0MjY4OTU5ODE0ODcyNzg5ZTA3In0="
+export CONVEX_DEPLOY_KEY="<production deploy key from Convex dashboard>"
 npx convex deploy
 ```
 

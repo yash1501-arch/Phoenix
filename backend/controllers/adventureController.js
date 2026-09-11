@@ -2,6 +2,16 @@ const aiService = require('../services/aiService');
 const { getConvexClient } = require('../utils/convexClient');
 const { applyBrochureFields } = require('../utils/parseBrochureFields');
 const { pickAdventureFields } = require('../utils/sanitizeAdventurePayload');
+const { normalizePricingOptions } = require('../utils/tourPricing');
+
+const normalizeDepartureCities = (input) => {
+    const list = Array.isArray(input) ? input : [];
+    return [...new Set(
+        list
+            .map((c) => String(c || '').trim().toLowerCase())
+            .filter((c) => c === 'mumbai' || c === 'pune')
+    )];
+};
 const {
   cacheGet,
   cacheSet,
@@ -9,6 +19,7 @@ const {
   invalidateAdventureCache,
 } = require('../utils/cache');
 const logger = require('../utils/logger');
+const { isStaffRole } = require('../utils/roles');
 require('dotenv').config();
 
 const LIST_CACHE_TTL = Number(process.env.CACHE_TTL_ADVENTURES || 120);
@@ -57,6 +68,23 @@ const filterFutureDates = (dates) => {
     return dates.filter((d) => typeof d === 'string' && d >= cutoff);
 };
 
+const normalizeAdvancePerPerson = (adventureData) => {
+    if (adventureData.advance_per_person === undefined || adventureData.advance_per_person === '') {
+        delete adventureData.advance_per_person;
+        return null;
+    }
+    const adv = Number(adventureData.advance_per_person);
+    if (!Number.isFinite(adv) || adv < 0) {
+        return 'Advance per person must be a valid non-negative number';
+    }
+    const price = Number(adventureData.price);
+    if (Number.isFinite(price) && adv > price) {
+        return 'Advance per person cannot exceed base price';
+    }
+    adventureData.advance_per_person = adv;
+    return null;
+};
+
 const attachAvailableDates = (adventure, { includeAllDates } = {}) => {
     if (!adventure) return adventure;
     const all = normalizeAvailableDates(adventure.available_dates);
@@ -75,8 +103,53 @@ const stripInternalFields = (adventure, isAdmin) => {
 const isRequestAdmin = async (req) => {
     if (!req.user?.id) return false;
     const dbUser = await getConvexClient().getUserById(req.user.id);
-    return dbUser?.role === 'admin';
+    return isStaffRole(dbUser?.role);
 };
+
+function datesKey(dates) {
+    return (Array.isArray(dates) ? dates : []).slice().sort().join(',');
+}
+
+function notifyAvailabilityChange(previous, next) {
+    try {
+        const { enqueue, JOBS } = require('../utils/jobQueue');
+        const prevDates = datesKey(previous?.available_dates);
+        const nextDates = datesKey(next?.available_dates);
+        const datesAdded = nextDates && nextDates !== prevDates && nextDates.length > prevDates.length;
+        const capacityUp = Number(next?.max_participants || 0) > Number(previous?.max_participants || 0);
+        if (!datesAdded && !capacityUp) return;
+
+        const adventureId = String(next._id || next.id || previous?._id || '');
+        const title = next.title || previous?.title || 'Adventure';
+        const datesText = (Array.isArray(next.available_dates) ? next.available_dates : []).join(', ') || 'new dates';
+
+        getConvexClient().listWaitlistForAdventure(adventureId).then((waiting) => {
+            if (waiting?.length) {
+                enqueue(JOBS.WAITLIST_NOTIFY, {
+                    entries: waiting,
+                    adventureTitle: title,
+                    datesText,
+                    adventureId,
+                }).catch((err) => logger.warn('waitlist notify enqueue failed:', err.message));
+            }
+        }).catch((err) => logger.warn('waitlist lookup failed:', err.message));
+
+        if (datesAdded) {
+            getConvexClient().getWishlistByAdventure(adventureId).then((wish) => {
+                if (wish?.length) {
+                    enqueue(JOBS.WISHLIST_DATES, {
+                        entries: wish,
+                        adventureTitle: title,
+                        datesText,
+                        adventureId,
+                    }).catch((err) => logger.warn('wishlist dates enqueue failed:', err.message));
+                }
+            }).catch((err) => logger.warn('wishlist lookup failed:', err.message));
+        }
+    } catch (err) {
+        logger.warn('notifyAvailabilityChange failed:', err.message);
+    }
+}
 
 const applyConfirmationPdf = (adventureData, req) => {
     if (req.confirmationPdf?.secure_url) {
@@ -224,6 +297,16 @@ const createAdventure = async (req, res) => {
         if (adventureData.images !== undefined) {
             adventureData.images = safeJsonParse(adventureData.images, []);
         }
+        if (adventureData.pricing_options !== undefined) {
+            adventureData.pricing_options = normalizePricingOptions(
+                safeJsonParse(adventureData.pricing_options, [])
+            );
+        }
+        if (adventureData.departure_cities !== undefined) {
+            adventureData.departure_cities = normalizeDepartureCities(
+                safeJsonParse(adventureData.departure_cities, [])
+            );
+        }
         if (adventureData.available_dates !== undefined) {
             const parsed = safeJsonParse(adventureData.available_dates, []);
             const normalized = normalizeAvailableDates(parsed);
@@ -244,6 +327,13 @@ const createAdventure = async (req, res) => {
             }
         } else {
             return res.status(400).json({ success: false, message: 'Price is required' });
+        }
+        const advErr = normalizeAdvancePerPerson(adventureData);
+        if (advErr) {
+            return res.status(400).json({ success: false, message: advErr });
+        }
+        if (String(adventureData.category || '').toLowerCase() !== 'tour') {
+            delete adventureData.advance_per_person;
         }
         if (adventureData.max_participants !== undefined && adventureData.max_participants !== '') {
             const maxParticipants = Number(adventureData.max_participants);
@@ -268,6 +358,15 @@ const createAdventure = async (req, res) => {
 
         const result = await getConvexClient().createAdventure(pickAdventureFields(adventureData));
         await invalidateAdventureCache();
+
+        getConvexClient().logAudit({
+            actor_id: req.user.id,
+            actor_email: req.user.email,
+            action: 'adventure.create',
+            target_type: 'adventure',
+            target_id: result._id || result.id,
+            metadata: { title: adventureData.title },
+        }).catch((err) => logger.error('Audit log failed:', err.message));
 
         res.status(201).json({
             success: true,
@@ -309,6 +408,16 @@ const updateAdventure = async (req, res) => {
         if (adventureData.images !== undefined) {
             adventureData.images = safeJsonParse(adventureData.images, undefined);
         }
+        if (adventureData.pricing_options !== undefined) {
+            adventureData.pricing_options = normalizePricingOptions(
+                safeJsonParse(adventureData.pricing_options, [])
+            );
+        }
+        if (adventureData.departure_cities !== undefined) {
+            adventureData.departure_cities = normalizeDepartureCities(
+                safeJsonParse(adventureData.departure_cities, [])
+            );
+        }
         if (adventureData.available_dates !== undefined) {
             const parsed = safeJsonParse(adventureData.available_dates, undefined);
             if (parsed === undefined || parsed === null) {
@@ -327,6 +436,18 @@ const updateAdventure = async (req, res) => {
             } else {
                 return res.status(400).json({ success: false, message: 'Price must be a valid number' });
             }
+        }
+        if (adventureData.advance_per_person !== undefined) {
+            const advErr = normalizeAdvancePerPerson(adventureData);
+            if (advErr) {
+                return res.status(400).json({ success: false, message: advErr });
+            }
+        }
+        const effectiveCategory = String(
+            adventureData.category !== undefined ? adventureData.category : ''
+        ).toLowerCase();
+        if (effectiveCategory && effectiveCategory !== 'tour') {
+            delete adventureData.advance_per_person;
         }
         if (adventureData.max_participants !== undefined && adventureData.max_participants !== '') {
             const maxParticipants = Number(adventureData.max_participants);
@@ -347,6 +468,7 @@ const updateAdventure = async (req, res) => {
         if (adventureData.price_note === '') delete adventureData.price_note;
         if (adventureData.image_url === '') delete adventureData.image_url;
 
+        const previous = await getConvexClient().getAdventureById(id);
         const result = await getConvexClient().updateAdventure(id, pickAdventureFields(adventureData));
 
         if (!result) {
@@ -354,6 +476,16 @@ const updateAdventure = async (req, res) => {
         }
 
         await invalidateAdventureCache();
+        notifyAvailabilityChange(previous, { ...previous, ...pickAdventureFields(adventureData), _id: id });
+
+        getConvexClient().logAudit({
+            actor_id: req.user.id,
+            actor_email: req.user.email,
+            action: 'adventure.update',
+            target_type: 'adventure',
+            target_id: id,
+            metadata: { title: previous?.title || adventureData.title },
+        }).catch((err) => logger.error('Audit log failed:', err.message));
 
         res.json({
             success: true,
@@ -373,11 +505,20 @@ const updateAdventure = async (req, res) => {
 const deleteAdventure = async (req, res) => {
     try {
         const { id } = req.params;
+        const existing = await getConvexClient().getAdventureById(id);
         const result = await getConvexClient().deleteAdventure(id);
         if (!result) {
             return res.status(404).json({ success: false, message: 'Adventure not found' });
         }
         await invalidateAdventureCache();
+        getConvexClient().logAudit({
+            actor_id: req.user.id,
+            actor_email: req.user.email,
+            action: 'adventure.delete',
+            target_type: 'adventure',
+            target_id: id,
+            metadata: { title: existing?.title },
+        }).catch((err) => logger.error('Audit log failed:', err.message));
         res.json({ success: true, message: 'Adventure deleted successfully' });
     } catch (error) {
         logger.error('Error deleting adventure:', error);
@@ -466,6 +607,32 @@ const getDashboardStats = async (req, res) => {
     }
 };
 
+/**
+ * Download a professional detailed itinerary PDF for admin ops / leaders.
+ */
+const downloadItineraryPdf = async (req, res) => {
+    try {
+        const adventure = await getConvexClient().getAdventureById(req.params.id);
+        if (!adventure) {
+            return res.status(404).json({ success: false, message: 'Adventure not found' });
+        }
+
+        const { buildItineraryPdf } = require('../utils/itineraryPdf');
+        const { buffer, filename } = await buildItineraryPdf(adventure);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', buffer.length);
+        return res.send(buffer);
+    } catch (error) {
+        logger.error('Error generating itinerary PDF:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to generate itinerary PDF',
+        });
+    }
+};
+
 module.exports = {
     getAdventures,
     getAdventureById,
@@ -477,6 +644,7 @@ module.exports = {
     generateDescription,
     uploadImages,
     getDashboardStats,
+    downloadItineraryPdf,
     normalizeAvailableDates,
     filterFutureDates,
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -7,9 +7,10 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Seo from '../components/Seo';
 import { EASE } from '../components/ui/Motion';
+import { IMG_LOHAGAD } from '../data/indiaImages';
 
 const AUTH_IMAGE =
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1600&auto=format&fit=crop';
+  IMG_LOHAGAD(1600);
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -24,7 +25,9 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const reduced = useReducedMotion();
+  const returnTo = location.state?.from || '/dashboard';
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -57,7 +60,7 @@ const Register = () => {
     if (!validateForm()) return;
     setLoading(true);
     const result = await register(formData.name, formData.email, formData.password);
-    if (result.success) navigate('/dashboard');
+    if (result.success) navigate(returnTo);
     else setError(result.error || 'Registration failed. Please try again.');
     setLoading(false);
   };
@@ -86,17 +89,17 @@ const Register = () => {
             animate={{ scale: 1 }}
             transition={{ duration: 1.2, ease: EASE }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone/90 via-stone/45 to-stone/20 lg:bg-gradient-to-r lg:from-stone/80 lg:via-stone/50 lg:to-stone/25" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10 lg:bg-gradient-to-r lg:from-black/60 lg:via-black/30 lg:to-black/10" />
           <div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8 lg:p-12 lg:pb-16">
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.1, ease: EASE }}
             >
-              <p className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-mist tracking-tight">
+              <p className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-cream tracking-tight">
                 Phoenix Adventures
               </p>
-              <p className="mt-2 max-w-sm text-sm sm:text-base text-mist/85 leading-relaxed">
+              <p className="mt-2 max-w-sm text-sm sm:text-base text-cream/85 leading-relaxed">
                 Discover the great outdoors with our adventure tribe.
               </p>
               <p className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-ember-bright">
@@ -224,7 +227,7 @@ const Register = () => {
                     <div key={req.text} className="flex items-center gap-2.5 text-sm">
                       <div
                         className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                          req.met ? 'bg-stone text-mist' : 'bg-stone/15 text-mist'
+                          req.met ? 'bg-panel text-cream' : 'bg-panel/15 text-cream'
                         }`}
                       >
                         <Check size={12} aria-hidden />
@@ -238,7 +241,7 @@ const Register = () => {
               <button type="submit" disabled={loading} className="btn btn-primary w-full">
                 {loading ? (
                   <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-mist border-t-transparent" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-cream border-t-transparent" />
                     Creating account…
                   </>
                 ) : (
@@ -249,7 +252,11 @@ const Register = () => {
 
             <p className="mt-8 text-center text-sm text-muted">
               Already have an account?{' '}
-              <Link to="/login" className="font-semibold text-stone hover:text-ember transition-colors">
+              <Link
+                to="/login"
+                state={location.state}
+                className="font-semibold text-stone hover:text-ember transition-colors"
+              >
                 Sign in
               </Link>
             </p>

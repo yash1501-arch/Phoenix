@@ -11,6 +11,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Seo from '../components/Seo';
 import { Reveal, IconMotion } from '../components/ui/Motion';
+import TwoFactorSettings from '../components/ui/TwoFactorSettings';
 import './UserDashboard.css';
 
 const Profile = () => {
@@ -177,12 +178,12 @@ const Profile = () => {
               </h1>
             </Reveal>
             <Reveal variant="fade" delay={0.15}>
-              <p className="text-mist/70 text-lg max-w-xl">
+              <p className="text-cream/70 text-lg max-w-xl">
                 Update your photo, contact details, and password — all in one place.
               </p>
             </Reveal>
             <Reveal variant="fade" delay={0.22} className="mt-6">
-              <Link to="/dashboard" className="inline-flex items-center gap-2 text-mist/80 hover:text-mist text-sm font-semibold transition-colors">
+              <Link to="/dashboard" className="inline-flex items-center gap-2 text-cream/80 hover:text-cream text-sm font-semibold transition-colors">
                 <ArrowLeft size={16} /> Back to dashboard
               </Link>
             </Reveal>
@@ -229,7 +230,7 @@ const Profile = () => {
 
             <h3 className="font-display text-xl font-semibold text-stone mb-1 text-center">{profile.name || 'Explorer'}</h3>
             <p className="text-ember font-medium text-sm mb-6 bg-ember/10 inline-block px-3 py-1 rounded-md mx-auto block w-fit">
-              {user.role === 'admin' ? 'Administrator' : 'Member'}
+              {user.role === 'admin' ? 'Administrator' : user.role === 'clerk' ? 'Payments clerk' : 'Member'}
             </p>
 
             <div className="space-y-3 text-left">
@@ -254,7 +255,7 @@ const Profile = () => {
           </Reveal>
 
           <div className="lg:col-span-2 space-y-6">
-            <Reveal variant="slideRight" as="form" onSubmit={handleSaveProfile} className="bg-white rounded-lg p-6 md:p-8 border border-stone/8 shadow-smoke">
+            <Reveal variant="slideRight" as="form" onSubmit={handleSaveProfile} className="bg-mist-subtle rounded-lg p-6 md:p-8 border border-stone/8 shadow-smoke">
               <h3 className="font-display text-xl font-semibold text-stone mb-1">Personal details</h3>
               <p className="text-sm text-muted mb-6">These will be used on your bookings and reviews.</p>
 
@@ -303,7 +304,7 @@ const Profile = () => {
               </div>
             </Reveal>
 
-            <Reveal variant="rise" delay={0.1} as="form" onSubmit={handleChangePassword} className="bg-white rounded-lg p-6 md:p-8 border border-stone/8 shadow-smoke">
+            <Reveal variant="rise" delay={0.1} as="form" onSubmit={handleChangePassword} className="bg-mist-subtle rounded-lg p-6 md:p-8 border border-stone/8 shadow-smoke">
               <div className="flex items-center gap-3 mb-1">
                 <IconMotion className="text-ember">
                   <ShieldCheck size={20} />
@@ -340,13 +341,15 @@ const Profile = () => {
                 <button
                   type="submit"
                   disabled={savingPw}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-stone text-mist font-bold hover:bg-stone-soft transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-panel text-cream font-bold hover:bg-panel-soft transition-colors disabled:opacity-50"
                 >
                   {savingPw ? <Loader size={18} className="spinning" /> : <Lock size={18} />}
                   {savingPw ? 'Updating…' : 'Update password'}
                 </button>
               </div>
             </Reveal>
+
+            <TwoFactorSettings />
           </div>
         </div>
       </div>

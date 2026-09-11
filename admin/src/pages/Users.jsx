@@ -40,7 +40,7 @@ const Users = () => {
         <div className="messages-page">
             <div className="page-header">
                 <p className="page-subtitle" style={{ marginTop: 0 }}>
-                    Registered users (read-only)
+                    Registered users — grant <strong>clerk</strong> for payments/bookings only, or <strong>admin</strong> for full access.
                 </p>
             </div>
 
@@ -91,9 +91,24 @@ const Users = () => {
                                         </td>
                                         <td>{u.email}</td>
                                         <td>
-                                            <span className={`status-badge ${u.role === 'admin' ? 'active' : 'pending'}`}>
-                                                {u.role}
-                                            </span>
+                                            <select
+                                                className="form-input"
+                                                value={u.role || 'user'}
+                                                onChange={async (e) => {
+                                                    const role = e.target.value;
+                                                    try {
+                                                        await usersAdminAPI.setRole(u.id || u._id, role);
+                                                        toast.success('Role updated');
+                                                        load(pagination.page);
+                                                    } catch (err) {
+                                                        toast.error(err.response?.data?.message || 'Role update failed');
+                                                    }
+                                                }}
+                                            >
+                                                <option value="user">user</option>
+                                                <option value="clerk">clerk</option>
+                                                <option value="admin">admin</option>
+                                            </select>
                                         </td>
                                         <td>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
                                     </tr>

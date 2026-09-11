@@ -1,25 +1,18 @@
-# Use Node.js LTS (v20) alpine image for a small footprint
+# Koyeb (or any container host) — Express API from backend/
+# Render Blueprint (render.yaml) does not use this file; it runs `npm start` in backend/.
 FROM node:20-alpine
 
-# Set working directory inside the container
 WORKDIR /app
 
-# Copy package files from the backend directory to install dependencies
 COPY backend/package*.json ./
+RUN npm ci --omit=dev
 
-# Install only production dependencies
-RUN npm ci --only=production
-
-# Copy the rest of the backend files
 COPY backend/ .
 
-# Expose port 8080 (the port configured in the Koyeb UI)
 EXPOSE 8080
-
-# Environment variable to run on port 8080 by default
 ENV PORT=8080
+ENV NODE_ENV=production
 
-# Web API (default). For a dedicated job worker on Koyeb, override command to:
-#   node worker.js
-# and set REDIS_URL + ENABLE_INLINE_WORKER=false on the web service.
-CMD ["node", "index.js"]
+# Override on Koyeb if the platform injects PORT (the app reads process.env.PORT).
+# Optional worker: command `node worker.js` plus REDIS_URL (not required for launch).
+CMD ["npm", "start"]

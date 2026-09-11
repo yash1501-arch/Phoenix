@@ -23,7 +23,7 @@ const Wishlist = () => {
         subtitle="Treks and adventures you're dreaming about. Pick up where you left off."
         breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Wishlist' }]}
       />
-      <section className="bg-white py-12 md:py-16">
+      <section className="bg-mist-subtle py-12 md:py-16">
         <div className="container">
           {items.length === 0 ? (
             <Reveal variant="scale">
@@ -50,7 +50,7 @@ const Wishlist = () => {
                         layout
                         exit={{ opacity: 0, scale: 0.92 }}
                         transition={{ duration: 0.3, ease: EASE }}
-                        className="group relative flex flex-col overflow-hidden rounded-lg border border-stone/8 bg-white shadow-smoke transition-shadow hover:shadow-card h-full"
+                        className="group relative flex flex-col overflow-hidden rounded-lg border border-stone/8 bg-mist-subtle shadow-smoke transition-shadow hover:shadow-card h-full"
                       >
                         <div className="relative aspect-[4/3] overflow-hidden">
                           <img
@@ -62,7 +62,7 @@ const Wishlist = () => {
                         </div>
                         <button
                           onClick={() => remove(advId)}
-                          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-md bg-white/95 text-red-500 shadow-smoke transition-colors hover:bg-red-500 hover:text-white"
+                          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-md bg-mist-subtle/95 text-red-500 shadow-smoke transition-colors hover:bg-red-500 hover:text-white"
                           aria-label="Remove from wishlist"
                         >
                           <Trash2 size={16} />

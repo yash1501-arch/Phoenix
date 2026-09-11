@@ -7,14 +7,29 @@ export default defineSchema({
     description: v.string(),
     location: v.string(),
     price: v.number(),
+    /** Tour-only: UPI advance per person (falls back to site setting when unset) */
+    advance_per_person: v.optional(v.number()),
     duration: v.string(),
     difficulty: v.string(),
     category: v.optional(v.string()), // 'trek', 'camping', 'tour', 'general'
+    /** User-facing city filter: 'mumbai' | 'pune' */
+    departure_cities: v.optional(v.array(v.string())),
     endurance_level: v.optional(v.string()),
     base_village: v.optional(v.string()),
     elevation: v.optional(v.string()),
     region: v.optional(v.string()),
     price_note: v.optional(v.string()),
+    /** Tour train/room (etc.) choices with per-person extras */
+    pricing_options: v.optional(v.array(v.object({
+      group: v.string(),
+      label: v.string(),
+      required: v.optional(v.boolean()),
+      choices: v.array(v.object({
+        id: v.string(),
+        label: v.string(),
+        extra_per_person: v.number(),
+      })),
+    }))),
     things_to_carry: v.optional(v.array(v.string())),
     pickup_mumbai: v.optional(v.array(v.string())),
     pickup_pune: v.optional(v.array(v.string())),
@@ -53,11 +68,15 @@ export default defineSchema({
     email: v.string(),
     name: v.string(),
     password: v.string(), // Hashed password
-    role: v.string(), // 'admin', 'user'
+    role: v.union(v.literal('admin'), v.literal('clerk'), v.literal('user')),
     avatar_url: v.optional(v.string()),
     totp_secret: v.optional(v.string()),
     totp_enabled: v.optional(v.boolean()),
+    /** bcrypt hashes of one-time recovery codes (plaintext shown once on enable) */
+    totp_recovery_hashes: v.optional(v.array(v.string())),
     session_version: v.optional(v.number()),
+    login_failed_count: v.optional(v.number()),
+    locked_until: v.optional(v.string()),
     created_at: v.string(), // ISO string
     updated_at: v.optional(v.string()), // ISO string
   }).index("email", ["email"]),
@@ -139,7 +158,18 @@ export default defineSchema({
     adventure_id: v.string(),
     adventure_date: v.string(),
     number_of_seats: v.number(),
+    /** Amount due now (UPI) — full for trek/camping; advance for tours */
     amount: v.number(),
+    /** Full trip cost including option extras */
+    total_amount: v.optional(v.number()),
+    balance_due: v.optional(v.number()),
+    payment_type: v.optional(v.string()), // 'full' | 'advance'
+    selected_options: v.optional(v.array(v.object({
+      group: v.string(),
+      choice_id: v.string(),
+      label: v.string(),
+      extra_per_person: v.number(),
+    }))),
     booking_status: v.string(), // draft, pending_payment, payment_submitted, confirmed, payment_failed, rejected, expired, cancelled
     payment_method: v.string(),
     seat_hold_expires_at: v.string(),
@@ -153,6 +183,7 @@ export default defineSchema({
       phone: v.string(),
       meal_preference: v.string(),
       pickup_point: v.string(),
+      travel_coach: v.optional(v.string()),
     }))),
     additional_travelers: v.optional(v.array(v.object({
       name: v.string(),
@@ -162,6 +193,12 @@ export default defineSchema({
     }))),
     created_at: v.string(),
     updated_at: v.string(),
+    delivery_warnings: v.optional(v.array(v.string())),
+    pre_departure_notified_at: v.optional(v.string()),
+    review_nudge_sent_at: v.optional(v.string()),
+    balance_reminder_sent_at: v.optional(v.string()),
+    /** pending | submitted | paid — remaining tour balance after advance */
+    balance_status: v.optional(v.string()),
   })
     .index("booking_code", ["booking_code"])
     .index("user_id", ["user_id"])
@@ -182,6 +219,8 @@ export default defineSchema({
     verified_by: v.optional(v.string()),
     verified_at: v.optional(v.string()),
     rejection_reason: v.optional(v.string()),
+    /** full | advance | balance */
+    payment_kind: v.optional(v.string()),
     created_at: v.string(),
     updated_at: v.string(),
   })
@@ -196,4 +235,32 @@ export default defineSchema({
     reserved_seats: v.number(),
     updated_at: v.string(),
   }).index("adventure_date", ["adventure_id", "adventure_date"]),
+
+  /** Daily site traffic aggregates (anonymous pageviews) */
+  analytics_daily: defineTable({
+    date: v.string(), // YYYY-MM-DD (IST day key from client/server)
+    pageviews: v.number(),
+    unique_visitors: v.number(),
+    path_counts: v.optional(v.any()), // { "/treks": 12, ... }
+  }).index("by_date", ["date"]),
+
+  /** One row per visitor per day — used to count unique visitors */
+  analytics_visitors: defineTable({
+    date: v.string(),
+    visitor_id: v.string(),
+  }).index("by_date_visitor", ["date", "visitor_id"]),
+
+  waitlist: defineTable({
+    email: v.string(),
+    phone: v.optional(v.string()),
+    user_id: v.optional(v.string()),
+    adventure_id: v.string(),
+    adventure_date: v.optional(v.string()),
+    status: v.string(), // waiting | notified | cancelled
+    notified_at: v.optional(v.string()),
+    created_at: v.string(),
+  })
+    .index("adventure_id", ["adventure_id"])
+    .index("email", ["email"])
+    .index("status", ["status"]),
 });

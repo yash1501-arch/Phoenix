@@ -1,5 +1,6 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 
 // Get all adventures with optional filters
 export const getAll = internalQuery({
@@ -71,10 +72,13 @@ export const getAll = internalQuery({
 
 // Get adventure by ID
 export const getById = internalQuery({
-  args: { id: v.id("adventures") },
+  args: { id: v.string() },
   handler: async (ctx, args) => {
-    const adventure = await ctx.db.get(args.id);
-    return adventure;
+    try {
+      return await ctx.db.get(args.id as Id<"adventures">);
+    } catch {
+      return null;
+    }
   },
 });
 
@@ -85,14 +89,26 @@ export const create = internalMutation({
     description: v.string(),
     location: v.string(),
     price: v.number(),
+    advance_per_person: v.optional(v.number()),
     duration: v.string(),
     difficulty: v.string(),
     category: v.optional(v.string()),
+    departure_cities: v.optional(v.array(v.string())),
     endurance_level: v.optional(v.string()),
     base_village: v.optional(v.string()),
     elevation: v.optional(v.string()),
     region: v.optional(v.string()),
     price_note: v.optional(v.string()),
+    pricing_options: v.optional(v.array(v.object({
+      group: v.string(),
+      label: v.string(),
+      required: v.optional(v.boolean()),
+      choices: v.array(v.object({
+        id: v.string(),
+        label: v.string(),
+        extra_per_person: v.number(),
+      })),
+    }))),
     things_to_carry: v.optional(v.array(v.string())),
     pickup_mumbai: v.optional(v.array(v.string())),
     pickup_pune: v.optional(v.array(v.string())),
@@ -139,14 +155,26 @@ export const update = internalMutation({
     description: v.optional(v.string()),
     location: v.optional(v.string()),
     price: v.optional(v.number()),
+    advance_per_person: v.optional(v.number()),
     duration: v.optional(v.string()),
     difficulty: v.optional(v.string()),
     category: v.optional(v.string()),
+    departure_cities: v.optional(v.array(v.string())),
     endurance_level: v.optional(v.string()),
     base_village: v.optional(v.string()),
     elevation: v.optional(v.string()),
     region: v.optional(v.string()),
     price_note: v.optional(v.string()),
+    pricing_options: v.optional(v.array(v.object({
+      group: v.string(),
+      label: v.string(),
+      required: v.optional(v.boolean()),
+      choices: v.array(v.object({
+        id: v.string(),
+        label: v.string(),
+        extra_per_person: v.number(),
+      })),
+    }))),
     things_to_carry: v.optional(v.array(v.string())),
     pickup_mumbai: v.optional(v.array(v.string())),
     pickup_pune: v.optional(v.array(v.string())),

@@ -53,19 +53,28 @@ const Tours = () => {
         ctaLabel="View all adventures"
       />
 
-      <section className="bg-mist py-14 md:py-20">
+      <section className="bg-mist py-12 md:py-16">
         <div className="container">
-          <Reveal variant="slideRight" className="mb-10 flex items-center gap-3">
+          <Reveal
+            variant="slideRight"
+            className={`mb-8 flex items-center gap-3 ${loading ? 'justify-center' : ''}`}
+          >
             <IconMotion className="text-ember">
               <Bus size={20} />
             </IconMotion>
-            <p className="text-sm text-muted">
-              {loading ? 'Loading tours…' : `${items.length} open tour${items.length === 1 ? '' : 's'}`}
+            <p className="text-sm font-medium text-muted">
+              {loading
+                ? 'Loading tours…'
+                : `${items.length} open tour${items.length === 1 ? '' : 's'}`}
             </p>
           </Reveal>
 
           {loading ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+              aria-busy="true"
+              aria-label="Loading tours"
+            >
               {Array.from({ length: 6 }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -91,7 +100,7 @@ const Tours = () => {
         </div>
       </section>
 
-            <Footer />
+      <Footer />
     </div>
   );
 };

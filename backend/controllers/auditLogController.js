@@ -2,10 +2,12 @@ const { getConvexClient } = require('../utils/convexClient');
 
 exports.list = async (req, res) => {
     try {
-        const { limit, action } = req.query;
+        const { limit, action, actor, booking_code } = req.query;
         const data = await getConvexClient().listAuditLog({
             limit: limit ? Number(limit) : 200,
             action: action || undefined,
+            actor: actor || undefined,
+            booking_code: booking_code || undefined,
         });
         return res.json({ success: true, data });
     } catch (error) {

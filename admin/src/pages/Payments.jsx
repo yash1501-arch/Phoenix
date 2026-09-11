@@ -63,14 +63,25 @@ const Payments = () => {
         }
     };
 
-    const list = tab === 'pending' ? pending : allBookings;
+    const HIDDEN_STATUSES = new Set(['expired', 'cancelled']);
+    const visibleAll = allBookings.filter((row) => {
+        const status = (row.booking || row).booking_status;
+        return !HIDDEN_STATUSES.has(status);
+    });
+    const list = tab === 'pending' ? pending : visibleAll;
+    const submittedUtrs = pending
+        .map((row) => String(row.payment?.upi_reference || '').trim())
+        .filter(Boolean);
+    const duplicateUtrs = new Set(
+        submittedUtrs.filter((u, i) => submittedUtrs.indexOf(u) !== i)
+    );
 
     return (
         <div className="payments-page">
             <div className="page-header">
                 <div>
                     <p className="page-subtitle" style={{ marginTop: 0 }}>
-                        Verify UPI transfers against your bank statement, then confirm to send the customer their trek PDF.
+                        Verify UPI transfers against your bank statement. Treks are full payment; tours may show advance then a second balance UPI.
                     </p>
                 </div>
                 <button type="button" className="btn-secondary" onClick={load} disabled={loading}>
@@ -96,6 +107,7 @@ const Payments = () => {
                     onClick={() => setTab('all')}
                 >
                     All bookings
+                    <span className="tab-count"> ({visibleAll.length})</span>
                 </button>
             </div>
 
@@ -103,7 +115,7 @@ const Payments = () => {
                 <div className="loading-state"><div className="spinner" /></div>
             ) : list.length === 0 ? (
                 <div className="empty-state">
-                    <p>{tab === 'pending' ? 'No payments waiting for verification.' : 'No bookings yet.'}</p>
+                    <p>{tab === 'pending' ? 'No payments waiting for verification.' : 'No active bookings to show (expired holds are hidden).'}</p>
                 </div>
             ) : (
                 <div className="payment-list">
@@ -122,6 +134,11 @@ const Payments = () => {
                                         <p className="payment-code">{booking.booking_code}</p>
                                         <h3 className="payment-title">{adventure?.title || 'Adventure'}</h3>
                                         <p className="payment-meta">
+                                            {String(adventure?.category || 'trip').toLowerCase() === 'tour' ? 'Tour' : 'Trek'}
+                                            {' · '}
+                                            {(payment?.payment_kind || booking.payment_type || 'full').replace(/_/g, ' ')}
+                                            {payment?.payment_kind === 'balance' ? ' (remaining balance)' : ''}
+                                            {' · '}
                                             {booking.customer_name || booking.customer_email}
                                             {' · '}
                                             {booking.adventure_date}
@@ -149,7 +166,15 @@ const Payments = () => {
 
                                 {payment && (
                                     <dl className="payment-details">
-                                        <div><dt>UTR</dt><dd className="mono">{payment.upi_reference || '—'}</dd></div>
+                                        <div>
+                                            <dt>UTR</dt>
+                                            <dd className="mono">
+                                                {payment.upi_reference || '—'}
+                                                {(payment.payment_status === 'duplicate' || duplicateUtrs.has(String(payment.upi_reference || '').trim())) && (
+                                                    <span className="badge badge-red" style={{ marginLeft: '0.5rem' }}>Duplicate UTR</span>
+                                                )}
+                                            </dd>
+                                        </div>
                                         <div><dt>Payer</dt><dd>{payment.payer_name || '—'}</dd></div>
                                         {payment.payer_upi_id && <div><dt>Payer UPI</dt><dd>{payment.payer_upi_id}</dd></div>}
                                         {payment.screenshot_url && (

@@ -127,9 +127,9 @@ const BlogPost = () => {
 
           <Reveal variant="scale" className="mt-16 pt-10 border-t border-stone/10">
             <footer>
-              <div className="bg-stone text-mist rounded-lg p-8 md:p-10 text-center">
-                <h2 className="font-display text-2xl md:text-3xl !text-mist font-semibold mb-3">Ready to walk it yourself?</h2>
-                <p className="text-mist/70 mb-6 max-w-xl mx-auto">
+              <div className="bg-panel text-cream rounded-lg p-8 md:p-10 text-center">
+                <h2 className="font-display text-2xl md:text-3xl !text-cream font-semibold mb-3">Ready to walk it yourself?</h2>
+                <p className="text-cream/70 mb-6 max-w-xl mx-auto">
                   Reading about a trail is the easy part. Join one of our small-group departures and see it first-hand.
                 </p>
                 <Link to="/adventures" className="btn btn-primary inline-flex">

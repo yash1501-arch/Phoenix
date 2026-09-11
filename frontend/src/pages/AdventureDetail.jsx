@@ -10,13 +10,18 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { adventuresAPI, publicSettingsAPI, getImageUrl } from '../utils/api';
+import { adventuresAPI, publicSettingsAPI, getImageUrl, waitlistAPI } from '../utils/api';
 import WishlistButton from '../components/ui/WishlistButton';
 import Lightbox from '../components/ui/Lightbox';
 import WeatherWidget from '../components/ui/WeatherWidget';
 import ShareButtons from '../components/ui/ShareButtons';
+import Reviews from '../components/ui/Reviews';
 import BookingModal from '../components/BookingModal';
 import { Reveal, IconMotion } from '../components/ui/Motion';
+import { IMG_FALLBACK } from '../data/indiaImages';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import toast from 'react-hot-toast';
 
 const asStringList = (value) => {
     if (!value) return [];
@@ -73,13 +78,13 @@ const openWhatsApp = (adventure, phone) => {
 const ItineraryItem = ({ day }) => {
     const [open, setOpen] = useState(false);
     return (
-        <div className="border border-stone/10 rounded-lg overflow-hidden bg-white">
+        <div className="border border-stone/10 rounded-lg overflow-hidden bg-mist-subtle">
             <button
                 onClick={() => setOpen(o => !o)}
                 className="w-full flex items-center justify-between p-5 text-left hover:bg-mist transition-colors"
             >
                 <div className="flex items-center gap-4">
-                    <span className="w-10 h-10 rounded-md bg-stone text-ember font-bold text-sm flex items-center justify-center shrink-0">
+                    <span className="w-10 h-10 rounded-md bg-panel text-ember font-bold text-sm flex items-center justify-center shrink-0">
                         D{day.day}
                     </span>
                     <span className="font-semibold text-stone">{day.title}</span>
@@ -105,8 +110,68 @@ const ItineraryItem = ({ day }) => {
     );
 };
 
+const WaitlistInline = ({ adventure }) => {
+    const { user } = useAuth();
+    const { t } = useLanguage();
+    const [email, setEmail] = useState(user?.email || '');
+    const [phone, setPhone] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [done, setDone] = useState(false);
+
+    const submit = async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+            await waitlistAPI.join({
+                email,
+                phone,
+                adventure_id: adventure._id || adventure.id,
+            });
+            setDone(true);
+            toast.success("You're on the waitlist");
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Could not join waitlist');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    if (done) {
+        return (
+            <p className="text-xs text-center text-moss bg-moss/10 py-2.5 px-3 rounded border border-moss/20">
+                {t.booking.waitlistDone}
+            </p>
+        );
+    }
+
+    return (
+        <form onSubmit={submit} className="space-y-2 rounded border border-stone/10 bg-mist-subtle p-3">
+            <p className="text-xs text-center text-muted font-medium">{t.booking.waitlistHint}</p>
+            <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="w-full rounded-md border border-stone/15 bg-mist-subtle px-3 py-2 text-sm"
+            />
+            <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="WhatsApp (optional)"
+                className="w-full rounded-md border border-stone/15 bg-mist-subtle px-3 py-2 text-sm"
+            />
+            <button type="submit" disabled={busy} className="btn btn-outline w-full !py-2 text-xs">
+                {busy ? t.booking.joining : t.booking.waitlist}
+            </button>
+        </form>
+    );
+};
+
 // ── Booking card (mobile: under About; desktop: sticky sidebar) ─────────────
-const BookingCard = ({ adventure, whatsappNumber, onBook, animated = false }) => {
+const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animated = false }) => {
+    const { t } = useLanguage();
     const nextDeparture = (() => {
         try {
             const raw = typeof adventure.available_dates === 'string'
@@ -124,13 +189,16 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, animated = false }) =>
         }
     })();
 
+    const isTour = String(adventure.category || '').toLowerCase() === 'tour';
+    const payHint = isTour ? t.booking.payHintTour : t.booking.payHintTrek;
+
     const card = (
         <div className="card border-ink/10 overflow-hidden">
-            <div className="bg-stone text-mist p-6 sm:p-8 border-b border-ember/30">
-                <p className="meta !text-mist/50 mb-2">Price per person</p>
-                <p className="font-display text-3xl sm:text-4xl text-mist font-semibold">₹{adventure.price?.toLocaleString()}</p>
+            <div className="bg-panel text-cream p-6 sm:p-8 border-b border-ember/30">
+                <p className="meta !text-cream/50 mb-2">Price per person</p>
+                <p className="font-display text-3xl sm:text-4xl text-cream font-semibold">₹{adventure.price?.toLocaleString()}</p>
                 {adventure.price_note && (
-                    <p className="text-mist/70 text-sm mt-2">{adventure.price_note}</p>
+                    <p className="text-cream/70 text-sm mt-2">{adventure.price_note}</p>
                 )}
             </div>
 
@@ -160,19 +228,18 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, animated = false }) =>
                         {nextDeparture.extra > 0 ? ` (+${nextDeparture.extra} more)` : ''}
                     </p>
                 ) : (
-                    <p className="text-xs text-center text-muted bg-mist-subtle py-2.5 px-3 rounded border border-stone/10">
-                        No upcoming departures — join the waitlist
-                    </p>
+                    <WaitlistInline adventure={adventure} />
                 )}
 
                 <button type="button" onClick={onBook} className="btn btn-primary w-full">
-                    <CalendarCheck size={18} /> Book Now — Pay via UPI
+                    <CalendarCheck size={18} />
+                    {canBook ? (isTour ? t.booking.bookTour : t.booking.bookTrek) : t.booking.loginToBook}
                 </button>
                 <button type="button" onClick={() => openWhatsApp(adventure, whatsappNumber)} className="btn btn-outline w-full">
                     <MessageCircle size={18} /> Ask on WhatsApp
                 </button>
                 <p className="text-center text-xs text-muted">
-                    Pay trek price × seats via UPI. Booking confirmed after we verify your transfer.
+                    {canBook ? payHint : t.booking.browseHint}
                 </p>
 
                 <div className="pt-5 border-t border-stone/10 space-y-3">
@@ -217,11 +284,21 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, animated = false }) =>
 const AdventureDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
     const [adventure, setAdventure] = useState(null);
     const [loading, setLoading] = useState(true);
     const [whatsappNumber, setWhatsappNumber] = useState('919372506447');
     const [lightboxIndex, setLightboxIndex] = useState(null);
     const [showBooking, setShowBooking] = useState(false);
+
+    const handleBook = () => {
+        if (!isAuthenticated) {
+            toast.error('Please log in to book');
+            navigate('/login', { state: { from: `/adventure/${id}` } });
+            return;
+        }
+        setShowBooking(true);
+    };
 
     useEffect(() => {
         const fetch = async () => {
@@ -280,11 +357,11 @@ const AdventureDetail = () => {
             {/* Hero Image — top padding clears fixed solid navbar */}
             <div className="relative h-[55vh] md:h-[70vh] overflow-hidden">
                 <img
-                    src={getImageUrl(adventure.image_url) || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1400'}
+                    src={getImageUrl(adventure.image_url) || IMG_FALLBACK}
                     alt={adventure.title}
                     className="w-full h-full object-cover cursor-zoom-in"
                     onClick={() => setLightboxIndex(0)}
-                    onError={e => { e.target.src = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1400'; }}
+                    onError={e => { e.target.src = IMG_FALLBACK; }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/45" />
 
@@ -312,8 +389,8 @@ const AdventureDetail = () => {
                                 {adventure.status}
                             </span>
                         </div>
-                        <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-semibold text-mist mb-2 sm:mb-3 leading-tight tracking-tight">{adventure.title}</h1>
-                        <div className="flex flex-wrap gap-3 sm:gap-4 text-mist/80 sm:text-mist/90 text-xs sm:text-sm">
+                        <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-semibold text-cream mb-2 sm:mb-3 leading-tight tracking-tight">{adventure.title}</h1>
+                        <div className="flex flex-wrap gap-3 sm:gap-4 text-cream/80 sm:text-cream/90 text-xs sm:text-sm">
                             <span className="flex items-center gap-1.5"><MapPin size={13} className="text-ember shrink-0" />{adventure.location}</span>
                             <span className="flex items-center gap-1.5"><Clock size={13} className="text-ember shrink-0" />{adventure.duration}</span>
                             {adventure.region && (
@@ -344,19 +421,19 @@ const AdventureDetail = () => {
                             <h2 className="font-display text-2xl font-semibold text-stone mb-4">Trek details</h2>
                             <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {adventure.base_village && (
-                                    <div className="rounded-lg border border-stone/10 bg-white p-4">
+                                    <div className="rounded-lg border border-stone/10 bg-mist-subtle p-4">
                                         <dt className="text-xs uppercase tracking-wide text-muted mb-1">Base village</dt>
                                         <dd className="font-semibold text-stone text-sm">{adventure.base_village}</dd>
                                     </div>
                                 )}
                                 {adventure.elevation && (
-                                    <div className="rounded-lg border border-stone/10 bg-white p-4">
+                                    <div className="rounded-lg border border-stone/10 bg-mist-subtle p-4">
                                         <dt className="text-xs uppercase tracking-wide text-muted mb-1">Elevation</dt>
                                         <dd className="font-semibold text-stone text-sm">{adventure.elevation}</dd>
                                     </div>
                                 )}
                                 {adventure.region && (
-                                    <div className="rounded-lg border border-stone/10 bg-white p-4">
+                                    <div className="rounded-lg border border-stone/10 bg-mist-subtle p-4">
                                         <dt className="text-xs uppercase tracking-wide text-muted mb-1">Region</dt>
                                         <dd className="font-semibold text-stone text-sm">{adventure.region}</dd>
                                     </div>
@@ -370,7 +447,8 @@ const AdventureDetail = () => {
                         <BookingCard
                             adventure={adventure}
                             whatsappNumber={whatsappNumber}
-                            onBook={() => setShowBooking(true)}
+                            onBook={handleBook}
+                            canBook={isAuthenticated}
                         />
                     </div>
 
@@ -379,29 +457,6 @@ const AdventureDetail = () => {
                             <h2 className="font-display text-2xl font-semibold text-stone mb-4">Day-by-day itinerary</h2>
                             <div className="space-y-3">
                                 {adventure.itinerary.map(day => <ItineraryItem key={day.day} day={day} />)}
-                            </div>
-                        </Reveal>
-                    )}
-
-                    {adventure.images && (typeof adventure.images === 'string' ? JSON.parse(adventure.images) : adventure.images).length > 0 && (
-                        <Reveal variant="clip" as="section">
-                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Experience gallery</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                                {(typeof adventure.images === 'string' ? JSON.parse(adventure.images) : adventure.images).map((imgUrl, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="relative aspect-square overflow-hidden rounded-lg group border border-stone/10 cursor-zoom-in"
-                                        onClick={() => setLightboxIndex((adventure.image_url ? 1 : 0) + idx)}
-                                    >
-                                        <img
-                                            src={getImageUrl(imgUrl)}
-                                            alt={`${adventure.title} - Gallery ${idx + 1}`}
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                            onError={(e) => { e.currentTarget.style.opacity = '0.35'; }}
-                                        />
-                                        <div className="absolute inset-0 bg-stone/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                    </div>
-                                ))}
                             </div>
                         </Reveal>
                     )}
@@ -532,6 +587,10 @@ const AdventureDetail = () => {
                         </Reveal>
                     )}
 
+                    <section id="reviews" className="scroll-mt-24">
+                        <Reviews adventureId={adventure._id || id} />
+                    </section>
+
                     <section className="flex items-center gap-2">
                         <span className="text-sm text-muted">Share this adventure:</span>
                         <ShareButtons url={`/adventure/${adventure._id || id}`} title={adventure.title} description={`Join us on ${adventure.title} — ${adventure.location || ''}`} />
@@ -550,6 +609,29 @@ const AdventureDetail = () => {
                             </div>
                         </div>
                     </Reveal>
+
+                    {adventure.images && (typeof adventure.images === 'string' ? JSON.parse(adventure.images) : adventure.images).length > 0 && (
+                        <Reveal variant="clip" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Experience gallery</h2>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                                {(typeof adventure.images === 'string' ? JSON.parse(adventure.images) : adventure.images).map((imgUrl, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="relative aspect-square overflow-hidden rounded-lg group border border-stone/10 cursor-zoom-in"
+                                        onClick={() => setLightboxIndex((adventure.image_url ? 1 : 0) + idx)}
+                                    >
+                                        <img
+                                            src={getImageUrl(imgUrl)}
+                                            alt={`${adventure.title} - Gallery ${idx + 1}`}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            onError={(e) => { e.currentTarget.style.opacity = '0.35'; }}
+                                        />
+                                        <div className="absolute inset-0 bg-panel/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    </div>
+                                ))}
+                            </div>
+                        </Reveal>
+                    )}
                 </div>
 
                 {/* RIGHT: Sticky Booking Card (desktop) */}
@@ -558,7 +640,8 @@ const AdventureDetail = () => {
                         <BookingCard
                             adventure={adventure}
                             whatsappNumber={whatsappNumber}
-                            onBook={() => setShowBooking(true)}
+                            onBook={handleBook}
+                            canBook={isAuthenticated}
                             animated
                         />
                     </div>

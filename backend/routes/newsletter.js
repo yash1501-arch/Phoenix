@@ -6,5 +6,6 @@ const ctrl = require('../controllers/newsletterController');
 router.post('/subscribe', ctrl.subscribe);
 router.post('/unsubscribe', ctrl.unsubscribe);
 router.get('/', auth, adminOnly, ctrl.getAll);
+router.post('/blast', auth, adminOnly, ctrl.blast);
 
 module.exports = router;

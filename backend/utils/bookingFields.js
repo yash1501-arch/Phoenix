@@ -1,4 +1,5 @@
 const MEAL_PREFERENCES = ['veg', 'non_veg', 'jain'];
+const { isTour, findPricingGroup } = require('./tourPricing');
 
 function normalizePhone(raw) {
   if (!raw) return '';
@@ -57,7 +58,14 @@ function validateBookingExtras({
     };
   }
 
+  const tour = isTour(adventure);
+  const trainGroup = tour ? findPricingGroup(adventure, 'train') : null;
+  const validTrainIds = new Set(
+    (trainGroup?.choices || []).map((c) => String(c.id)),
+  );
+
   const sanitizedParticipants = [];
+  const participantTravelCoaches = [];
   for (let i = 0; i < list.length; i++) {
     const p = list[i] || {};
     const name = String(p.name || '').trim();
@@ -78,11 +86,24 @@ function validateBookingExtras({
       return { ok: false, message: `Participant ${i + 1}: select a valid pickup point` };
     }
 
+    let travel_coach;
+    if (tour && trainGroup && validTrainIds.size > 0) {
+      travel_coach = String(p.travel_coach || '').trim();
+      if (!travel_coach || !validTrainIds.has(travel_coach)) {
+        return {
+          ok: false,
+          message: `Participant ${i + 1}: select Sleeper coach or 3AC`,
+        };
+      }
+      participantTravelCoaches.push(travel_coach);
+    }
+
     sanitizedParticipants.push({
       name,
       phone: String(p.phone || '').trim(),
       meal_preference: meal,
       pickup_point: pickup,
+      ...(travel_coach ? { travel_coach } : {}),
     });
   }
 
@@ -91,6 +112,7 @@ function validateBookingExtras({
     data: {
       emergency_contact: String(emergency_contact).trim(),
       pickup_point: sanitizedParticipants[0].pickup_point,
+      participantTravelCoaches: tour ? participantTravelCoaches : undefined,
       participants: sanitizedParticipants,
       additional_travelers: sanitizedParticipants.slice(1).map((p) => ({
         name: p.name,

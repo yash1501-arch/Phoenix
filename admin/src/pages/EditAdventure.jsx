@@ -13,13 +13,20 @@ import {
     Image as ImageIcon,
     Loader,
     ArrowLeft,
-    CalendarDays
+    CalendarDays,
+    Download,
 } from 'lucide-react';
-import { adventuresAPI } from '../utils/api';
+import { adventuresAPI, getImageUrl } from '../utils/api';
 import BrochureFields from '../components/BrochureFields';
+import TourPricingOptionsEditor from '../components/TourPricingOptionsEditor';
+import DepartureCitiesField from '../components/DepartureCitiesField';
 import { BrochurePdfImport, ConfirmationPdfField } from '../components/AdventurePdfFields';
 import { asStringList } from '../utils/brochure';
 import { mergeExtractedPdfData } from '../utils/pdfExtract';
+import { downloadItineraryPdf, previewItineraryPdf } from '../utils/downloadItineraryPdf';
+import { cloneDefaultTourPricingOptions } from '../utils/tourPricingDefaults';
+import ItineraryEditor from '../components/ItineraryEditor';
+import { normalizeDepartureCities, inferDepartureCities } from '../utils/departureCities';
 import './AddAdventure.css'; // Reusing the same styles
 
 const EditAdventure = () => {
@@ -31,6 +38,7 @@ const EditAdventure = () => {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [brochureLoading, setBrochureLoading] = useState(false);
+    const [pdfDownloading, setPdfDownloading] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -39,11 +47,13 @@ const EditAdventure = () => {
         duration: '',
         difficulty: 'Moderate',
         category: '',
+        departure_cities: [],
         endurance_level: '',
         base_village: '',
         elevation: '',
         region: '',
         price_note: '',
+        pricing_options: [],
         things_to_carry: [],
         pickup_mumbai: [],
         pickup_pune: [],
@@ -88,19 +98,11 @@ const EditAdventure = () => {
             const excluded = typeof adventure.excluded === 'string' ? JSON.parse(adventure.excluded) : adventure.excluded;
             const itinerary = typeof adventure.itinerary === 'string' ? JSON.parse(adventure.itinerary) : adventure.itinerary;
 
-            const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
-            let imagePreview = null;
-            if (adventure.image_url) {
-                if (adventure.image_url.startsWith('http')) {
-                    imagePreview = adventure.image_url;
-                } else {
-                    imagePreview = `${baseUrl}${adventure.image_url}`;
-                }
-            }
+            let imagePreview = getImageUrl(adventure.image_url);
 
             const images = typeof adventure.images === 'string' ? JSON.parse(adventure.images) : adventure.images || [];
             const existingGalleryUrls = images;
-            const galleryPreviews = images.map(imgUrl => imgUrl.startsWith('http') ? imgUrl : `${baseUrl}${imgUrl}`);
+            const galleryPreviews = images.map((imgUrl) => getImageUrl(imgUrl)).filter(Boolean);
 
             const rawDates = typeof adventure.available_dates === 'string'
                 ? JSON.parse(adventure.available_dates)
@@ -114,11 +116,22 @@ const EditAdventure = () => {
                 duration: adventure.duration || '',
                 difficulty: adventure.difficulty || 'Moderate',
                 category: adventure.category || '',
+                departure_cities: (() => {
+                    const explicit = normalizeDepartureCities(adventure.departure_cities);
+                    if (explicit.length > 0) return explicit;
+                    return inferDepartureCities({
+                        pickup_mumbai: asStringList(adventure.pickup_mumbai),
+                        pickup_pune: asStringList(adventure.pickup_pune),
+                    });
+                })(),
                 endurance_level: adventure.endurance_level || '',
                 base_village: adventure.base_village || '',
                 elevation: adventure.elevation || '',
                 region: adventure.region || '',
                 price_note: adventure.price_note || '',
+                pricing_options: Array.isArray(adventure.pricing_options)
+                    ? adventure.pricing_options
+                    : (adventure.category === 'tour' ? cloneDefaultTourPricingOptions() : []),
                 things_to_carry: asStringList(adventure.things_to_carry),
                 pickup_mumbai: asStringList(adventure.pickup_mumbai),
                 pickup_pune: asStringList(adventure.pickup_pune),
@@ -126,6 +139,7 @@ const EditAdventure = () => {
                 donts: asStringList(adventure.donts),
                 trek_guidelines: asStringList(adventure.trek_guidelines),
                 price: adventure.price || '',
+                advance_per_person: adventure.advance_per_person ?? '',
                 max_participants: adventure.max_participants || '',
                 start_time: adventure.start_time || '08:00',
                 image: null,
@@ -154,7 +168,13 @@ const EditAdventure = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData((prev) => {
+            const next = { ...prev, [name]: value };
+            if (name === 'category' && value === 'tour' && (!prev.pricing_options || prev.pricing_options.length === 0)) {
+                next.pricing_options = cloneDefaultTourPricingOptions();
+            }
+            return next;
+        });
     };
 
     const handleImageChange = (e) => {
@@ -337,12 +357,21 @@ const EditAdventure = () => {
             submitData.append('duration', formData.duration);
             submitData.append('difficulty', formData.difficulty);
             submitData.append('category', formData.category);
+            submitData.append('departure_cities', JSON.stringify(normalizeDepartureCities(formData.departure_cities)));
             submitData.append('endurance_level', formData.endurance_level || '');
             submitData.append('base_village', formData.base_village || '');
             submitData.append('elevation', formData.elevation || '');
             submitData.append('region', formData.region || '');
             submitData.append('price_note', formData.price_note || '');
             submitData.append('price', formData.price);
+            if (formData.category === 'tour') {
+                submitData.append(
+                    'advance_per_person',
+                    formData.advance_per_person === '' || formData.advance_per_person == null
+                        ? ''
+                        : formData.advance_per_person,
+                );
+            }
             submitData.append('max_participants', formData.max_participants);
             submitData.append('start_time', formData.start_time || '08:00');
             submitData.append('status', formData.status);
@@ -383,6 +412,9 @@ const EditAdventure = () => {
             submitData.append('trek_guidelines', JSON.stringify(formData.trek_guidelines || []));
             submitData.append('itinerary', JSON.stringify(formData.itinerary));
             submitData.append('available_dates', JSON.stringify(formData.available_dates));
+            if (formData.category === 'tour') {
+                submitData.append('pricing_options', JSON.stringify(formData.pricing_options || []));
+            }
 
             await adventuresAPI.update(id, submitData);
             toast.success('✅ Adventure updated successfully!');
@@ -410,14 +442,56 @@ const EditAdventure = () => {
                 <div>
                     <p className="page-subtitle" style={{ marginTop: 0 }}>Update trek details, dates, and confirmation PDF</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => navigate('/adventures')}
-                    className="btn-secondary"
-                >
-                    <ArrowLeft size={18} />
-                    Back
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={pdfDownloading}
+                        onClick={async () => {
+                            setPdfDownloading(true);
+                            const tid = toast.loading('Opening itinerary preview…');
+                            try {
+                                await previewItineraryPdf(id);
+                                toast.success('Preview opened in a new tab', { id: tid });
+                            } catch (err) {
+                                toast.error(err.message || 'Could not preview PDF', { id: tid });
+                            } finally {
+                                setPdfDownloading(false);
+                            }
+                        }}
+                    >
+                        Preview PDF
+                    </button>
+                    <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={pdfDownloading}
+                        onClick={async () => {
+                            setPdfDownloading(true);
+                            const tid = toast.loading('Preparing itinerary PDF…');
+                            try {
+                                await downloadItineraryPdf(id, formData.title);
+                                toast.success('Itinerary PDF downloaded', { id: tid });
+                            } catch (err) {
+                                console.error(err);
+                                toast.error(err.message || 'Could not download itinerary PDF', { id: tid });
+                            } finally {
+                                setPdfDownloading(false);
+                            }
+                        }}
+                    >
+                        {pdfDownloading ? <Loader className="spinning" size={18} /> : <Download size={18} />}
+                        {pdfDownloading ? 'Preparing…' : 'Download itinerary PDF'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/adventures')}
+                        className="btn-secondary"
+                    >
+                        <ArrowLeft size={18} />
+                        Back
+                    </button>
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="adventure-form">
@@ -517,6 +591,20 @@ const EditAdventure = () => {
                             </select>
                         </div>
 
+                        <DepartureCitiesField
+                            value={formData.departure_cities}
+                            onChange={(departure_cities, patch = {}) => setFormData((prev) => {
+                                const next = { ...prev, departure_cities };
+                                if (patch.ensurePickupMumbai && (!prev.pickup_mumbai || prev.pickup_mumbai.length === 0)) {
+                                    next.pickup_mumbai = [patch.ensurePickupMumbai];
+                                }
+                                if (patch.ensurePickupPune && (!prev.pickup_pune || prev.pickup_pune.length === 0)) {
+                                    next.pickup_pune = [patch.ensurePickupPune];
+                                }
+                                return next;
+                            })}
+                        />
+
                         <div className="form-group">
                             <label className="form-label required">
                                 <DollarSign size={16} />
@@ -532,6 +620,24 @@ const EditAdventure = () => {
                                 required
                             />
                         </div>
+
+                        {formData.category === 'tour' && (
+                            <div className="form-group">
+                                <label className="form-label">Advance per person (₹)</label>
+                                <input
+                                    type="number"
+                                    name="advance_per_person"
+                                    min="0"
+                                    value={formData.advance_per_person}
+                                    onChange={handleChange}
+                                    className="form-input"
+                                    placeholder="Site default if empty"
+                                />
+                                <p style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    Guests can pay this amount per seat now, or pay the full trip total.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="form-group">
                             <label className="form-label">
@@ -577,6 +683,13 @@ const EditAdventure = () => {
                         </div>
                     </div>
                 </div>
+
+                {formData.category === 'tour' && (
+                    <TourPricingOptionsEditor
+                        value={formData.pricing_options}
+                        onChange={(pricing_options) => setFormData((prev) => ({ ...prev, pricing_options }))}
+                    />
+                )}
 
                 {/* Image Upload */}
                 <div className="form-section">
@@ -807,46 +920,41 @@ const EditAdventure = () => {
 
                 {/* Itinerary */}
                 <div className="form-section">
-                    <h2 className="section-title">Itinerary</h2>
-                    <p className="form-help section-help">
-                        Upload a brochure PDF at the top to import the day-by-day schedule.
-                    </p>
-
-                    {formData.itinerary.length > 0 ? (
-                        <div className="itinerary-preview">
-                            {formData.itinerary.map((day, index) => (
-                                <div key={index} className="itinerary-day">
-                                    <div className="day-header">
-                                        <span className="day-number">Day {day.day}</span>
-                                        <h4>{day.title}</h4>
-                                    </div>
-                                    <p className="day-description">{day.description}</p>
-                                    {day.activities && day.activities.length > 0 && (
-                                        <div className="day-activities">
-                                            <strong>Activities:</strong>
-                                            <ul>
-                                                {day.activities.map((activity, i) => (
-                                                    <li key={i}>{activity}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-                                    {day.meals && day.meals.length > 0 && (
-                                        <div className="day-meals">
-                                            <strong>Meals:</strong> {day.meals.join(', ')}
-                                        </div>
-                                    )}
-                                    {day.accommodation && (
-                                        <div className="day-accommodation">
-                                            <strong>Accommodation:</strong> {day.accommodation}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div>
+                            <h2 className="section-title" style={{ marginBottom: '0.35rem' }}>Itinerary</h2>
+                            <p className="form-help section-help" style={{ marginBottom: 0 }}>
+                                Add or edit each day below (PDF import may only fill basics). Download a customer itinerary PDF anytime.
+                            </p>
                         </div>
-                    ) : (
-                        <p className="text-muted empty-hint">No itinerary yet — upload a brochure PDF to import one.</p>
-                    )}
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={pdfDownloading}
+                            onClick={async () => {
+                                setPdfDownloading(true);
+                                const tid = toast.loading('Preparing itinerary PDF…');
+                                try {
+                                    await downloadItineraryPdf(id, formData.title);
+                                    toast.success('Itinerary PDF downloaded', { id: tid });
+                                } catch (err) {
+                                    toast.error(err.response?.data?.message || 'Could not download itinerary PDF', { id: tid });
+                                } finally {
+                                    setPdfDownloading(false);
+                                }
+                            }}
+                        >
+                            {pdfDownloading ? <Loader className="spinning" size={16} /> : <Download size={16} />}
+                            Download PDF
+                        </button>
+                    </div>
+
+                    <div style={{ marginTop: '1rem' }}>
+                        <ItineraryEditor
+                            value={formData.itinerary}
+                            onChange={(itinerary) => setFormData((prev) => ({ ...prev, itinerary }))}
+                        />
+                    </div>
                 </div>
 
                 <ConfirmationPdfField

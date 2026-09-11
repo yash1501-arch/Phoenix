@@ -61,9 +61,9 @@ const ResetPassword = () => {
             initial={reduced ? false : { opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.55, ease: EASE }}
-            className="mx-auto max-w-md rounded-lg border border-stone/10 bg-white p-8 shadow-card"
+            className="mx-auto max-w-md rounded-lg border border-stone/10 bg-mist-subtle p-8 shadow-card"
           >
-            <IconMotion className="mb-6 flex h-12 w-12 items-center justify-center rounded-md bg-stone text-ember">
+            <IconMotion className="mb-6 flex h-12 w-12 items-center justify-center rounded-md bg-panel text-ember">
               <ShieldCheck size={24} />
             </IconMotion>
             <h1 className="font-display text-3xl font-semibold text-stone">Set new password</h1>

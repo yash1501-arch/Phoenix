@@ -62,6 +62,30 @@ export const getByUser = internalQuery({
     },
 });
 
+export const getByAdventure = internalQuery({
+    args: { adventure_id: v.string() },
+    handler: async (ctx, args) => {
+        const items = await ctx.db
+            .query("wishlist")
+            .withIndex("adventure_id", (q) => q.eq("adventure_id", args.adventure_id))
+            .collect();
+        const enriched = [];
+        for (const item of items) {
+            let email: string | undefined;
+            let name: string | undefined;
+            try {
+                const user = await ctx.db.get(item.user_id as any);
+                email = user?.email;
+                name = user?.name;
+            } catch {
+                /* skip */
+            }
+            if (email) enriched.push({ ...item, email, name });
+        }
+        return enriched;
+    },
+});
+
 export const isWishlisted = internalQuery({
     args: {
         user_id: v.string(),

@@ -59,7 +59,7 @@ const Terms = () => (
       subtitle="The agreement between Phoenix Adventures and every traveller who joins our trips."
       breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Terms' }]}
     />
-    <section className="bg-white py-16 md:py-24">
+    <section className="bg-mist-subtle py-16 md:py-24">
       <div className="container">
         <Reveal variant="rise" className="mx-auto max-w-3xl rounded-lg border border-stone/10 bg-mist/30 p-8 md:p-10">
           <p className="kicker !text-ember mb-6">Last updated · {lastUpdated}</p>

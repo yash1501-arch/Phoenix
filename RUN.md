@@ -44,7 +44,7 @@ The Convex functions live in `convex/convex/` (a sub-directory of the `convex/` 
 
 ```powershell
 cd convex
-$env:CONVEX_DEPLOY_KEY = "prod:elated-eel-875|eyJ2MiI6IjlmMDhlNjY3ODE5YzQ0MjY4OTU5ODE0ODcyNzg5ZTA3In0="   # from backend/.env
+$env:CONVEX_DEPLOY_KEY = "<production deploy key from Convex dashboard>"   # Convex dashboard → Settings → Deploy Keys
 npx convex deploy
 ```
 

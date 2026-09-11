@@ -87,12 +87,14 @@ const BrochureFields = ({ formData, setFormData }) => {
             />
             <TagListField
                 label="Mumbai pickup points"
+                hint="Add stops if Mumbai is selected under Departure cities."
                 placeholder="e.g. Dadar 5:30 AM"
                 items={formData.pickup_mumbai || []}
                 onChange={(items) => setList('pickup_mumbai', items)}
             />
             <TagListField
                 label="Pune pickup points"
+                hint="Add stops if Pune is selected under Departure cities."
                 placeholder="e.g. Swargate 6:00 AM"
                 items={formData.pickup_pune || []}
                 onChange={(items) => setList('pickup_pune', items)}

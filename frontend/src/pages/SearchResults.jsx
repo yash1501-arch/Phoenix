@@ -9,12 +9,14 @@ import PageHero from '../components/ui/PageHero';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonCard } from '../components/ui/Skeleton';
 import { getImageUrl } from '../utils/api';
-import { Reveal, StaggerContainer, StaggerItem } from '../components/ui/Motion';
+import { DEPARTURE_CITIES, filterByDepartureCity } from '../utils/adventureFields';
 
 const SearchResults = () => {
   const [params, setParams] = useSearchParams();
   const q = params.get('q') || '';
   const difficulty = params.get('difficulty') || 'all';
+  const category = params.get('category') || 'all';
+  const city = params.get('city') || 'all';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,30 +27,37 @@ const SearchResults = () => {
     const p = { status: 'active', limit: 50 };
     if (q) p.search = q;
     if (difficulty !== 'all') p.difficulty = difficulty;
+    if (category !== 'all') p.category = category;
     api.get('/adventures', { params: p })
       .then((res) => {
         if (!alive) return;
         const list = Array.isArray(res.data?.data) ? res.data.data
           : Array.isArray(res.data) ? res.data : [];
-        const filtered = q
+        let filtered = q
           ? list.filter((a) => {
             const hay = `${a.title || ''} ${a.location || ''} ${a.description || ''}`.toLowerCase();
             return hay.includes(q.toLowerCase());
           })
           : list;
+        if (category !== 'all') {
+          filtered = filtered.filter((a) => String(a.category || '').toLowerCase() === category);
+        }
+        filtered = filterByDepartureCity(filtered, city);
         setItems(filtered);
       })
       .catch(() => alive && setItems([]))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [q, difficulty]);
+  }, [q, difficulty, category, city]);
 
-  const setDiff = (d) => {
+  const setParam = (key, value, allToken = 'all') => {
     const next = new URLSearchParams(params);
-    if (d === 'all') next.delete('difficulty');
-    else next.set('difficulty', d);
+    if (value === allToken) next.delete(key);
+    else next.set(key, value);
     setParams(next, { replace: true });
   };
+
+  const setDiff = (d) => setParam('difficulty', d);
 
   return (
     <div className="min-h-screen bg-mist">
@@ -63,7 +72,7 @@ const SearchResults = () => {
         subtitle="Trekking, camping, expeditions — all across India."
         breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Search' }]}
       />
-      <section className="bg-white py-12 md:py-16">
+      <section className="bg-mist-subtle py-12 md:py-16">
         <div className="container">
           <Reveal variant="fade" className="mb-8 flex flex-wrap items-center gap-3">
             <Filter size={18} className="text-muted" />
@@ -73,11 +82,37 @@ const SearchResults = () => {
                 onClick={() => setDiff(d)}
                 className={`rounded-md border px-4 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${
                   difficulty === d
-                    ? 'border-stone bg-stone text-mist'
+                    ? 'border-stone bg-panel text-cream'
                     : 'border-stone/15 text-muted hover:border-ember hover:text-ember'
                 }`}
               >
                 {d}
+              </button>
+            ))}
+            {['all', 'trek', 'tour', 'camping'].map((c) => (
+              <button
+                key={`cat-${c}`}
+                onClick={() => setParam('category', c)}
+                className={`rounded-md border px-4 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${
+                  category === c
+                    ? 'border-stone bg-panel text-cream'
+                    : 'border-stone/15 text-muted hover:border-ember hover:text-ember'
+                }`}
+              >
+                {c === 'all' ? 'all types' : c}
+              </button>
+            ))}
+            {DEPARTURE_CITIES.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setParam('city', c.id)}
+                className={`rounded-md border px-4 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${
+                  city === c.id
+                    ? 'border-stone bg-panel text-cream'
+                    : 'border-stone/15 text-muted hover:border-ember hover:text-ember'
+                }`}
+              >
+                {c.label}
               </button>
             ))}
           </Reveal>
@@ -106,7 +141,7 @@ const SearchResults = () => {
               {items.map((a, i) => {
                 const id = a.id || a._id || i;
                 return (
-                  <StaggerItem key={id} as="article" className="group flex flex-col overflow-hidden rounded-lg border border-stone/8 bg-white shadow-smoke transition-shadow hover:shadow-card h-full">
+                  <StaggerItem key={id} as="article" className="group flex flex-col overflow-hidden rounded-lg border border-stone/8 bg-mist-subtle shadow-smoke transition-shadow hover:shadow-card h-full">
                     <Link to={`/adventure/${id}`} className="flex flex-col flex-1">
                       <div className="relative aspect-[4/3] overflow-hidden">
                         <img

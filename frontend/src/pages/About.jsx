@@ -8,9 +8,10 @@ import FounderCard, { BusinessInstagramCTA } from '../components/ui/FounderCard'
 import { founders } from '../data/founders';
 import Seo from '../components/Seo';
 import { Reveal, StaggerContainer, StaggerItem, IconMotion } from '../components/ui/Motion';
+import { IMG_LOHAGAD } from '../data/indiaImages';
 
 const About = () => {
-  // Trust stats from CONTEXT.md � verbatim
+  // Trust stats from CONTEXT.md — verbatim
   const stats = [
     { icon: HeartHandshake, value: '45+', label: 'Volunteers connected' },
     { icon: Mountain, value: '500+', label: 'Trips completed' },
@@ -28,12 +29,12 @@ const About = () => {
     {
       title: 'Fort & history-led',
       description:
-        'We focus on Sahyadri range forts and Maharashtra outdoor destinations � Raigad, Rajgad, Torna, Sagargad, Hadsar, Pratapgad, Shivneri, and more.',
+        'We focus on Sahyadri range forts and Maharashtra outdoor destinations — Raigad, Rajgad, Torna, Sagargad, Hadsar, Pratapgad, Shivneri, and more.',
     },
     {
       title: 'Adventure tribe',
       description:
-        'Discover the great outdoors with our adventure tribe � small groups, honest routes, and guides who know these trails.',
+        'Discover the great outdoors with our adventure tribe — small groups, honest routes, and guides who know these trails.',
     },
     {
       title: 'Community',
@@ -48,14 +49,14 @@ const About = () => {
     <div id="main-content" className="min-h-screen bg-mist">
       <Seo
         title="About Us"
-        description="Phoenix Adventures � trekking & outdoor adventure focused on Sahyadri forts. Est. 22 March 2023."
+        description="Phoenix Adventures — trekking & outdoor adventure focused on Sahyadri forts. Est. 22 March 2023."
       />
       <Navbar />
 
       <PageHero
         eyebrow="Our story"
         title="Built on the trail"
-        subtitle="Phoenix Adventures was established on 22 March 2023. We connect adventurers with Sahyadri fort treks and Maharashtra outdoor destinations � safety-first, own pace, end-to-end logistics."
+        subtitle="Phoenix Adventures was established on 22 March 2023. We connect adventurers with Sahyadri fort treks and Maharashtra outdoor destinations — safety-first, own pace, end-to-end logistics."
         breadcrumb={[{ label: 'Home', to: '/' }, { label: 'About' }]}
       />
 
@@ -65,8 +66,8 @@ const About = () => {
         <StaggerContainer className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 sm:gap-6">
           {stats.map((stat) => (
             <StaggerItem key={stat.label}>
-              <div className="text-center p-6 bg-white rounded-lg border border-stone/8 h-full">
-                <IconMotion className="w-12 h-12 bg-stone text-ember rounded-md flex items-center justify-center mx-auto mb-4">
+              <div className="text-center p-6 bg-mist-subtle rounded-lg border border-stone/8 h-full">
+                <IconMotion className="w-12 h-12 bg-panel text-ember rounded-md flex items-center justify-center mx-auto mb-4">
                   <stat.icon className="w-6 h-6" />
                 </IconMotion>
                 <div className="font-display text-2xl sm:text-3xl font-semibold text-stone mb-1">
@@ -86,7 +87,7 @@ const About = () => {
             Discover the great outdoors with our adventure tribe
           </h2>
           <p className="text-base sm:text-lg text-muted leading-relaxed">
-            Trekking and outdoor adventure focused on the Sahyadri range � fort history, safety-first guiding, and logistics handled end to end.
+            Trekking and outdoor adventure focused on the Sahyadri range — fort history, safety-first guiding, and logistics handled end to end.
           </p>
         </div>
 
@@ -99,7 +100,7 @@ const About = () => {
               Since 22 March 2023, Phoenix Adventures has been crafting trail experiences for thrill-seekers and
               nature lovers alike. Our local guides bring knowledge of Sahyadri forts and Maharashtra outdoors to every trip.
             </p>
-            {/* TODO: Confirm Onkar Oak staff bio before adding to About/team � named in reviews only */}
+            {/* TODO: Confirm Onkar Oak staff bio before adding to About/team — named in reviews only */}
             <p className="text-muted leading-relaxed">
               We&apos;ve helped thousands of adventurers discover their limits, overcome challenges, and connect with the
               natural world in profound ways.
@@ -107,7 +108,7 @@ const About = () => {
           </Reveal>
           <Reveal variant="clip">
             <img
-              src="https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&h=520&q=80"
+              src={IMG_LOHAGAD(800)}
               alt="Team of adventurers on a ridge"
               className="rounded-lg w-full object-cover aspect-[4/3]"
             />
@@ -129,8 +130,8 @@ const About = () => {
         <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {values.map((value) => (
             <StaggerItem key={value.title}>
-              <div className="bg-white rounded-lg p-6 border border-stone/8 h-full">
-                <IconMotion className="w-10 h-10 bg-stone text-ember rounded-md flex items-center justify-center mb-4">
+              <div className="bg-mist-subtle rounded-lg p-6 border border-stone/8 h-full">
+                <IconMotion className="w-10 h-10 bg-panel text-ember rounded-md flex items-center justify-center mb-4">
                   <Shield className="w-5 h-5" />
                 </IconMotion>
                 <h3 className="font-display text-lg font-semibold text-stone mb-2">{value.title}</h3>
@@ -149,7 +150,7 @@ const About = () => {
               Meet our founders
             </h2>
             <p className="text-muted">
-              The people behind every Phoenix adventure � guiding, building, and living the journey.
+              The people behind every Phoenix adventure — guiding, building, and living the journey.
             </p>
           </div>
 

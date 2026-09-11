@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
                 role: response.data?.role,
             };
 
-            if (sessionUser?.role === 'admin' && sessionUser?.id) {
+            if ((sessionUser?.role === 'admin' || sessionUser?.role === 'clerk') && sessionUser?.id) {
                 setUser(sessionUser);
                 setIsAuthenticated(true);
                 setRequires2faSetup(Boolean(response.data?.requires2faSetup));
@@ -81,11 +81,11 @@ export const AuthProvider = ({ children }) => {
                 };
             }
 
-            if (sessionUser?.role !== 'admin') {
+            if (sessionUser?.role !== 'admin' && sessionUser?.role !== 'clerk') {
                 await api.post('/auth/logout').catch(() => {});
                 return {
                     success: false,
-                    message: 'Access Denied: Admin privileges required.',
+                    message: 'Access Denied: Staff privileges required.',
                 };
             }
 
@@ -105,8 +105,8 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await api.post('/auth/2fa/verify-login', { challengeToken, code });
             const sessionUser = response.data?.user;
-            if (!sessionUser?.id || sessionUser.role !== 'admin') {
-                return { success: false, message: 'Access Denied: Admin privileges required.' };
+            if (!sessionUser?.id || (sessionUser.role !== 'admin' && sessionUser.role !== 'clerk')) {
+                return { success: false, message: 'Access Denied: Staff privileges required.' };
             }
             setUser(sessionUser);
             setIsAuthenticated(true);

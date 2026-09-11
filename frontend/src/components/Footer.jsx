@@ -7,7 +7,7 @@ import BrandLogo from './BrandLogo';
 
 const quick = [
   { label: 'Home', to: '/' },
-  { label: '1-Day Trek', to: '/treks' },
+  { label: 'Treks And Adventures', to: '/treks' },
   { label: 'Camping', to: '/camping' },
   { label: 'Tours', to: '/tours' },
   { label: 'Adventures', to: '/adventures' },
@@ -79,21 +79,21 @@ const Footer = () => {
   };
 
   return (
-  <footer className="bg-stone text-mist" style={{ borderTop: '1px solid rgba(241, 244, 242, 0.08)' }}>
+  <footer className="bg-panel text-cream" style={{ borderTop: '1px solid rgba(241, 244, 242, 0.08)' }}>
     <div className="container pt-20 pb-24 md:pt-24 md:pb-10">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 pb-12 md:pb-16 border-b border-mist/10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 pb-12 md:pb-16 border-b border-cream/10">
         <div className="lg:col-span-5">
           <div className="mb-6">
             <BrandLogo size={40} inverted />
           </div>
-          <p className="text-sm md:text-base text-mist/55 leading-relaxed max-w-md">
+          <p className="text-sm md:text-base text-cream/75 leading-relaxed max-w-md">
             Discover the great outdoors with our adventure tribe. Fort-led treks across the Sahyadris — safety-first, own pace, end-to-end logistics.
           </p>
         </div>
 
         <div className="lg:col-span-7">
-          <p className="meta !text-mist/50 mb-3">Trail journal — monthly</p>
-          <p className="font-display text-xl md:text-2xl text-mist leading-snug mb-6 font-medium">
+          <p className="meta !text-cream/65 mb-3">Trail journal — monthly</p>
+          <p className="font-display text-xl md:text-2xl text-cream leading-snug mb-6 font-medium">
             Field notes, route guides, and early-bird departures in your inbox.
           </p>
           {newsletterState === 'done' ? (
@@ -111,7 +111,7 @@ const Footer = () => {
                 onChange={(e) => setNewsletterEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="flex-1 px-4 py-3 bg-mist/5 border border-mist/15 text-sm text-mist placeholder:text-mist/35 focus:outline-none focus:border-ember rounded-md transition"
+                className="flex-1 px-4 py-3 bg-mist/10 border border-cream/25 text-sm text-cream placeholder:text-cream/45 focus:outline-none focus:border-ember focus:ring-1 focus:ring-ember/40 rounded-md transition"
               />
               <button
                 type="submit"
@@ -122,17 +122,17 @@ const Footer = () => {
               </button>
             </form>
           )}
-          <p className="text-xs text-mist/35 mt-3">No spam. Unsubscribe anytime.</p>
+          <p className="text-xs text-cream/45 mt-3">No spam. Unsubscribe anytime.</p>
         </div>
       </div>
 
       {/* Middle — link columns + contact */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-x-6 gap-y-12 py-12 md:py-16 border-b border-mist/10">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-x-6 gap-y-12 py-12 md:py-16 border-b border-cream/10">
         <div className="col-span-2 md:col-span-1 lg:col-span-3">
-          <h4 className="meta !text-mist/50 mb-5">Explore</h4>
+          <h4 className="meta !text-cream/65 mb-5">Explore</h4>
           <ul className="space-y-3">
             {[
-              { label: '1-Day Trek', to: '/treks' },
+              { label: 'Treks And Adventures', to: '/treks' },
               { label: 'Camping', to: '/camping' },
               { label: 'Tours', to: '/tours' },
               { label: 'All adventures', to: '/adventures' },
@@ -140,7 +140,7 @@ const Footer = () => {
               { label: 'Trail journal', to: '/blog' },
             ].map((link) => (
               <li key={link.label}>
-                <Link to={link.to} className="text-sm text-mist/60 hover:text-ember transition">
+                <Link to={link.to} className="text-sm text-cream/60 hover:text-ember transition">
                   {link.label}
                 </Link>
               </li>
@@ -149,7 +149,7 @@ const Footer = () => {
         </div>
 
         <div className="col-span-2 md:col-span-1 lg:col-span-2">
-          <h4 className="meta !text-mist/50 mb-5">Company</h4>
+          <h4 className="meta !text-cream/65 mb-5">Company</h4>
           <ul className="space-y-3">
             {[
               { label: 'About', to: '/about' },
@@ -157,7 +157,7 @@ const Footer = () => {
               { label: 'Wishlist', to: '/wishlist' },
             ].map((link) => (
               <li key={link.label}>
-                <Link to={link.to} className="text-sm text-mist/60 hover:text-ember transition">
+                <Link to={link.to} className="text-sm text-cream/60 hover:text-ember transition">
                   {link.label}
                 </Link>
               </li>
@@ -166,11 +166,11 @@ const Footer = () => {
         </div>
 
         <div className="col-span-2 md:col-span-1 lg:col-span-2">
-          <h4 className="meta !text-mist/50 mb-5">Legal</h4>
+          <h4 className="meta !text-cream/65 mb-5">Legal</h4>
           <ul className="space-y-3">
             {support.map((link) => (
               <li key={link.label}>
-                <Link to={link.to} className="text-sm text-mist/60 hover:text-ember transition">
+                <Link to={link.to} className="text-sm text-cream/60 hover:text-ember transition">
                   {link.label}
                 </Link>
               </li>
@@ -179,12 +179,12 @@ const Footer = () => {
         </div>
 
         <div className="col-span-2 md:col-span-1 lg:col-span-5">
-          <h4 className="meta !text-mist/50 mb-5">Contact</h4>
-          <address className="not-italic space-y-3 text-sm text-mist/60">
+          <h4 className="meta !text-cream/65 mb-5">Contact</h4>
+          <address className="not-italic space-y-3 text-sm text-cream/60">
             <p className="leading-relaxed">{contact.address}</p>
             <p>
               <a href={`tel:${contact.phone.replace(/\s/g, '')}`} className="hover:text-gold transition">{contact.phone}</a>
-              <span className="mx-1.5 text-mist/30">·</span>
+              <span className="mx-1.5 text-cream/30">·</span>
               <a href={`tel:${contact.phoneSecondary.replace(/\s/g, '')}`} className="hover:text-gold transition">{contact.phoneSecondary}</a>
             </p>
             <p>
@@ -192,7 +192,7 @@ const Footer = () => {
             </p>
           </address>
           <div className="mt-6">
-            <p className="meta !text-mist/40 mb-3">Follow</p>
+            <p className="meta !text-cream/55 mb-3">Follow</p>
             <div className="flex items-center gap-2">
               {[
                 { icon: Instagram, href: socials.instagram, label: 'Instagram' },
@@ -207,7 +207,7 @@ const Footer = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="w-11 h-11 border border-mist/15 flex items-center justify-center text-mist/60 hover:text-ember hover:border-ember rounded-md transition-colors"
+                  className="w-11 h-11 border border-cream/15 flex items-center justify-center text-cream/60 hover:text-ember hover:border-ember rounded-md transition-colors"
                 >
                   <s.icon size={17} />
                 </a>
@@ -218,7 +218,7 @@ const Footer = () => {
       </div>
 
       {/* Bottom row */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-mist/40">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-cream/55">
         <p>&copy; {new Date().getFullYear()} Phoenix Adventures. All rights reserved.</p>
         <p>Sahyadris & Himalayas, India</p>
       </div>

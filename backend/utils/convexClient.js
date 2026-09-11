@@ -57,7 +57,11 @@ class ConvexClient {
     'contact:list',
     'bookings:getById', 'bookings:getByCode', 'bookings:getByUser',
     'bookings:getPaymentDetails', 'bookings:listPendingPayments', 'bookings:listAll',
+    'bookings:listDueReminders',
     'dashboard:getOverview',
+    'analytics:getVisitStats',
+    'waitlist:listWaitingForAdventure',
+    'wishlist:getByAdventure',
   ]);
 
   getFunctionType(functionPath) {
@@ -100,13 +104,23 @@ class ConvexClient {
   async getUserByEmail(email) { return this.callFunction('users:getByEmail', { email }); }
   async createUser(data) { return this.callFunction('users:create', data); }
   async updateUser(id, data) { return this.callFunction('users:update', { id, ...data }); }
-  async setUserTotp(id, totp_secret, totp_enabled) {
-    return this.callFunction('users:setTotp', { id, totp_secret, totp_enabled });
+  async setUserTotp(id, totp_secret, totp_enabled, totp_recovery_hashes = []) {
+    return this.callFunction('users:setTotp', {
+      id,
+      totp_secret,
+      totp_enabled,
+      totp_recovery_hashes,
+    });
   }
   async clearUserTotp(id) { return this.callFunction('users:clearTotp', { id }); }
+  async replaceRecoveryHashes(id, totp_recovery_hashes) {
+    return this.callFunction('users:replaceRecoveryHashes', { id, totp_recovery_hashes });
+  }
   async deleteUser(id) { return this.callFunction('users:remove', { id }); }
   async getDashboardStats() { return this.callFunction('adventures:getDashboardStats', {}); }
-  async getDashboardOverview() { return this.callFunction('dashboard:getOverview', {}); }
+  async getDashboardOverview(opts = {}) { return this.callFunction('dashboard:getOverview', opts); }
+  async recordVisit(data) { return this.callFunction('analytics:recordVisit', data); }
+  async getVisitStats(days) { return this.callFunction('analytics:getVisitStats', { days }); }
 
   async addReview(data) { return this.callFunction('reviews:add', data); }
   async getReviewsForAdventure(adventureId, opts = {}) { return this.callFunction('reviews:getByAdventure', { adventure_id: adventureId, ...opts }); }
@@ -127,6 +141,21 @@ class ConvexClient {
   async listAuditLog(opts = {}) { return this.callFunction('auditLog:list', opts); }
   async logAudit(entry) { return this.callFunction('auditLog:log', entry); }
 
+  async joinWaitlist(data) { return this.callFunction('waitlist:join', data); }
+  async listWaitlistForAdventure(adventureId) {
+    return this.callFunction('waitlist:listWaitingForAdventure', { adventure_id: adventureId });
+  }
+  async markWaitlistNotified(ids) { return this.callFunction('waitlist:markNotified', { ids }); }
+  async getWishlistByAdventure(adventureId) {
+    return this.callFunction('wishlist:getByAdventure', { adventure_id: adventureId });
+  }
+  async recordLoginFailure(id) { return this.callFunction('users:recordLoginFailure', { id }); }
+  async clearLoginLock(id) { return this.callFunction('users:clearLoginLock', { id }); }
+  async submitBalancePayment(data) { return this.callFunction('bookings:submitBalancePayment', data); }
+  async patchDeliveryWarnings(bookingId, warnings) {
+    return this.callFunction('bookings:patchDeliveryWarnings', { booking_id: bookingId, warnings });
+  }
+
   async getSettings() { return this.callFunction('settings:getAll', {}); }
   async setSetting(key, value) { return this.callFunction('settings:set', { key, value }); }
 
@@ -146,12 +175,24 @@ class ConvexClient {
   async createManualBooking(data) { return this.callFunction('bookings:createManual', data); }
   async getBookingById(id) { return this.callFunction('bookings:getById', { id }); }
   async getBookingByCode(code) { return this.callFunction('bookings:getByCode', { booking_code: code }); }
-  async getBookingsByUser(userId) { return this.callFunction('bookings:getByUser', { user_id: userId }); }
+  async getBookingsByUser(userId, email) {
+    return this.callFunction('bookings:getByUser', {
+      user_id: userId,
+      ...(email ? { email: String(email) } : {}),
+    });
+  }
   async getBookingPaymentDetails(bookingId) { return this.callFunction('bookings:getPaymentDetails', { booking_id: bookingId }); }
   async submitManualPayment(data) { return this.callFunction('bookings:submitPayment', data); }
   async verifyPayment(bookingId, verifiedBy) { return this.callFunction('bookings:verifyPayment', { booking_id: bookingId, verified_by: verifiedBy }); }
   async rejectPayment(bookingId, verifiedBy, reason) { return this.callFunction('bookings:rejectPayment', { booking_id: bookingId, verified_by: verifiedBy, rejection_reason: reason }); }
   async releaseBooking(bookingId, reason) { return this.callFunction('bookings:releaseBooking', { booking_id: bookingId, reason }); }
+  async cancelBookingByUser(bookingId, userId, reason) {
+    return this.callFunction('bookings:cancelByUser', {
+      booking_id: bookingId,
+      user_id: userId,
+      reason,
+    });
+  }
   async listPendingPayments() { return this.callFunction('bookings:listPendingPayments', {}); }
   async listAllBookings(status) { return this.callFunction('bookings:listAll', status ? { status } : {}); }
   async getPaymentByBookingId(bookingId) {

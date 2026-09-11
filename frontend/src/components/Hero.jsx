@@ -2,24 +2,23 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Compass } from 'lucide-react';
-import heroBg from '../assets/images/hero-bg.png';
+import {
+  IMG_RAJMACHI_AERIAL,
+  IMG_LOHAGAD,
+  IMG_KAZA_CAMP,
+  IMG_LADAKH,
+  IMG_HIMALAYA_PEAKS,
+  IMG_FALLBACK,
+} from '../data/indiaImages';
 
 const SLIDES = [
-  { src: heroBg, caption: 'Sahyadris at dusk' },
-  {
-    src: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2000&auto=format&fit=crop',
-    caption: 'Himalayan high passes',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000&auto=format&fit=crop',
-    caption: 'Alpine meadows',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=2000&auto=format&fit=crop',
-    caption: 'Monsoon trails',
-  },
+  // Dark night camp — high contrast for cream / ember hero type
+  { src: IMG_KAZA_CAMP(2000), caption: 'Camp under Spiti skies' },
+  { src: IMG_RAJMACHI_AERIAL(2000), caption: 'Rajmachi ridge over the Sahyadris' },
+  { src: IMG_LOHAGAD(2000), caption: 'Monsoon trails in the Western Ghats' },
+  { src: IMG_LADAKH(2000), caption: 'Ladakh peaks and prayer flags' },
+  { src: IMG_HIMALAYA_PEAKS(2000), caption: 'Snow peaks of the Indian Himalaya' },
 ];
-
 const SLIDE_INTERVAL_MS = 6000;
 const FADE_MS = 1.1;
 
@@ -57,7 +56,7 @@ const Hero = () => {
 
   return (
     <section
-      className="relative min-h-[100svh] flex items-end md:items-center overflow-hidden bg-stone"
+      className="relative min-h-[100svh] flex items-end md:items-center overflow-hidden bg-panel"
       aria-label="Hero — Phoenix Adventures"
       aria-roledescription="carousel"
     >
@@ -67,7 +66,7 @@ const Hero = () => {
           <motion.img
             key={active}
             src={SLIDES[active].src}
-            alt=""
+            alt={SLIDES[active].caption}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ zIndex: 1 }}
             initial={{ opacity: 0, scale: reduceMotion ? 1 : 1.04 }}
@@ -83,10 +82,15 @@ const Hero = () => {
             loading={active === 0 ? 'eager' : 'lazy'}
             decoding="async"
             draggable={false}
+            onError={(e) => {
+              if (e.currentTarget.src !== IMG_FALLBACK) {
+                e.currentTarget.src = IMG_FALLBACK;
+              }
+            }}
           />
         </AnimatePresence>
-        <div className="absolute inset-0 z-[2] bg-gradient-to-t from-stone via-stone/55 to-stone/30" />
-        <div className="absolute inset-0 z-[2] bg-gradient-to-r from-stone/90 via-stone/40 to-transparent" />
+        <div className="absolute inset-0 z-[2] bg-gradient-to-t from-black/65 via-black/25 to-transparent" />
+        <div className="absolute inset-0 z-[2] bg-gradient-to-r from-black/50 via-black/15 to-transparent" />
       </div>
 
       <div className="container relative z-10 pb-28 pt-32 md:py-36 lg:py-44">
@@ -113,7 +117,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 36 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.75, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-            className="font-display text-mist font-semibold"
+            className="font-display text-cream font-semibold"
             style={{ fontSize: 'clamp(2.6rem, 8vw, 5.25rem)', lineHeight: 1.02, letterSpacing: '-0.025em' }}
           >
             Walk into
@@ -125,7 +129,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-6 text-base md:text-lg text-mist/70 max-w-xl leading-relaxed"
+            className="mt-6 text-base md:text-lg text-cream/85 max-w-xl leading-relaxed"
           >
             Discover the great outdoors with our adventure tribe. Fort-led treks across the Sahyadris — safety-first, own pace, end-to-end logistics.
           </motion.p>
@@ -154,13 +158,13 @@ const Hero = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.45 }}
-            className="mt-12 flex flex-wrap gap-x-6 gap-y-2 text-sm text-mist/55"
+            className="mt-12 flex flex-wrap gap-x-6 gap-y-2 text-sm text-cream/75"
           >
-            <span><strong className="text-mist font-semibold">15,000+</strong> explorers</span>
+            <span><strong className="text-cream font-semibold">15,000+</strong> explorers</span>
             <span className="text-ember">·</span>
-            <span><strong className="text-mist font-semibold">4.9★</strong> rated</span>
+            <span><strong className="text-cream font-semibold">4.9★</strong> rated</span>
             <span className="text-ember">·</span>
-            <span><strong className="text-mist font-semibold">500+</strong> trips</span>
+            <span><strong className="text-cream font-semibold">500+</strong> trips</span>
           </motion.div>
         </div>
       </div>
@@ -181,7 +185,7 @@ const Hero = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.35 }}
-            className="text-xs md:text-sm text-mist/60 font-medium"
+            className="text-xs md:text-sm text-cream/75 font-medium"
           >
             {SLIDES[active].caption}
           </motion.p>
@@ -196,7 +200,7 @@ const Hero = () => {
               aria-selected={i === active}
               aria-label={`Show slide ${i + 1}: ${SLIDES[i].caption}`}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === active ? 'w-9 bg-ember' : 'w-4 bg-mist/25 hover:bg-mist/50'
+                i === active ? 'w-9 bg-ember' : 'w-4 bg-cream/30 hover:bg-cream/55'
               }`}
             />
           ))}
@@ -209,7 +213,7 @@ const Hero = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.1 }}
           aria-hidden
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-2 text-mist/40 pointer-events-none"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-2 text-cream/55 pointer-events-none"
         >
           <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Scroll</span>
           <motion.span

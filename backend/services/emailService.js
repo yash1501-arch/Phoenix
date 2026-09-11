@@ -46,6 +46,22 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
         const included = Array.isArray(bookingDetails.included) ? bookingDetails.included : [];
         const excluded = Array.isArray(bookingDetails.excluded) ? bookingDetails.excluded : [];
 
+        let itineraryAttachment = bookingDetails.itineraryPdfAttachment;
+        if (!itineraryAttachment?.content && bookingDetails.adventure) {
+            try {
+                const { buildItineraryPdf } = require('../utils/itineraryPdf');
+                const generated = await buildItineraryPdf(bookingDetails.adventure, { audience: 'customer' });
+                itineraryAttachment = {
+                    filename: generated.filename,
+                    content: generated.buffer,
+                    contentType: 'application/pdf',
+                };
+            } catch (genErr) {
+                logger.warn('Could not generate itinerary PDF for email:', genErr.message);
+            }
+        }
+        const itineraryPdfAttached = Boolean(itineraryAttachment?.content);
+
         const itineraryHtml = itinerary.length
             ? `
                 <h3 style="margin: 28px 0 12px; color: #2F4A3D; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Day-by-day itinerary</h3>
@@ -69,16 +85,23 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
               `
             : '';
 
+        const isTour = String(bookingDetails.category || bookingDetails.adventure?.category || '').toLowerCase() === 'tour';
         const safeName = escapeHtml(userName || 'Adventurer');
         const safeTitle = escapeHtml(adventureTitle);
         const safeCode = escapeHtml(bookingDetails.bookingCode || '—');
         const safeDate = escapeHtml(bookingDetails.date || '—');
         const safeParticipants = escapeHtml(bookingDetails.participants ?? '—');
         const safeAmount = escapeHtml(bookingDetails.amountPaid ?? '—');
+        const safeTotal = bookingDetails.totalAmount != null ? escapeHtml(bookingDetails.totalAmount) : '';
+        const safeBalance = bookingDetails.balanceDue != null && Number(bookingDetails.balanceDue) > 0
+          ? escapeHtml(bookingDetails.balanceDue)
+          : '';
         const safeLocation = escapeHtml(bookingDetails.location);
         const safeDuration = escapeHtml(bookingDetails.duration);
         const safeDifficulty = escapeHtml(bookingDetails.difficulty);
         const safeMeeting = escapeHtml(bookingDetails.meetingPoint);
+        const safeCoaches = escapeHtml(bookingDetails.travelCoachSummary);
+        const safeStay = escapeHtml(bookingDetails.stayNote);
         const html = `
             <div style="font-family: Arial, Helvetica, sans-serif; max-width: 640px; margin: 0 auto; border: 1px solid #ebe4d8; border-radius: 12px; overflow: hidden;">
                 <div style="background-color: #2F4A3D; padding: 24px; text-align: center;">
@@ -86,11 +109,12 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                     <p style="color: #C1622D; margin: 8px 0 0; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;">You're booked</p>
                 </div>
                 <div style="padding: 28px 24px; background-color: #ffffff;">
-                    <h2 style="color: #2F4A3D; margin-top: 0; font-size: 20px;">Adventure booked successfully</h2>
+                    <h2 style="color: #2F4A3D; margin-top: 0; font-size: 20px;">Booking confirmed</h2>
                     <p style="color: #5c5a52; font-size: 16px; line-height: 1.55;">
                         Hi ${safeName},<br><br>
                         Your payment is verified and your seats are confirmed for
-                        <strong>${safeTitle}</strong>. We can't wait to see you on the trail.
+                        <strong>${safeTitle}</strong>.
+                        ${isTour ? 'We look forward to travelling with you.' : "We can't wait to see you on the trail."}
                     </p>
 
                     <div style="background-color: #FAF7F1; padding: 18px 20px; border-radius: 8px; margin: 22px 0; border: 1px solid #ebe4d8;">
@@ -101,20 +125,34 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                             <li style="margin-bottom: 8px;"><strong>Date:</strong> ${safeDate}</li>
                             <li style="margin-bottom: 8px;"><strong>Seats:</strong> ${safeParticipants}</li>
                             <li style="margin-bottom: 8px;"><strong>Amount paid:</strong> ₹${safeAmount}</li>
+                            ${safeTotal ? `<li style="margin-bottom: 8px;"><strong>Trip total:</strong> ₹${safeTotal}</li>` : ''}
+                            ${safeBalance ? `<li style="margin-bottom: 8px;"><strong>Balance due:</strong> ₹${safeBalance}</li>` : ''}
                             ${bookingDetails.location ? `<li style="margin-bottom: 8px;"><strong>Location:</strong> ${safeLocation}</li>` : ''}
                             ${bookingDetails.duration ? `<li style="margin-bottom: 8px;"><strong>Duration:</strong> ${safeDuration}</li>` : ''}
-                            ${bookingDetails.difficulty ? `<li style="margin-bottom: 8px;"><strong>Difficulty:</strong> ${safeDifficulty}</li>` : ''}
-                            ${bookingDetails.meetingPoint ? `<li style="margin-bottom: 8px;"><strong>Meeting point:</strong> ${safeMeeting}</li>` : ''}                        </ul>
+                            ${!isTour && bookingDetails.difficulty ? `<li style="margin-bottom: 8px;"><strong>Difficulty:</strong> ${safeDifficulty}</li>` : ''}
+                            ${bookingDetails.meetingPoint ? `<li style="margin-bottom: 8px;"><strong>Pickup:</strong> ${safeMeeting}</li>` : ''}
+                            ${bookingDetails.travelCoachSummary ? `<li style="margin-bottom: 8px;"><strong>Train (per person):</strong> ${safeCoaches}</li>` : ''}
+                            ${bookingDetails.stayNote ? `<li style="margin-bottom: 8px;"><strong>Stay:</strong> ${safeStay}</li>` : ''}
+                        </ul>
                     </div>
 
                     ${itineraryHtml}
                     ${listHtml("What's included", included)}
                     ${listHtml('Not included', excluded)}
 
-                    ${bookingDetails.confirmationPdfUrl
+                    ${itineraryPdfAttached || bookingDetails.itineraryPdfUrl || bookingDetails.confirmationPdfUrl
                         ? `<p style="color: #5c5a52; font-size: 14px; line-height: 1.55; margin-top: 24px;">
-                            Your trek brochure is attached to this email. Save it for pickup timings, packing list, and guidelines.
+                            ${itineraryPdfAttached || bookingDetails.itineraryPdfUrl
+                              ? 'Your detailed trip itinerary PDF is attached — save it for the day plan, pickups, and packing notes.'
+                              : ''}
+                            ${bookingDetails.confirmationPdfUrl
+                              ? `${itineraryPdfAttached || bookingDetails.itineraryPdfUrl ? ' ' : ''}Your brochure is also attached.`
+                              : ''}
                            </p>`
+                        : ''}
+                    ${bookingDetails.itineraryPdfUrl
+                        ? `<p style="color: #5c5a52; font-size: 14px; line-height: 1.55;">If the attachment is missing, download your itinerary here:<br/>
+                            <a href="${escapeHtml(bookingDetails.itineraryPdfUrl)}" style="color: #C1622D;">${escapeHtml(bookingDetails.itineraryPdfUrl)}</a></p>`
                         : ''}
 
                     <p style="color: #5c5a52; font-size: 14px; line-height: 1.55; margin-top: 28px;">
@@ -123,7 +161,7 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                         or email <strong>pheonixadventuress@gmail.com</strong>.
                     </p>
                     <p style="color: #5c5a52; font-size: 14px; line-height: 1.55;">
-                        See you on the ridge,<br><strong>Team Phoenix Adventures</strong>
+                        ${isTour ? 'See you on the journey,' : 'See you on the ridge,'}<br><strong>Team Phoenix Adventures</strong>
                     </p>
                 </div>
                 <div style="background:#FAF7F1; padding: 14px; text-align:center; font-size: 12px; color:#7a776c;">
@@ -137,16 +175,29 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
             to: userEmail,
             subject: `Adventure booked successfully: ${adventureTitle}`,
             html,
+            attachments: [],
         };
+
+        if (itineraryAttachment?.content) {
+            mailOptions.attachments.push({
+                filename: itineraryAttachment.filename || 'Phoenix-Itinerary.pdf',
+                content: itineraryAttachment.content,
+                contentType: 'application/pdf',
+            });
+        }
 
         if (bookingDetails.confirmationPdfUrl) {
             try {
-                mailOptions.attachments = [
-                    await fetchPdfAttachment(bookingDetails.confirmationPdfUrl, adventureTitle),
-                ];
+                mailOptions.attachments.push(
+                    await fetchPdfAttachment(bookingDetails.confirmationPdfUrl, adventureTitle)
+                );
             } catch (attachErr) {
                 logger.warn('Could not attach confirmation PDF to email:', attachErr.message);
             }
+        }
+
+        if (!mailOptions.attachments.length) {
+            delete mailOptions.attachments;
         }
 
         await transporter.sendMail(mailOptions);
@@ -345,4 +396,21 @@ module.exports = {
     sendPaymentRejectedAlert,
     sendPasswordReset,
     sendParticipantsRoster,
+    sendSimpleMail,
 };
+
+async function sendSimpleMail({ to, subject, html, text }) {
+    if (!process.env.SMTP_USER) {
+        logger.warn(`SMTP not configured — skip email "${subject}" to ${to}`);
+        return { skipped: true, reason: 'not_configured' };
+    }
+    await transporter.sendMail({
+        from: `"Phoenix Adventures" <${process.env.SMTP_USER}>`,
+        to,
+        subject,
+        html,
+        text,
+    });
+    logger.info(`Email sent to ${to}: ${subject}`);
+    return { sent: true };
+}

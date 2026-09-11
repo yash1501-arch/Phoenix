@@ -39,6 +39,10 @@ if (isProd) {
     logger.warn(`Missing env vars: ${missingDev.join(', ')} — some features may fail. ` +
       `Ensure backend/.env exists and the backend was started from the backend/ directory.`);
   }
+  const { isCloudinaryConfigured } = require('./utils/cloudinaryClient');
+  if (!isCloudinaryConfigured()) {
+    logger.warn('Cloudinary credentials missing — image uploads will fail until CLOUDINARY_* is set in backend/.env');
+  }
   const optionalServices = [
     ['SMTP_USER', 'email notifications'],
     ['WHATSAPP_TOKEN', 'WhatsApp confirmations'],
@@ -63,30 +67,31 @@ app.set('trust proxy', 1);
 // Request ID for tracing
 app.use(requestId);
 
-// Helmet for security headers
+// Helmet for security headers (production CSP allowlists Cloudinary, fonts, Maps, Instagram)
+const { buildContentSecurityPolicy } = require('./utils/helmetCsp');
 app.use(helmet({
     crossOriginResourcePolicy: false,
-    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: process.env.NODE_ENV === 'production'
+        ? buildContentSecurityPolicy()
+        : false,
 }));
 
 // Prevent HTTP Parameter Pollution
 app.use(hpp());
 
 // CORS — restrict origins in production
+const { parseCorsOrigins, isOriginAllowed } = require('./utils/corsOrigins');
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
+    ? parseCorsOrigins(process.env.CORS_ORIGINS)
     : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'];
+const allowVercelPreviews = String(process.env.CORS_ALLOW_VERCEL_PREVIEWS || '').toLowerCase() === 'true';
 
 app.use(cors({
     origin: (origin, callback) => {
-        // In production, reject browser requests with no Origin header
-        if (!origin) {
-            if (process.env.NODE_ENV === 'production') {
-                return callback(new Error('Not allowed by CORS'));
-            }
-            return callback(null, true);
-        }
-        if (allowedOrigins.includes(origin)) {
+        // No Origin = non-browser (health checks, curl, Render/Koyeb probes).
+        // Browser calls must match CORS_ORIGINS (and optional Vercel preview hosts).
+        if (isOriginAllowed(origin, allowedOrigins, { allowVercelPreviews })) {
             return callback(null, true);
         }
         return callback(new Error('Not allowed by CORS'));
@@ -139,6 +144,16 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/', authLimiter);
 
+const emergencyResetLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: isDev ? 20 : 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: buildRateLimitStore('2fa-emergency'),
+    message: { success: false, message: 'Too many emergency reset attempts. Try again later.' },
+});
+app.use('/api/auth/2fa/emergency-reset', emergencyResetLimiter);
+
 // Rate limiting — prevent spam on write endpoints
 const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -153,8 +168,19 @@ app.use('/api/newsletter/unsubscribe', writeLimiter);
 app.use('/api/contact', writeLimiter); // contact form spam protection
 app.use('/api/reviews', writeLimiter);
 app.use('/api/wishlist', writeLimiter);
+app.use('/api/waitlist', writeLimiter);
 app.use('/api/bookings/manual', writeLimiter);
 app.use('/api/payments/manual/submit', writeLimiter);
+
+const analyticsLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: isDev ? 500 : 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: buildRateLimitStore('analytics'),
+    message: { success: false, message: 'Too many requests, please slow down.' },
+});
+app.use('/api/analytics/visit', analyticsLimiter);
 
 // Logging — conditional based on environment
 if (process.env.NODE_ENV === 'production') {
@@ -192,6 +218,7 @@ app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/wishlist', require('./routes/wishlist'));
+app.use('/api/waitlist', require('./routes/waitlist'));
 app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/audit', require('./routes/auditLog'));
 app.use('/api/settings', require('./routes/settings'));
@@ -200,6 +227,7 @@ app.use('/api/contact', require('./routes/contact'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -313,6 +341,12 @@ server.on('listening', () => {
         logger.info('Jobs will run inline until Redis is available (docker compose up -d redis)');
     } else if (!process.env.REDIS_URL) {
         logger.info('Jobs will run inline (no REDIS_URL).');
+    }
+    try {
+        const { startScheduledJobs } = require('./jobs/scheduler');
+        startScheduledJobs();
+    } catch (err) {
+        logger.warn('Scheduled jobs not started:', err.message);
     }
 });
 

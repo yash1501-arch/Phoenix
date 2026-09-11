@@ -4,10 +4,12 @@ import toast from 'react-hot-toast';
 import {
     Plus, Search, Edit, Trash2,
     MapPin, Clock, Users as UsersIcon,
-    Mountain, Download, Filter, ChevronDown
+    Mountain, Download, Filter, ChevronDown, FileText
 } from 'lucide-react';
-import { adventuresAPI } from '../utils/api';
+import { adventuresAPI, getImageUrl } from '../utils/api';
 import { exportRows } from '../utils/csv';
+import { downloadItineraryPdf } from '../utils/downloadItineraryPdf';
+import { useAuth } from '../context/AuthContext';
 import './Adventures.css';
 
 const catColors = {
@@ -18,6 +20,8 @@ const catColors = {
 };
 
 const Adventures = () => {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     const [adventures, setAdventures] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -58,6 +62,17 @@ const Adventures = () => {
         }
     };
 
+    const handleDownloadItinerary = async (adv) => {
+        const tid = toast.loading('Preparing itinerary PDF…');
+        try {
+            await downloadItineraryPdf(adv._id || adv.id, adv.title);
+            toast.success('Itinerary PDF downloaded', { id: tid });
+        } catch (error) {
+            console.error(error);
+            toast.error(error.response?.data?.message || 'Could not download itinerary PDF', { id: tid });
+        }
+    };
+
     const onExport = () => {
         const cols = [
             { label: 'ID', key: '_id' },
@@ -93,10 +108,12 @@ const Adventures = () => {
                     <button onClick={onExport} className="btn-secondary" disabled={filteredAdventures.length === 0}>
                         <Download size={16} /> Export
                     </button>
+                    {isAdmin && (
                     <Link to="/adventures/add" className="btn-primary">
                         <Plus size={18} />
                         Add Adventure
                     </Link>
+                    )}
                 </div>
             </div>
 
@@ -181,7 +198,7 @@ const Adventures = () => {
                                         <div className="cell-title">
                                             <div className="cell-img">
                                                 <img
-                                                    src={adv.image_url || 'https://via.placeholder.com/48x36'}
+                                                    src={getImageUrl(adv.image_url) || 'https://via.placeholder.com/48x36'}
                                                     alt={adv.title}
                                                 />
                                             </div>
@@ -228,12 +245,24 @@ const Adventures = () => {
                                         </span>
                                     </td>
                                     <td className="td-actions" data-label="Actions">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDownloadItinerary(adv)}
+                                            className="btn-icon"
+                                            title="Download itinerary PDF"
+                                        >
+                                            <FileText size={16} />
+                                        </button>
+                                        {isAdmin && (
                                         <Link to={`/adventures/edit/${adv._id}`} className="btn-icon" title="Edit">
                                             <Edit size={16} />
                                         </Link>
+                                        )}
+                                        {isAdmin && (
                                         <button onClick={() => handleDelete(adv._id)} className="btn-icon danger" title="Delete">
                                             <Trash2 size={16} />
                                         </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

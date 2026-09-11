@@ -7,10 +7,17 @@ const AuditLog = () => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionFilter, setActionFilter] = useState('');
+    const [actorFilter, setActorFilter] = useState('');
+    const [codeFilter, setCodeFilter] = useState('');
+    const [actorQuery, setActorQuery] = useState('');
+    const [codeQuery, setCodeQuery] = useState('');
 
     const load = async () => {
         try {
-            const params = actionFilter ? { action: actionFilter } : {};
+            const params = {};
+            if (actionFilter) params.action = actionFilter;
+            if (actorQuery.trim()) params.actor = actorQuery.trim();
+            if (codeQuery.trim()) params.booking_code = codeQuery.trim();
             const res = await auditAdminAPI.getAll(params);
             setEntries(res.data?.data || []);
         } catch {
@@ -23,7 +30,7 @@ const AuditLog = () => {
     useEffect(() => {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [actionFilter]);
+    }, [actionFilter, actorQuery, codeQuery]);
 
     const actions = [...new Set(entries.map((e) => e.action).filter(Boolean))].sort();
 
@@ -35,7 +42,7 @@ const AuditLog = () => {
                 </p>
             </div>
 
-            <div className="settings-inline-row" style={{ marginBottom: '1rem' }}>
+            <div className="settings-inline-row" style={{ marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <label className="form-label" htmlFor="audit-filter">Filter by action</label>
                 <select
                     id="audit-filter"
@@ -49,6 +56,29 @@ const AuditLog = () => {
                         <option key={a} value={a}>{a}</option>
                     ))}
                 </select>
+                <input
+                    className="form-input"
+                    placeholder="Actor email"
+                    value={actorFilter}
+                    onChange={(e) => setActorFilter(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setLoading(true); setActorQuery(actorFilter); } }}
+                    style={{ maxWidth: '200px' }}
+                />
+                <input
+                    className="form-input"
+                    placeholder="Booking code"
+                    value={codeFilter}
+                    onChange={(e) => setCodeFilter(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setLoading(true); setCodeQuery(codeFilter); } }}
+                    style={{ maxWidth: '180px' }}
+                />
+                <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => { setLoading(true); setActorQuery(actorFilter); setCodeQuery(codeFilter); }}
+                >
+                    Apply
+                </button>
             </div>
 
             {loading ? (

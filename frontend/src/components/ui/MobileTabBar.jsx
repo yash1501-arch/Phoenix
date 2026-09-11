@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Compass, CalendarDays, Heart, LogIn } from 'lucide-react';
+import { Home, Mountain, Compass, Heart, LogIn } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
 import UserAvatar from './UserAvatar';
@@ -7,10 +7,10 @@ import { IconMotion } from './Motion';
 
 const items = [
   { to: '/', label: 'Home', Icon: Home, end: true },
-  { to: '/adventures', label: 'Explore', Icon: Compass },
-  { to: '/dashboard', label: 'Trips', Icon: CalendarDays, requireAuth: true },
+  { to: '/treks', label: 'Treks', Icon: Mountain },
+  { to: '/tours', label: 'Tours', Icon: Compass },
   { to: '/wishlist', label: 'Saved', Icon: Heart, badge: true },
-  { to: '/profile', label: 'Me', profile: true, requireAuth: true },
+  { to: '/dashboard', label: 'Me', profile: true, requireAuth: true },
 ];
 
 export default function MobileTabBar() {
@@ -33,7 +33,7 @@ export default function MobileTabBar() {
                 end={it.end}
                 className={({ isActive }) =>
                   `relative flex flex-col items-center justify-center gap-0.5 py-2.5 min-h-[52px] text-[11px] font-semibold transition ${
-                    isActive ? 'text-ember' : 'text-stone/45'
+                    isActive ? 'text-ember' : 'text-stone/55'
                   }`
                 }
               >

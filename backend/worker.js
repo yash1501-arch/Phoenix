@@ -18,6 +18,12 @@ async function main() {
 
   getRedis();
   startWorker();
+  try {
+    const { startScheduledJobs } = require('./jobs/scheduler');
+    startScheduledJobs();
+  } catch (err) {
+    logger.warn('Scheduled jobs not started:', err.message);
+  }
   logger.info('Worker process ready — waiting for jobs');
 
   const shutdown = async (signal) => {

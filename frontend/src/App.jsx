@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
-import { LanguageProvider } from './context/LanguageContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 import ScrollProgress from './components/ui/ScrollProgress';
@@ -41,6 +42,7 @@ import Wishlist from './pages/Wishlist';
 import SearchResults from './pages/SearchResults';
 import BookingPayment from './pages/BookingPayment';
 import MaintenanceGate from './components/MaintenanceGate';
+import VisitTracker from './components/VisitTracker';
 
 function App() {
   return (
@@ -48,6 +50,7 @@ function App() {
       <Router>
         <ScrollToTop />
         <ScrollProgress />
+        <VisitTracker />
         <Toaster
           position="top-center"
           toastOptions={{
@@ -64,9 +67,10 @@ function App() {
             error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
           }}
         />
+        <ThemeProvider>
+          <LanguageProvider>
         <CookieConsent />
         <BackToTop />
-        <LanguageProvider>
           <AuthProvider>
               <WishlistProvider>
                 <MaintenanceGate>
@@ -104,7 +108,8 @@ function App() {
                 <MobileTabBar />
               </WishlistProvider>
           </AuthProvider>
-        </LanguageProvider>
+          </LanguageProvider>
+          </ThemeProvider>
       </Router>
     </HelmetProvider>
   );

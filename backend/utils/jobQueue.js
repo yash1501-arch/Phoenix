@@ -124,6 +124,7 @@ async function closeQueue() {
 module.exports = {
   QUEUE_NAME,
   enqueue,
+  getQueue,
   startWorker,
   closeQueue,
   JOBS: {
@@ -131,5 +132,10 @@ module.exports = {
     PAYMENT_REJECTED: 'payment.rejected',
     PAYMENT_SUBMITTED_ALERT: 'payment.submitted_alert',
     PARTICIPANTS_ROSTER_FULL: 'participants.roster_full',
+    SEATS_EXPIRE_HOLDS: 'seats.expire_holds',
+    TRIP_REMINDERS: 'trip.reminders',
+    NEWSLETTER_BLAST: 'newsletter.blast',
+    WAITLIST_NOTIFY: 'waitlist.notify',
+    WISHLIST_DATES: 'wishlist.dates',
   },
 };

@@ -2,7 +2,9 @@
 
 This guide walks through deploying the four pieces of the stack — **Convex**, **backend API**, **customer frontend**, and **admin panel** — to production, including environment variables, DNS, CI/CD, and the post-deploy verification checklist.
 
-> **Cost + security first?** Start with [HOSTING.md](./HOSTING.md) (recommended cheap/secure layout), then return here for detailed commands.
+> **Production topology:** Hostinger DNS → Vercel (`www` + `admin`) → API on Render or Koyeb → Convex Cloud. Manual UPI only (no Razorpay). Full access + DNS steps: [HOSTING.md](./HOSTING.md).
+>
+> **Rotate:** a Convex deploy key was previously committed. Revoke it in the Convex dashboard and issue a new one before production deploy. Never put Hostinger/Vercel passwords, JWT, Cloudinary secrets, or Convex keys in git or chat.
 >
 > See [RUN.md](./RUN.md) for local development and [README.md](./README.md) for the project overview.
 
@@ -11,36 +13,23 @@ This guide walks through deploying the four pieces of the stack — **Convex**, 
 ## Architecture
 
 ```
-                ┌─────────────────────┐
-                │   Convex (cloud)    │   ← database, queries, mutations
-                │   convex.cloud      │     shared by all 3 services
-                └──────────▲──────────┘
-                           │
-            ┌──────────────┴──────────────┐
-            │                             │
-   ┌────────┴────────┐          ┌─────────┴────────┐
-    │  Backend API    │            │                  │
-   │  Node/Express   │          └──────────────────┘
-   │  Render/Railway │
-   └────────▲────────┘
-            │
-            │  VITE_API_URL
-            │
-   ┌────────┴────────┐         ┌──────────────────┐
-   │ Customer site   │         │  Admin panel     │
-   │ www…in          │         │  admin…in        │
-   │ Vite → CDN      │         │  Vite → CDN      │
-   └─────────────────┘         └──────────────────┘
+  Hostinger DNS
+       │
+       ├── www / admin  →  Vercel (SPA)
+       └── api          →  Render (or Koyeb Dockerfile)
+                              │
+                              ▼
+                         Convex Cloud
 ```
 
 Four independent deployments:
 
-| Component | Source        | Build               | Host (recommendation)         |
+| Component | Source        | Build               | Host                          |
 |-----------|---------------|---------------------|-------------------------------|
-| Convex    | `convex/convex/*.ts` | `npx convex deploy` | [convex.cloud](https://convex.cloud) |
-| Backend   | `backend/`    | none (Node process) | Render / Railway / Fly.io     |
-| Frontend  | `frontend/`   | `npm run build` → `dist/` | Vercel / Netlify / Cloudflare Pages |
-| Admin     | `admin/`      | `npm run build` → `dist/` | Vercel / Netlify / Cloudflare Pages |
+| Convex    | `convex/convex/*.ts` | `npx convex deploy` | Convex Cloud |
+| Backend   | `backend/`    | `npm start` | **Render** (`render.yaml`) or **Koyeb** (root `Dockerfile`) |
+| Frontend  | `frontend/`   | `npm run build` → `dist/` | **Vercel** (`frontend/vercel.json`) |
+| Admin     | `admin/`      | `npm run build` → `dist/` | **Vercel** (`admin/vercel.json`) |
 
 ---
 
@@ -59,9 +48,11 @@ In the Convex dashboard, create a **Production** deployment (e.g. `elated-eel-87
 
 ```powershell
 cd D:\Desktop\Phoenix\convex
-$env:CONVEX_DEPLOY_KEY = "prod:elated-eel-875|eyJ2MiI6IjlmMDhlNjY3ODE5YzQ0MjY4OTU5ODE0ODcyNzg5ZTA3In0="
+$env:CONVEX_DEPLOY_KEY = "<rotated production deploy key from Convex dashboard>"
 npx convex deploy
 ```
+
+You must run this (or GitHub Actions with secret `CONVEX_DEPLOY_KEY`). This environment cannot deploy Convex without that key.
 
 You should see: `✔ Deployed Convex functions to https://elated-eel-875.convex.cloud`.
 
@@ -89,15 +80,15 @@ Open the Convex dashboard → Functions. You should see functions listed as **in
 
 ## 2. Deploy the backend API
 
-The backend is a stateless Node/Express service. Any platform that runs `node index.js` works. **Render** is used in the examples below — the same env-var flow applies to Railway/Fly/Heroku.
+The backend is a stateless Node/Express service. **Render** is preferred (`render.yaml`: root `backend`, `npm start`, `/health`). **Koyeb** can use the root `Dockerfile` (`CMD npm start`, port 8080). Redis is optional — do not set `REQUIRE_REDIS` for launch.
 
 ### 2.1 Create the service
 
-- **Build command:** `npm install`
-- **Start command:** `npm start` (or `node index.js`)
+- **Build command:** `npm ci`
+- **Start command:** `npm start`
 - **Root directory:** `backend`
 - **Health check path:** `/health` (shallow) or `/api/health` (deep — also verifies Convex)
-- **Region:** pick one close to your Convex deployment for lower latency
+- **Region:** Singapore is a good default for India traffic
 
 ### 2.2 Environment variables
 
@@ -110,8 +101,10 @@ Set these in the host's secret/env-var UI. **Do not commit them to git.**
 | `CONVEX_URL`            | ✅       | `https://elated-eel-875.convex.cloud`                                            |
 | `CONVEX_ADMIN_KEY`      | ✅       | The same value as `CONVEX_DEPLOY_KEY` (a Convex prod deploy key)                |
 | `JWT_SECRET`            | ✅       | 64+ random chars. Generate: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"` |
-| `CORS_ORIGINS`          | ✅       | Comma-separated list of every frontend origin that may call the API, e.g. `https://www.phoenixadventures.in,https://admin.phoenixadventures.in` |
-| `FRONTEND_URL`          | ✅       | Customer site origin, e.g. `https://www.phoenixadventures.in` (used for password-reset email links) |
+| `CORS_ORIGINS`          | ✅       | www + admin custom domains **and** Vercel `*.vercel.app` production URLs. Optional `CORS_ALLOW_VERCEL_PREVIEWS=true` on staging. |
+| `FRONTEND_URL`          | ✅       | Customer site origin, e.g. `https://www.phoenixadventures.in` (password-reset links) |
+| `COOKIE_SAME_SITE`      | ✅ if API is on another site | `none` when SPA is on Vercel and API is on Render/Koyeb. Leave `COOKIE_DOMAIN` unset unless API is `api.<your-domain>`. |
+| `ENCRYPTION_KEY`        | recommended | `openssl rand -hex 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `OPENAI_API_KEY`        | optional | Enables AI itinerary / PDF / description features in admin                      |
 | `CLOUDINARY_CLOUD_NAME` | optional | Image uploads via Cloudinary                                                     |
 | `CLOUDINARY_API_KEY`    | optional |                                                                                  |
@@ -150,8 +143,8 @@ A non-`OK` response or `checks.convex.ok: false` means the env vars aren't reach
 
 | Variable                | Required | Example                                              |
 |-------------------------|----------|------------------------------------------------------|
-| `VITE_API_URL`          | ✅       | `https://api.phoenixadventures.in` (no trailing `/api` — the app appends it) |
-| `VITE_RAZORPAY_KEY_ID`  | ❌ Removed   | No longer needed (bookings via WhatsApp)      |
+| `VITE_API_URL`          | ✅       | `https://api.phoenixadventures.in` (no trailing `/api` — the app appends it). **Rebuild** Vercel after changing. |
+| Payments                | manual UPI | Replace `frontend/public/upi-merchant-qr.png`. No Razorpay. |
 
 ### 3.3 Custom domain
 
@@ -165,7 +158,7 @@ In Vercel → Project → Settings → Domains, add `www.phoenixadventures.in`. 
 
 The frontend uses `react-router-dom` with client-side routes. Vite produces a single `index.html`; the static host must serve `index.html` for any unknown path so deep links work.
 
-- **Vercel:** automatic (it detects Vite).
+- **Vercel:** `frontend/vercel.json` / `admin/vercel.json` rewrite SPA routes to `index.html`.
 - **Netlify:** add a `_redirects` file in `public/`:
 
   ```
@@ -224,7 +217,8 @@ The admin panel is wide-open to anyone with the URL. Add at least one of:
 | `SMTP_*`                    |        | ✅      |          |       |
 | `ADMIN_EMAIL`               |        | ✅      |          |       |
 | `VITE_API_URL`              |        |         | ✅       | ✅    |
-| `VITE_RAZORPAY_KEY_ID`      |        |         | ❌       |       |
+| `COOKIE_SAME_SITE`          |        | ✅ (cross-site) |          |       |
+| `ENCRYPTION_KEY`            |        | ✅ rec. |          |       |
 
 ---
 
@@ -232,28 +226,7 @@ The admin panel is wide-open to anyone with the URL. Add at least one of:
 
 ### GitHub Actions — auto-deploy Convex on merge to `main`
 
-`.github/workflows/deploy-convex.yml`:
-
-```yaml
-name: Deploy Convex
-on:
-  push:
-    branches: [main]
-    paths: ['convex/**']
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: npm ci
-        working-directory: convex
-      - run: npx convex deploy
-        working-directory: convex
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-```
+Workflow file: [`.github/workflows/deploy-convex.yml`](./.github/workflows/deploy-convex.yml). Add GitHub secret `CONVEX_DEPLOY_KEY` (rotated key). The workflow never prints the secret.
 
 ### Render / Vercel auto-deploy
 
@@ -344,13 +317,18 @@ Assuming you want:
 - `admin.phoenixadventures.in` → admin panel
 - `api.phoenixadventures.in` → backend
 
-| Record | Type  | Name | Value                          |
-|--------|-------|------|--------------------------------|
-| `www`   | CNAME | —    | `cname.vercel-dns.com` (frontend host) |
-| `admin` | CNAME | —    | `cname.vercel-dns.com` (admin host)    |
-| `api`   | CNAME | —    | `<your-render-service>.onrender.com`   |
+Add these in **Hostinger** DNS (copy CNAME *targets* from Vercel and Render dashboards — do not guess):
 
-Set **CORS_ORIGINS** on the backend to `https://www.phoenixadventures.in,https://admin.phoenixadventures.in` (no trailing slash, exact match).
+| Record | Type  | Name | Value |
+|--------|-------|------|--------|
+| Customer site | CNAME | `www` | Vercel target for the **frontend** project (often `cname.vercel-dns.com`) |
+| Admin | CNAME | `admin` | Vercel target for the **admin** project |
+| API | CNAME | `api` | Render hostname, e.g. `<service>.onrender.com` (or Koyeb host) |
+| Apex | redirect | `@` | → `https://www.…` |
+
+Keep Hostinger nameservers if email stays on Hostinger. Access: GitHub + Vercel invite + DNS screenshots — never control-panel passwords (see [HOSTING.md](./HOSTING.md)).
+
+Set **CORS_ORIGINS** to www + admin **plus** each production `*.vercel.app` origin. `COOKIE_SAME_SITE=none` while the API is on a different site than Vercel.
 
 ---
 

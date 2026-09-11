@@ -64,12 +64,12 @@ const GoogleReviews = () => {
 
   if (reviews.length === 0) {
     return (
-      <div className="text-center py-12 border border-dashed border-mist/20 rounded-lg bg-stone-soft/40">
-        <p className="font-display text-xl text-mist mb-2">{rating} / 5 on Google</p>
-        <p className="text-mist/60 mb-6 max-w-md mx-auto text-sm leading-relaxed">
+      <div className="text-center py-12 border border-dashed border-cream/20 rounded-lg bg-panel-soft/40">
+        <p className="font-display text-xl text-cream mb-2">{rating} / 5 on Google</p>
+        <p className="text-cream/60 mb-6 max-w-md mx-auto text-sm leading-relaxed">
           Read verified reviews on our Google Business Profile.
         </p>
-        <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary inline-flex !bg-mist !text-stone hover:!bg-white">
+        <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline-ink inline-flex">
           <MapPin size={16} /> See reviews on Google Maps
         </a>
       </div>
@@ -82,15 +82,15 @@ const GoogleReviews = () => {
     <div>
       <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
         <div>
-          <p className="meta mb-2 !text-mist/50">From Google</p>
-          <p className="text-sm text-mist/60 flex items-center gap-2 flex-wrap">
+          <p className="meta mb-2 !text-cream/65">From Google</p>
+          <p className="text-sm text-cream/75 flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1 text-gold-deep">
               {Array.from({ length: 5 }).map((_, j) => (
-                <Star key={j} size={12} className={j < Math.round(rating) ? 'fill-gold-deep text-gold-deep' : 'text-mist/25'} />
+                <Star key={j} size={12} className={j < Math.round(rating) ? 'fill-gold-deep text-gold-deep' : 'text-cream/25'} />
               ))}
             </span>
             <span>{rating} · {reviewCount} reviews on Google</span>
-            <span className="text-mist/40">·</span>
+            <span className="text-cream/40">·</span>
             <span>Showing {shown.length} recent 4–5★ reviews</span>
           </p>
         </div>
@@ -113,7 +113,7 @@ const GoogleReviews = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.5, delay: i * 0.06 }}
-            className="bg-white border border-ink/8 p-6 flex flex-col gap-4 relative"
+            className="bg-mist-subtle border border-stone/10 p-6 flex flex-col gap-4 relative rounded-lg"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-1" aria-label={`${r.rating} out of 5 stars`}>
@@ -125,12 +125,12 @@ const GoogleReviews = () => {
                   />
                 ))}
               </div>
-              <span className="text-[10px] text-muted-strong uppercase tracking-wider font-semibold">Google</span>
+              <span className="text-[10px] text-muted uppercase tracking-wider font-semibold">Google</span>
             </div>
-            <blockquote className="text-sm leading-relaxed text-ink-soft flex-1 line-clamp-6">
+            <blockquote className="text-sm leading-relaxed text-stone/80 flex-1 line-clamp-6">
               &ldquo;{r.text}&rdquo;
             </blockquote>
-            <figcaption className="flex items-center gap-3 pt-3 border-t border-ink/8">
+            <figcaption className="flex items-center gap-3 pt-3 border-t border-stone/10">
               {r.avatar_url ? (
                 <img
                   src={r.avatar_url}
@@ -140,14 +140,14 @@ const GoogleReviews = () => {
                   decoding="async"
                 />
               ) : (
-                <span className="w-9 h-9 rounded-full bg-ink text-paper flex items-center justify-center text-xs font-bold">
+                <span className="w-9 h-9 rounded-full bg-panel text-cream flex items-center justify-center text-xs font-bold">
                   {(r.name || '?').charAt(0).toUpperCase()}
                 </span>
               )}
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink truncate">{r.name}</p>
+                <p className="text-sm font-semibold text-stone truncate">{r.name}</p>
                 {r.date && (
-                  <p className="text-xs text-muted-strong">{r.date}</p>
+                  <p className="text-xs text-muted">{r.date}</p>
                 )}
               </div>
             </figcaption>
@@ -155,7 +155,7 @@ const GoogleReviews = () => {
         ))}
       </div>
 
-      <p className="mt-6 text-center text-xs text-mist/45">
+      <p className="mt-6 text-center text-xs text-cream/60">
         Reviews sourced from Google. Ratings shown are 4★ and 5★ only.
       </p>
     </div>

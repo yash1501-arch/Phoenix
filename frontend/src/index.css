@@ -3,23 +3,40 @@
 @tailwind utilities;
 
 /*
- * PHOENIX ADVENTURES — LIGHT TRAIL SYSTEM
- * Warm cream · deep forest · terracotta accent · Unbounded + Karla
- * Client brief: light theme (CONTEXT.md)
+ * PHOENIX ADVENTURES — TRAIL SYSTEM
+ * Day: warm cream · forest · terracotta
+ * Night: deep forest floor · cream ink · ember
+ *
+ * mist*  = page surfaces | stone (ink) = text/borders
+ * panel* = dark sections (always deep) | cream = text on panels
  */
 
 :root {
-  /* Light cream surfaces */
+  /* RGB channels — required for Tailwind opacity (/70, /10, …) */
+  --rgb-mist: 250 247 241;
+  --rgb-mist-muted: 235 228 216;
+  --rgb-mist-subtle: 243 239 230;
+  --rgb-ink: 47 74 61;
+  --rgb-ink-soft: 58 90 75;
+  --rgb-ink-elevated: 37 58 49;
+  --rgb-panel: 47 74 61;
+  --rgb-panel-soft: 58 90 75;
+  --rgb-ember: 193 98 45;
+  --rgb-ember-bright: 212 120 63;
+  --rgb-ember-deep: 160 78 34;
+  --rgb-cream: 250 247 241;
+  --rgb-moss: 47 74 61;
+  --rgb-moss-bright: 61 99 82;
+
   --mist: #faf7f1;
   --mist-muted: #ebe4d8;
   --mist-subtle: #f3efe6;
-
-  /* Deep forest / sage — dark panels, headings on light */
   --stone: #2f4a3d;
   --stone-soft: #3a5a4b;
   --stone-elevated: #253a31;
-
-  /* Terracotta / rust CTAs */
+  --panel: #2f4a3d;
+  --panel-soft: #3a5a4b;
+  --cream: #faf7f1;
   --ember: #c1622d;
   --ember-bright: #d4783f;
   --ember-deep: #a04e22;
@@ -31,7 +48,6 @@
   --text-on-light: #2b2b26;
   --text-muted-light: #5c5a52;
 
-  /* Compat aliases — map old editorial tokens → light system */
   --ink: var(--stone);
   --ink-soft: var(--stone-soft);
   --ink-subtle: var(--stone-elevated);
@@ -82,6 +98,71 @@
   --z-tooltip: 90;
 }
 
+/* Night — coherent forest floor; panels stay deep; ink flips to cream */
+[data-theme="night"] {
+  --rgb-mist: 14 18 16;
+  --rgb-mist-muted: 24 31 28;
+  --rgb-mist-subtle: 34 44 40;
+  --rgb-ink: 226 221 211;
+  --rgb-ink-soft: 180 174 162;
+  --rgb-ink-elevated: 240 235 226;
+  --rgb-panel: 22 34 29;
+  --rgb-panel-soft: 32 48 41;
+  --rgb-ember: 212 120 63;
+  --rgb-ember-bright: 224 144 85;
+  --rgb-ember-deep: 193 98 45;
+  --rgb-cream: 245 240 230;
+  --rgb-moss: 61 99 82;
+  --rgb-moss-bright: 74 122 100;
+
+  --mist: #0e1210;
+  --mist-muted: #181f1c;
+  --mist-subtle: #222c28;
+  --stone: #e2ddd3;
+  --stone-soft: #b4aea2;
+  --stone-elevated: #f0ebe2;
+  --panel: #16221d;
+  --panel-soft: #203029;
+  --cream: #f5f0e6;
+  --ember: #d4783f;
+  --ember-bright: #e09055;
+  --ember-deep: #c1622d;
+  --moss: #3d6352;
+  --moss-bright: #4a7a64;
+
+  --text-on-dark: #f5f0e6;
+  --text-muted-dark: #c8c2b6;
+  --text-on-light: #e2ddd3;
+  --text-muted-light: #a8a49a;
+
+  --ink: var(--stone);
+  --ink-soft: var(--stone-soft);
+  --ink-subtle: var(--stone-elevated);
+  --paper: var(--mist);
+  --paper-elevated: var(--mist-subtle);
+  --paper-subtle: var(--mist-muted);
+  --gold: var(--ember);
+  --gold-bright: var(--ember-bright);
+  --gold-deep: var(--ember-deep);
+  --copper: var(--ember-deep);
+  --forest: var(--moss);
+  --text-ink: var(--text-on-light);
+  --text-muted: var(--text-muted-light);
+  --text-subtle: #8a867c;
+  --heading: var(--text-on-light);
+  --muted: var(--text-muted-light);
+
+  --line: rgba(245, 240, 230, 0.12);
+  --line-strong: rgba(245, 240, 230, 0.22);
+  --line-light: rgba(245, 240, 230, 0.1);
+
+  --shadow-smoke: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 20px 48px rgba(0, 0, 0, 0.55);
+  --shadow-ember: 0 8px 28px rgba(212, 120, 63, 0.35);
+  --section-gap: clamp(3.25rem, 8vw, 7rem);
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 * {
@@ -102,6 +183,7 @@ body {
   line-height: 1.65;
   overflow-x: hidden;
   text-rendering: optimizeLegibility;
+  transition: background-color 0.35s var(--ease-out), color 0.35s var(--ease-out);
 }
 
 ::selection {
@@ -219,9 +301,9 @@ p { text-wrap: pretty; max-width: var(--measure); }
 }
 
 .btn-light {
-  background: var(--mist);
-  color: var(--stone);
-  border-color: var(--mist);
+  background: var(--cream);
+  color: var(--panel);
+  border-color: var(--cream);
 }
 
 .btn-light:hover:not(:disabled) {
@@ -231,13 +313,13 @@ p { text-wrap: pretty; max-width: var(--measure); }
 
 .btn-outline {
   background: transparent;
-  color: var(--mist);
-  border-color: rgba(250, 247, 241, 0.4);
+  color: var(--cream);
+  border-color: color-mix(in srgb, var(--cream) 40%, transparent);
 }
 
 .btn-outline:hover:not(:disabled) {
-  background: rgba(250, 247, 241, 0.1);
-  border-color: var(--mist);
+  background: color-mix(in srgb, var(--cream) 12%, transparent);
+  border-color: var(--cream);
   color: #fff;
 }
 
@@ -257,9 +339,9 @@ p { text-wrap: pretty; max-width: var(--measure); }
 }
 
 .btn-outline-ink:hover:not(:disabled) {
-  background: var(--stone);
-  color: var(--mist);
-  border-color: var(--stone);
+  background: var(--panel);
+  color: var(--cream);
+  border-color: var(--panel);
 }
 
 .btn-sm { padding: 0.625rem 1.15rem; font-size: 0.875rem; min-height: 40px; }
@@ -285,15 +367,17 @@ p { text-wrap: pretty; max-width: var(--measure); }
 
 .rule { border: none; height: 1px; background: var(--line-light); margin: 0; }
 .rule-gold {
+  display: block;
   border: none;
   height: 2px;
   background: var(--ember);
-  width: 2.5rem;
+  width: 2rem;
   margin: 0;
+  flex-shrink: 0;
 }
 
 .card {
-  background: #fff;
+  background: var(--mist-subtle);
   border: 1px solid var(--line-light);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-smoke);
@@ -308,7 +392,7 @@ p { text-wrap: pretty; max-width: var(--measure); }
 
 .card-paper { background: var(--mist-subtle); }
 .card-dark {
-  background: var(--stone-soft);
+  background: var(--panel-soft);
   color: var(--text-on-dark);
   border-color: var(--line);
 }
@@ -327,7 +411,7 @@ label {
   display: block;
   width: 100%;
   padding: 0.875rem 1rem;
-  background: #fff;
+  background: var(--mist-subtle);
   border: 1.5px solid var(--line-light);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
@@ -423,7 +507,12 @@ a { color: inherit; text-decoration: none; }
 .animate-fade-in { animation: fade-in 500ms var(--ease-out) both; }
 .animate-slide-up { animation: slide-up 600ms var(--ease-out) both; }
 
-/* Sticky mobile book bar */
+/* Space for mobile tab bar */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+  }
+}
 .mobile-book-bar {
   position: fixed;
   bottom: 0;
@@ -446,11 +535,11 @@ a { color: inherit; text-decoration: none; }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--stone-soft); }
+::-webkit-scrollbar-track { background: var(--mist-muted); }
 ::-webkit-scrollbar-thumb {
-  background: var(--text-muted-dark);
+  background: var(--text-subtle);
   border-radius: 8px;
-  border: 2px solid var(--stone-soft);
+  border: 2px solid var(--mist-muted);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--ember); }
 
@@ -488,7 +577,7 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-md);
-  background: var(--stone-soft);
+  background: var(--panel-soft);
 }
 
 .img-editorial img {
@@ -496,3 +585,31 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   object-fit: cover;
 }
+
+/* Legacy white/gray utilities → theme surfaces (keeps dashboards cohesive) */
+[data-theme="night"] .bg-white {
+  background-color: var(--mist-subtle) !important;
+  color: var(--text-on-light);
+}
+[data-theme="night"] .text-gray-900,
+[data-theme="night"] .text-gray-800 {
+  color: var(--text-on-light) !important;
+}
+[data-theme="night"] .text-gray-700,
+[data-theme="night"] .text-gray-600 {
+  color: var(--text-muted-light) !important;
+}
+[data-theme="night"] .text-gray-500,
+[data-theme="night"] .text-gray-400 {
+  color: var(--text-subtle) !important;
+}
+[data-theme="night"] .border-gray-100,
+[data-theme="night"] .border-gray-200,
+[data-theme="night"] .border-gray-300 {
+  border-color: var(--line-light) !important;
+}
+[data-theme="night"] .shadow-sm,
+[data-theme="night"] .shadow-md {
+  --tw-shadow-color: rgba(0, 0, 0, 0.4);
+}
+

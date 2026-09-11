@@ -12,7 +12,7 @@ const groups = [
     items: [
       {
         q: 'How do I book an adventure?',
-        a: 'Open an adventure, tap Book Now, choose date and number of people. Pay the total (price × seats) via UPI to our QR / UPI ID, then upload your screenshot and UTR. We confirm after matching the bank statement — no Razorpay or Paytm fees.',
+        a: 'Log in (or create an account), open an adventure, tap Book Now, choose date and seats. Pay via UPI to our QR / UPI ID, then upload your screenshot and UTR. We confirm after matching the bank statement — no Razorpay or Paytm fees. Guests can browse freely but booking requires an account.',
       },
       {
         q: 'What payment methods are supported?',
@@ -90,7 +90,7 @@ const FAQ = () => {
         subtitle="Quick answers about bookings, safety, gear, and more."
         breadcrumb={[{ label: 'Home', to: '/' }, { label: 'FAQ' }]}
       />
-      <section className="bg-white py-16 md:py-24">
+      <section className="bg-mist-subtle py-16 md:py-24">
         <div className="container">
           <div className="mx-auto max-w-3xl">
             <Reveal variant="rise">
@@ -120,7 +120,7 @@ const FAQ = () => {
                   <StaggerContainer className="mt-4 space-y-3">
                     {g.items.map((item) => (
                       <StaggerItem key={item.q}>
-                        <details className="group rounded-lg border border-stone/10 bg-mist/40 p-5 open:bg-white open:shadow-smoke transition-all">
+                        <details className="group rounded-lg border border-stone/10 bg-mist/40 p-5 open:bg-mist-subtle open:shadow-smoke transition-all">
                           <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-stone">
                             {item.q}
                             <ChevronDown size={18} className="ml-4 shrink-0 text-ember transition-transform group-open:rotate-180" />

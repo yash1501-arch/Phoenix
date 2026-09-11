@@ -57,7 +57,7 @@ const UserAvatar = ({
     <span
       className={[
         'relative inline-flex items-center justify-center rounded-full overflow-hidden shrink-0',
-        'bg-stone text-mist',
+        'bg-panel text-cream',
         ring ? 'ring-2 ring-ember/25 ring-offset-1 ring-offset-mist' : '',
         s.box,
         className,

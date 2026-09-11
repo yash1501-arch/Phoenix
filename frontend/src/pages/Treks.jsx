@@ -100,7 +100,7 @@ const Treks = () => {
                   onClick={() => onChange(d)}
                   className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-colors ${
                     difficulty === d
-                      ? 'bg-stone text-mist'
+                      ? 'bg-panel text-cream'
                       : 'border border-stone/15 text-stone hover:border-ember hover:text-ember'
                   }`}
                 >
@@ -119,7 +119,7 @@ const Treks = () => {
                   onClick={() => onCityChange(c.id)}
                   className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-md transition-colors ${
                     city === c.id
-                      ? 'bg-stone text-mist'
+                      ? 'bg-panel text-cream'
                       : 'border border-stone/15 text-stone hover:border-ember hover:text-ember'
                   }`}
                 >

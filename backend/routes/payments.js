@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth, clerkOrAdmin } = require('../middleware/auth');
 const { uploadImage } = require('../middleware/upload');
 const paymentController = require('../controllers/paymentController');
 
@@ -21,21 +21,21 @@ router.post(
 router.get(
   '/admin/manual/pending',
   auth,
-  adminOnly,
+  clerkOrAdmin,
   paymentController.listPending
 );
 
 router.post(
   '/admin/manual/verify',
   auth,
-  adminOnly,
+  clerkOrAdmin,
   paymentController.verify
 );
 
 router.post(
   '/admin/manual/reject',
   auth,
-  adminOnly,
+  clerkOrAdmin,
   paymentController.reject
 );
 

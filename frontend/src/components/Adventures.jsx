@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Star, Heart, MapPin, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adventuresAPI, getImageUrl } from '../utils/api';
+import { IMG_FALLBACK } from '../data/indiaImages';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -96,34 +97,34 @@ const Adventures = () => {
                                 viewport={{ once: true, margin: '-40px' }}
                                 transition={{ duration: 0.45, delay: Math.min(index, 6) * 0.05 }}
                                 whileHover={{ y: -4 }}
-                                className="group bg-white rounded-lg overflow-hidden border border-stone/8 shadow-smoke hover:shadow-card transition-shadow"
+                                className="group h-full bg-mist-subtle rounded-lg overflow-hidden border border-stone/10 shadow-smoke hover:shadow-card transition-shadow"
                             >
-                                <Link to={`/adventure/${advId}`} className="block">
-                                    <div className="relative aspect-[4/5] overflow-hidden">
+                                <Link to={`/adventure/${advId}`} className="flex h-full flex-col">
+                                    <div className="relative aspect-[4/5] overflow-hidden shrink-0">
                                         <img
-                                            src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80'}
+                                            src={getImageUrl(adv.image_url) || IMG_FALLBACK}
                                             alt={`${adv.title} — ${adv.location}`}
                                             loading="lazy"
                                             decoding="async"
                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80'; }}
+                                            onError={(e) => { e.target.src = IMG_FALLBACK; }}
                                         />
-                                        <span className="absolute top-3 left-3 bg-stone/90 text-mist text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
+                                        <span className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
                                             {adv.difficulty || 'Moderate'}
                                         </span>
                                         <button
                                             onClick={(e) => handleWishlist(e, adv)}
                                             aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
                                             aria-pressed={wishlisted}
-                                            className="absolute top-3 right-3 w-10 h-10 bg-mist/95 rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-white transition-colors"
+                                            className="absolute top-3 right-3 w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke"
                                         >
                                             <Heart size={15} className={wishlisted ? 'fill-current text-ember' : ''} />
                                         </button>
                                     </div>
 
-                                    <div className="p-4 space-y-3">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <h3 className="font-display text-lg leading-snug text-stone group-hover:text-ember transition-colors font-semibold">
+                                    <div className="flex flex-1 flex-col p-4">
+                                        <div className="flex items-start justify-between gap-2 min-h-[3.25rem]">
+                                            <h3 className="font-display text-lg leading-snug text-stone group-hover:text-ember transition-colors font-semibold line-clamp-2">
                                                 {adv.title}
                                             </h3>
                                             {adv.rating > 0 && (
@@ -134,18 +135,18 @@ const Adventures = () => {
                                             )}
                                         </div>
 
-                                        <div className="flex items-center gap-3 text-sm text-muted">
-                                            <span className="inline-flex items-center gap-1">
-                                                <MapPin size={12} className="text-ember" />
-                                                {adv.location}
+                                        <div className="mt-3 flex items-center gap-3 text-sm text-muted min-h-[1.25rem]">
+                                            <span className="inline-flex items-center gap-1 min-w-0 truncate">
+                                                <MapPin size={12} className="text-ember shrink-0" />
+                                                <span className="truncate">{adv.location}</span>
                                             </span>
-                                            <span className="inline-flex items-center gap-1">
+                                            <span className="inline-flex items-center gap-1 shrink-0">
                                                 <Clock size={12} className="text-ember" />
                                                 {adv.duration}
                                             </span>
                                         </div>
 
-                                        <div className="flex items-baseline justify-between pt-3 border-t border-stone/8">
+                                        <div className="mt-auto flex items-baseline justify-between pt-3 border-t border-stone/8">
                                             <div>
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted block">From</span>
                                                 <span className="font-display text-xl text-stone font-semibold">₹{adv.price?.toLocaleString('en-IN')}</span>

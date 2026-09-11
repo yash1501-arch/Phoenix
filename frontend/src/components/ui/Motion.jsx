@@ -5,7 +5,7 @@ import { forwardRef } from 'react';
 /** Shared out-expo curve from DESIGN.md */
 export const EASE = [0.16, 1, 0.3, 1];
 
-const DEFAULT_VIEWPORT = { once: true, margin: '-60px' };
+const DEFAULT_VIEWPORT = { once: true, amount: 0.15 };
 
 /** Instant show when user prefers reduced motion */
 const reducedShow = { opacity: 1, y: 0, x: 0, scale: 1, filter: 'none' };

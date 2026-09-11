@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -7,18 +7,23 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Seo from '../components/Seo';
 import { EASE } from '../components/ui/Motion';
+import { IMG_RAIGAD_FORT } from '../data/indiaImages';
 
 const AUTH_IMAGE =
-  'https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=1600&auto=format&fit=crop';
+  IMG_RAIGAD_FORT(1600);
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [challengeToken, setChallengeToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, verify2faLogin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const reduced = useReducedMotion();
+  const returnTo = location.state?.from || '/dashboard';
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -30,8 +35,21 @@ const Login = () => {
     setError('');
     setLoading(true);
     const result = await login(formData.email, formData.password);
-    if (result.success) navigate('/dashboard');
-    else setError(result.error || 'Login failed. Please try again.');
+    if (result.success) navigate(returnTo);
+    else if (result.requires2fa) {
+      setChallengeToken(result.challengeToken);
+      setError('');
+    } else setError(result.error || 'Login failed. Please try again.');
+    setLoading(false);
+  };
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const result = await verify2faLogin(challengeToken, otp);
+    if (result.success) navigate(returnTo);
+    else setError(result.error || 'Invalid authentication code');
     setLoading(false);
   };
 
@@ -51,17 +69,17 @@ const Login = () => {
             animate={{ scale: 1 }}
             transition={{ duration: 1.2, ease: EASE }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone/90 via-stone/45 to-stone/20 lg:bg-gradient-to-r lg:from-stone/80 lg:via-stone/50 lg:to-stone/25" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10 lg:bg-gradient-to-r lg:from-black/60 lg:via-black/30 lg:to-black/10" />
           <div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-8 lg:p-12 lg:pb-16">
             <motion.div
               initial={reduced ? false : { opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.1, ease: EASE }}
             >
-              <p className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-mist tracking-tight">
+              <p className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold text-cream tracking-tight">
                 Phoenix Adventures
               </p>
-              <p className="mt-2 max-w-sm text-sm sm:text-base text-mist/85 leading-relaxed">
+              <p className="mt-2 max-w-sm text-sm sm:text-base text-cream/85 leading-relaxed">
                 Discover the great outdoors with our adventure tribe.
               </p>
               <p className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-ember-bright">
@@ -87,10 +105,12 @@ const Login = () => {
             </Link>
 
             <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone tracking-tight">
-              Welcome back
+              {challengeToken ? 'Two-factor verification' : 'Welcome back'}
             </h1>
             <p className="mt-2 text-muted leading-relaxed">
-              Sign in to manage your wishlist and profile.
+              {challengeToken
+                ? 'Enter the 6-digit authenticator code, or a recovery code (XXXX-XXXX).'
+                : 'Sign in to manage your wishlist and profile.'}
             </p>
 
             {error && (
@@ -102,6 +122,41 @@ const Login = () => {
               </div>
             )}
 
+            {challengeToken ? (
+            <form onSubmit={handleOtpSubmit} className="mt-8 space-y-5">
+              <div>
+                <label htmlFor="otp">Authenticator or recovery code</label>
+                <input
+                  id="otp"
+                  name="otp"
+                  type="text"
+                  autoComplete="one-time-code"
+                  required
+                  value={otp}
+                  onChange={(e) =>
+                    setOtp(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20))
+                  }
+                  className="input"
+                  placeholder="000000 or ABCD-EFGH"
+                  autoFocus
+                />
+              </div>
+              <button type="submit" disabled={loading || otp.replace(/-/g, '').length < 6} className="btn btn-primary w-full">
+                {loading ? 'Verifying…' : 'Verify & sign in'}
+              </button>
+              <button
+                type="button"
+                className="text-sm font-semibold text-muted hover:text-stone"
+                onClick={() => {
+                  setChallengeToken('');
+                  setOtp('');
+                  setError('');
+                }}
+              >
+                ← Back to password
+              </button>
+            </form>
+            ) : (
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               <div>
                 <label htmlFor="email">Email address</label>
@@ -156,7 +211,7 @@ const Login = () => {
               <button type="submit" disabled={loading} className="btn btn-primary w-full">
                 {loading ? (
                   <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-mist border-t-transparent" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-cream border-t-transparent" />
                     Signing in…
                   </>
                 ) : (
@@ -164,10 +219,15 @@ const Login = () => {
                 )}
               </button>
             </form>
+            )}
 
             <p className="mt-8 text-center text-sm text-muted">
               New to the tribe?{' '}
-              <Link to="/register" className="font-semibold text-stone hover:text-ember transition-colors">
+              <Link
+                to="/register"
+                state={location.state}
+                className="font-semibold text-stone hover:text-ember transition-colors"
+              >
                 Create an account
               </Link>
             </p>

@@ -49,21 +49,37 @@ exports.submitManual = async (req, res) => {
       });
     }
     const claimed = Number(amount_paid);
-    if (!claimed || Math.abs(claimed - Number(details.booking.amount)) > 0.01) {
+    const isBalance = String(req.body.payment_kind || req.query.kind || '') === 'balance'
+      || details.booking.booking_status === 'confirmed';
+    const expected = isBalance
+      ? Number(details.booking.balance_due || 0)
+      : Number(details.booking.amount);
+    if (!claimed || Math.abs(claimed - expected) > 0.01) {
       return res.status(400).json({
         success: false,
-        message: `Amount must match booking total of ₹${details.booking.amount}`,
+        message: `Amount must match ${isBalance ? 'remaining balance' : 'booking due'} of ₹${expected}`,
       });
     }
 
-    await getConvexClient().submitManualPayment({
-      booking_id,
-      upi_reference: String(upi_reference).trim(),
-      payer_name: String(payer_name).trim(),
-      payer_upi_id: payer_upi_id ? String(payer_upi_id).trim() : undefined,
-      screenshot_url,
-      screenshot_public_id,
-    });
+    if (isBalance) {
+      await getConvexClient().submitBalancePayment({
+        booking_id,
+        upi_reference: String(upi_reference).trim(),
+        payer_name: String(payer_name).trim(),
+        payer_upi_id: payer_upi_id ? String(payer_upi_id).trim() : undefined,
+        screenshot_url,
+        screenshot_public_id,
+      });
+    } else {
+      await getConvexClient().submitManualPayment({
+        booking_id,
+        upi_reference: String(upi_reference).trim(),
+        payer_name: String(payer_name).trim(),
+        payer_upi_id: payer_upi_id ? String(payer_upi_id).trim() : undefined,
+        screenshot_url,
+        screenshot_public_id,
+      });
+    }
 
     const adminEmail = process.env.ADMIN_EMAIL;
     enqueue(JOBS.PAYMENT_SUBMITTED_ALERT, {
@@ -72,8 +88,9 @@ exports.submitManual = async (req, res) => {
         bookingCode: details.booking.booking_code,
         customerName: req.user.name,
         adventureTitle: details.adventure?.title || 'Adventure',
-        amount: details.booking.amount,
+        amount: isBalance ? details.booking.balance_due : details.booking.amount,
         upiReference: upi_reference,
+        kind: isBalance ? 'balance' : (details.booking.payment_type || 'full'),
       },
     }).catch((err) => logger.error('Failed to enqueue payment alert:', err.message));
 
@@ -117,6 +134,21 @@ exports.verify = async (req, res) => {
     const details = await getConvexClient().getBookingPaymentDetails(booking_id);
     const adv = details?.adventure || {};
 
+    if (verifyResult?.kind === 'balance') {
+      getConvexClient().logAudit({
+        actor_id: req.user.id,
+        actor_email: req.user.email,
+        action: 'payment.verified',
+        target_type: 'booking',
+        target_id: booking_id,
+        metadata: {
+          booking_code: details?.booking?.booking_code,
+          kind: 'balance',
+        },
+      }).catch((err) => logger.error('Audit log failed:', err.message));
+      return res.json({ success: true, message: 'Balance payment verified' });
+    }
+
     if (verifyResult?.is_full) {
       enqueue(JOBS.PARTICIPANTS_ROSTER_FULL, {
         adminEmail: process.env.ADMIN_EMAIL,
@@ -149,19 +181,39 @@ exports.verify = async (req, res) => {
       ? [...new Set(participants.map((p) => p.pickup_point).filter(Boolean))].join('; ')
       : details?.booking?.pickup_point || adv.meeting_point || adv.pickup_point;
 
+    const coachLabel = (id) => {
+      const s = String(id || '').toLowerCase();
+      if (s === '3ac') return '3AC';
+      if (s === 'sleeper') return 'Sleeper coach';
+      return id ? String(id) : '';
+    };
+    const travelCoachSummary = participants
+      .filter((p) => p.travel_coach)
+      .map((p) => `${p.name || 'Guest'}: ${coachLabel(p.travel_coach)}`)
+      .join('; ');
+    const isTour = String(adv.category || '').toLowerCase() === 'tour';
+
     const confirmationDetails = {
       date: details?.booking?.adventure_date,
       participants: details?.booking?.number_of_seats,
       amountPaid: details?.booking?.amount,
+      totalAmount: details?.booking?.total_amount,
+      balanceDue: details?.booking?.balance_due,
+      paymentType: details?.booking?.payment_type,
       bookingCode: details?.booking?.booking_code,
       location: adv.location,
       duration: adv.duration,
       difficulty: adv.difficulty,
+      category: adv.category,
       meetingPoint: pickupSummary,
       itinerary: parseList(adv.itinerary),
       included: parseList(adv.included),
       excluded: parseList(adv.excluded),
       confirmationPdfUrl: adv.confirmation_pdf_url || null,
+      travelCoachSummary: travelCoachSummary || null,
+      stayNote: isTour ? 'Group stay — three people share a room (twin/private not offered)' : null,
+      selectedOptions: details?.booking?.selected_options || [],
+      adventure: adv,
     };
 
     const customerName =
@@ -193,6 +245,13 @@ exports.verify = async (req, res) => {
         logger.error('Failed to enqueue booking confirmation:', err.message);
         deliveryWarnings.push('confirmation_queue_failed');
       }
+    }
+
+    getConvexClient().patchDeliveryWarnings(booking_id, deliveryWarnings).catch((err) =>
+      logger.warn('Could not persist delivery warnings:', err.message)
+    );
+    if (deliveryWarnings.length) {
+      logger.warn(`Booking ${booking_id} delivery warnings: ${deliveryWarnings.join(', ')}`);
     }
 
     getConvexClient().logAudit({

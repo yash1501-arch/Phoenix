@@ -115,9 +115,41 @@ const uploadAvatar = async (req, res) => {
     }
 };
 
+const setRole = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const role = String(req.body.role || '').trim();
+        const { isValidRole } = require('../utils/roles');
+        if (!isValidRole(role)) {
+            return res.status(400).json({ success: false, message: 'role must be admin, clerk, or user' });
+        }
+        if (String(id) === String(req.user.id) && role !== 'admin') {
+            return res.status(400).json({ success: false, message: 'You cannot remove your own admin role' });
+        }
+        const existing = await getConvexClient().getUserById(id);
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        await getConvexClient().updateUser(id, { role });
+        getConvexClient().logAudit({
+            actor_id: req.user.id,
+            actor_email: req.user.email,
+            action: 'user.role_change',
+            target_type: 'user',
+            target_id: id,
+            metadata: { from: existing.role, to: role, email: existing.email },
+        }).catch((err) => logger.error('Audit log failed:', err.message));
+        return res.json({ success: true, message: `Role updated to ${role}` });
+    } catch (error) {
+        logger.error('setRole error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to update role' });
+    }
+};
+
 module.exports = {
     getUsers,
     getUserById,
     updateUser,
-    uploadAvatar
+    uploadAvatar,
+    setRole,
 };

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { getConvexClient } = require('../utils/convexClient');
 const { COOKIE_NAME } = require('../utils/authCookie');
-const { isDbAdmin } = require('./auth');
+const { isDbStaff } = require('./auth');
 const logger = require('../utils/logger');
 
 const BYPASS_PREFIXES = [
@@ -43,14 +43,14 @@ async function maintenanceAdminBypass(req) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.user?.id || decoded.id;
-    return isDbAdmin(userId);
+    return isDbStaff(userId);
   } catch {
     return false;
   }
 }
 
 /**
- * Return 503 when maintenance_mode is on, except for admins and auth/public health routes.
+ * Return 503 when maintenance_mode is on, except for staff and auth/public health routes.
  */
 async function maintenanceMode(req, res, next) {
   if (BYPASS_PREFIXES.some((p) => req.path === p || req.path.startsWith(p))) {

@@ -2,11 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { X, Calendar, Users, Phone, IndianRupee, MapPin, UserPlus, UtensilsCrossed } from 'lucide-react';
+import { X, Calendar, Users, Phone, IndianRupee, MapPin, UserPlus, UtensilsCrossed, Wallet, CreditCard } from 'lucide-react';
 import { bookingsAPI, publicSettingsAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { buildPickupOptions } from '../utils/adventureFields';
 import { isBookingOpen, formatCutoffLabel, normalizeStartTime, BOOKING_CUTOFF_HOURS } from '../utils/bookingWindow';
+import {
+    isTour,
+    computeBookingAmounts,
+    resolveAdvancePerPerson,
+    defaultRoomSelection,
+    defaultTrainCoach,
+    findPricingGroup,
+} from '../utils/tourPricing';
 
 const todayISO = () => {
     const d = new Date();
@@ -22,27 +31,57 @@ const MEAL_OPTIONS = [
     { value: 'jain', label: 'Jain' },
 ];
 
-const emptyParticipant = (pickupDefault = '') => ({
+const emptyParticipant = (pickupDefault = '', travelCoach = 'sleeper') => ({
     name: '',
     phone: '',
     meal_preference: 'veg',
     pickup_point: pickupDefault,
+    travel_coach: travelCoach,
 });
 
 const BookingModal = ({ adventure, onClose }) => {
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuth();
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(false);
     const [holdMinutes, setHoldMinutes] = useState(15);
+    const [advancePerPerson, setAdvancePerPerson] = useState(() =>
+        resolveAdvancePerPerson(adventure, 1000)
+    );
+
+    // Default: tours prefer advance (existing behaviour); non-tours prefer full
+    const [paymentPreference, setPaymentPreference] = useState(() =>
+        isTour(adventure) ? 'advance' : 'full'
+    );
 
     useEffect(() => {
         publicSettingsAPI.getAll().then((all) => {
             const mins = parseInt(all.seat_hold_minutes, 10);
             if (Number.isFinite(mins) && mins > 0) setHoldMinutes(mins);
+            const settingsAdv = parseFloat(all.advance_per_person);
+            const adv = resolveAdvancePerPerson(
+                adventure,
+                Number.isFinite(settingsAdv) ? settingsAdv : 1000,
+            );
+            setAdvancePerPerson(adv);
+            if (isTour(adventure) && adv <= 0) {
+                setPaymentPreference('full');
+            }
         }).catch(() => {});
-    }, []);
+    }, [adventure]);
+
+    useEffect(() => {
+        if (isAuthenticated) return;
+        toast.error('Please log in to book');
+        onClose();
+        navigate('/login', { state: { from: `/adventure/${adventure._id || adventure.id}` } });
+    }, [isAuthenticated, adventure._id, adventure.id, navigate, onClose]);
 
     const tripPrice = Number(adventure.price) || 0;
+    const tour = isTour(adventure);
+    const trainGroup = tour ? findPricingGroup(adventure, 'train') : null;
+    const trainChoices = trainGroup?.choices || [];
+    const defaultCoach = tour ? defaultTrainCoach(adventure) : 'sleeper';
     const dates = (() => {
         try {
             const raw = typeof adventure.available_dates === 'string'
@@ -65,8 +104,9 @@ const BookingModal = ({ adventure, onClose }) => {
         emergency_contact: '',
     });
     const [participants, setParticipants] = useState([
-        emptyParticipant(defaultPickup),
+        emptyParticipant(defaultPickup, defaultCoach),
     ]);
+    const [optionSelections] = useState(() => (tour ? defaultRoomSelection(adventure) : {}));
 
     const windowStatus = useMemo(
         () => isBookingOpen(adventure, form.adventure_date),
@@ -77,7 +117,7 @@ const BookingModal = ({ adventure, onClose }) => {
         setParticipants((prev) => {
             const next = [...prev];
             while (next.length < count) {
-                next.push(emptyParticipant(defaultPickup));
+                next.push(emptyParticipant(defaultPickup, defaultCoach));
             }
             const trimmed = next.slice(0, count);
             if (trimmed[0] && user) {
@@ -92,10 +132,29 @@ const BookingModal = ({ adventure, onClose }) => {
                 pickup_point: p.pickup_point || defaultPickup,
             }));
         });
-    }, [form.number_of_seats, defaultPickup, user, form.customer_phone]);
+    }, [form.number_of_seats, defaultPickup, defaultCoach, user, form.customer_phone]);
 
-    const totalAmount = tripPrice * form.number_of_seats;
+    const participantTravelCoaches = useMemo(
+        () => participants.map((p) => p.travel_coach).filter(Boolean),
+        [participants],
+    );
+
+    const priced = useMemo(
+        () => computeBookingAmounts({
+            adventure,
+            seats: form.number_of_seats,
+            selections: optionSelections,
+            participantTravelCoaches,
+            advancePerPerson,
+            payment_preference: paymentPreference,
+        }),
+        [adventure, form.number_of_seats, optionSelections, participantTravelCoaches, advancePerPerson, paymentPreference],
+    );
+    const totalAmount = priced.amount;
+    const tripTotal = priced.total_amount;
     const maxSeats = adventure.max_participants || 10;
+    // Whether advance option is available for this adventure + settings combo
+    const advanceAvailable = tour && advancePerPerson > 0;
 
     const updateParticipant = (index, field, value) => {
         setParticipants((prev) => {
@@ -159,22 +218,33 @@ const BookingModal = ({ adventure, onClose }) => {
                 toast.error(`Participant ${i + 1}: pickup point is required`);
                 return;
             }
+            if (tour && trainChoices.length > 0 && !p.travel_coach) {
+                toast.error(`Participant ${i + 1}: select Sleeper coach or 3AC`);
+                return;
+            }
         }
 
         setLoading(true);
         try {
+            const selected_options = Object.entries(optionSelections)
+                .filter(([, choice_id]) => choice_id)
+                .map(([group, choice_id]) => ({ group, choice_id }));
+
             const res = await bookingsAPI.createManual({
                 adventure_id: adventure._id || adventure.id,
                 adventure_date: form.adventure_date,
                 number_of_seats: form.number_of_seats,
                 customer_phone: form.customer_phone.trim(),
                 emergency_contact: form.emergency_contact.trim(),
+                payment_preference: paymentPreference,
                 participants: participants.map((p) => ({
                     name: p.name.trim(),
                     phone: p.phone.trim(),
                     meal_preference: p.meal_preference,
                     pickup_point: p.pickup_point,
+                    ...(tour && p.travel_coach ? { travel_coach: p.travel_coach } : {}),
                 })),
+                ...(tour && selected_options.length > 0 ? { selected_options } : {}),
             });
             const bookingId = res.data.data.id;
             toast.success('Seats held — complete UPI payment next');
@@ -194,13 +264,15 @@ const BookingModal = ({ adventure, onClose }) => {
         });
     };
 
+    if (!isAuthenticated) return null;
+
     return (
         <AnimatePresence>
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-stone/60 backdrop-blur-sm"
+                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-panel/60 backdrop-blur-sm"
                 onClick={onClose}
             >
                 <motion.div
@@ -210,12 +282,12 @@ const BookingModal = ({ adventure, onClose }) => {
                     className="bg-mist w-full max-w-md rounded-lg shadow-lift overflow-hidden max-h-[92vh] flex flex-col"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <div className="bg-stone text-mist px-6 py-5 flex items-start justify-between shrink-0">
+                    <div className="bg-panel text-cream px-6 py-5 flex items-start justify-between shrink-0">
                         <div>
-                            <p className="meta !text-mist/50 mb-1">Book Adventure</p>
+                            <p className="meta !text-cream/50 mb-1">Book Adventure</p>
                             <h2 className="font-display text-xl font-semibold">{adventure.title}</h2>
                         </div>
-                        <button type="button" onClick={onClose} className="text-mist/60 hover:text-mist transition p-1" aria-label="Close">
+                        <button type="button" onClick={onClose} className="text-cream/60 hover:text-cream transition p-1" aria-label="Close">
                             <X size={20} />
                         </button>
                     </div>
@@ -372,30 +444,158 @@ const BookingModal = ({ adventure, onClose }) => {
                                                 ))}
                                             </select>
                                         </div>
+                                        {tour && trainChoices.length > 0 && (
+                                            <div>
+                                                <label className="meta mb-2 block">Train travel *</label>
+                                                <div className="space-y-2">
+                                                    {trainChoices.map((c) => {
+                                                        const selected = participant.travel_coach === c.id;
+                                                        const extra = Number(c.extra_per_person) || 0;
+                                                        return (
+                                                            <label
+                                                                key={c.id}
+                                                                className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+                                                                    selected
+                                                                        ? 'border-ember bg-ember/5'
+                                                                        : 'border-stone/15 hover:border-stone/30'
+                                                                }`}
+                                                            >
+                                                                <span className="flex items-center gap-2 text-sm text-stone">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name={`train_${index}`}
+                                                                        checked={selected}
+                                                                        onChange={() => updateParticipant(index, 'travel_coach', c.id)}
+                                                                        className="accent-ember"
+                                                                    />
+                                                                    {c.label}
+                                                                </span>
+                                                                <span className="text-sm text-muted shrink-0">
+                                                                    {extra > 0
+                                                                        ? `+₹${extra.toLocaleString('en-IN')}/person`
+                                                                        : 'Included'}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
                         )}
 
+                        {tour && (
+                            <p className="text-sm text-muted bg-mist-subtle border border-stone/10 rounded-lg px-3 py-2.5">
+                                <strong className="text-stone">{t.booking.stayNote.split(':')[0]}:</strong>{' '}
+                                {t.booking.stayNote.replace(/^[^:]+:\s*/, '')}
+                            </p>
+                        )}
+
+                        {/* ── Payment type selector ── */}
+                        {advanceAvailable && (
+                            <div>
+                                <label className="meta flex items-center gap-1.5 mb-2">
+                                    <Wallet size={14} /> Payment option
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {/* Advance option */}
+                                    <label
+                                        className={`flex flex-col gap-1 rounded-lg border px-3 py-3 cursor-pointer transition-colors ${
+                                            paymentPreference === 'advance'
+                                                ? 'border-ember bg-ember/5'
+                                                : 'border-stone/15 hover:border-stone/30'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2 text-sm font-semibold text-stone">
+                                            <input
+                                                type="radio"
+                                                name="payment_preference"
+                                                value="advance"
+                                                checked={paymentPreference === 'advance'}
+                                                onChange={() => setPaymentPreference('advance')}
+                                                className="accent-ember"
+                                            />
+                                            {t.booking.payAdvance}
+                                        </span>
+                                        <span className="text-xs text-muted pl-5">
+                                            ₹{(advancePerPerson * form.number_of_seats).toLocaleString('en-IN')} now
+                                            · balance before departure
+                                        </span>
+                                    </label>
+
+                                    {/* Full payment option */}
+                                    <label
+                                        className={`flex flex-col gap-1 rounded-lg border px-3 py-3 cursor-pointer transition-colors ${
+                                            paymentPreference === 'full'
+                                                ? 'border-ember bg-ember/5'
+                                                : 'border-stone/15 hover:border-stone/30'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2 text-sm font-semibold text-stone">
+                                            <input
+                                                type="radio"
+                                                name="payment_preference"
+                                                value="full"
+                                                checked={paymentPreference === 'full'}
+                                                onChange={() => setPaymentPreference('full')}
+                                                className="accent-ember"
+                                            />
+                                            {t.booking.payFull}
+                                        </span>
+                                        <span className="text-xs text-muted pl-5">
+                                            ₹{priced.total_amount.toLocaleString('en-IN')} now
+                                            · nothing due later
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ── Pricing summary ── */}
                         <div className="bg-mist-subtle rounded-lg p-4 border border-stone/10">
                             <div className="flex justify-between text-sm text-muted mb-1">
-                                <span>Price per person</span>
+                                <span>Base price per person</span>
                                 <span>₹{tripPrice.toLocaleString('en-IN')}</span>
                             </div>
-                            <div className="flex justify-between text-sm text-muted mb-2">
+                            {tour && priced.extra_per_person > 0 && (
+                                <div className="flex justify-between text-sm text-muted mb-1">
+                                    <span>Options extra / person</span>
+                                    <span>+₹{priced.extra_per_person.toLocaleString('en-IN')}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-sm text-muted mb-1">
                                 <span>× {form.number_of_seats} {form.number_of_seats === 1 ? 'person' : 'people'}</span>
                                 <span />
                             </div>
+                            {priced.payment_type === 'advance' ? (
+                                <>
+                                    <div className="flex justify-between text-sm text-muted mb-1 border-t border-stone/10 pt-2 mt-1">
+                                        <span>Trip total</span>
+                                        <span>₹{tripTotal.toLocaleString('en-IN')}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm text-muted mb-2">
+                                        <span>Balance before departure</span>
+                                        <span>₹{priced.balance_due.toLocaleString('en-IN')}</span>
+                                    </div>
+                                </>
+                            ) : null}
                             <div className="flex justify-between items-center">
                                 <span className="font-semibold text-stone inline-flex items-center gap-1">
-                                    <IndianRupee size={16} /> Total to pay
+                                    <IndianRupee size={16} />
+                                    {priced.payment_type === 'advance' ? 'Advance to pay now' : 'Total to pay'}
                                 </span>
                                 <span className="font-display text-2xl text-stone font-semibold">
                                     ₹{totalAmount.toLocaleString('en-IN')}
                                 </span>
                             </div>
                             <p className="text-xs text-muted mt-2">
-                                Pay via UPI on the next screen. Seats held for {holdMinutes} minutes. No gateway fees.
+                                    {priced.payment_type === 'advance'
+                                    ? `Pay ₹${advancePerPerson.toLocaleString('en-IN')} advance per person via UPI. Balance due before departure. Seats held for ${holdMinutes} minutes.`
+                                    : tour
+                                        ? `Pay the full tour amount via UPI on the next screen (options included). Seats held for ${holdMinutes} minutes.`
+                                        : `Trek bookings are paid in full via UPI on the next screen. Seats held for ${holdMinutes} minutes. No gateway fees.`}
                             </p>
                         </div>
 
@@ -404,18 +604,8 @@ const BookingModal = ({ adventure, onClose }) => {
                             disabled={loading || !form.adventure_date || tripPrice <= 0 || pickupOptions.length === 0 || !windowStatus.open}
                             className="btn btn-primary w-full"
                         >
-                            {loading ? 'Creating booking…' : !windowStatus.open ? 'Bookings closed' : 'Proceed to Payment'}
+                            {loading ? t.common.loading : !windowStatus.open ? 'Bookings closed' : t.booking.proceed}
                         </button>
-
-                        {!isAuthenticated && (
-                            <p className="text-xs text-center text-muted">
-                                You&apos;ll need to{' '}
-                                <button type="button" onClick={() => navigate('/login')} className="text-ember font-semibold underline">
-                                    log in
-                                </button>{' '}
-                                to continue
-                            </p>
-                        )}
                     </form>
                 </motion.div>
             </motion.div>

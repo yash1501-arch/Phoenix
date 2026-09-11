@@ -14,8 +14,13 @@ async function initRedis() {
 
   initPromise = (async () => {
     const url = process.env.REDIS_URL;
+    const redisRequired = String(process.env.REQUIRE_REDIS || '').toLowerCase() === 'true';
     if (!url) {
       state = 'disabled';
+      if (redisRequired) {
+        logger.error('FATAL: REQUIRE_REDIS=true but REDIS_URL is not set');
+        process.exit(1);
+      }
       logger.info('REDIS_URL not set — using in-memory cache/rate-limit/queue fallback');
       return null;
     }
@@ -76,6 +81,10 @@ async function initRedis() {
         `Redis unavailable (${err.message}) — using in-memory cache/jobs. ` +
           'Start it with: docker compose up -d redis'
       );
+      if (String(process.env.REQUIRE_REDIS || '').toLowerCase() === 'true') {
+        logger.error('FATAL: REQUIRE_REDIS=true and Redis is unreachable');
+        process.exit(1);
+      }
       return null;
     }
   })();

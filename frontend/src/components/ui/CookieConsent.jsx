@@ -2,11 +2,24 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Cookie, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../../context/LanguageContext';
 
 const STORAGE_KEY = 'phoenix-cookie-consent';
 
+export function getCookieConsent() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    return parsed?.consent || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function CookieConsent() {
     const [visible, setVisible] = useState(false);
+    const { t } = useLanguage();
 
     useEffect(() => {
         try {
@@ -38,30 +51,30 @@ export default function CookieConsent() {
                     role="dialog"
                     aria-live="polite"
                     aria-label="Cookie consent"
-                    className="fixed bottom-3 left-3 right-3 md:bottom-6 md:left-6 md:right-auto md:max-w-sm z-50 bg-zinc-900/95 border border-primary/30 rounded-xl p-4 md:p-5 shadow-2xl backdrop-blur"
+                    className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-3 right-3 md:bottom-6 md:left-6 md:right-auto md:max-w-sm z-40 bg-zinc-900/95 border border-primary/30 rounded-xl p-4 md:p-5 shadow-2xl backdrop-blur"
                 >
                     <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center">
                             <Cookie size={18} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-white text-sm mb-1">Cookies &amp; privacy</h3>
+                            <h3 className="font-semibold text-white text-sm mb-1">{t.cookie.title}</h3>
                             <p className="text-xs text-zinc-300 leading-relaxed">
-                                We use cookies for authentication and to remember your wishlist. No ad trackers.{' '}
-                                <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                                {t.cookie.body}{' '}
+                                <Link to="/privacy" className="text-primary hover:underline">{t.cookie.privacy}</Link>
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 <button
                                     onClick={accept}
                                     className="px-4 py-1.5 rounded-full bg-primary text-black text-xs font-bold hover:brightness-110 transition"
                                 >
-                                    Accept all
+                                    {t.cookie.accept}
                                 </button>
                                 <button
                                     onClick={decline}
                                     className="px-4 py-1.5 rounded-full border border-zinc-700 text-zinc-200 text-xs font-semibold hover:bg-zinc-800 transition"
                                 >
-                                    Essential only
+                                    {t.cookie.essential}
                                 </button>
                             </div>
                         </div>

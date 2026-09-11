@@ -66,12 +66,12 @@ const Privacy = () => (
       subtitle="Your data, your control. Plain-language privacy practices."
       breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Privacy' }]}
     />
-    <section className="bg-white py-16 md:py-24">
+    <section className="bg-mist-subtle py-16 md:py-24">
       <div className="container">
         <StaggerContainer className="mx-auto grid max-w-5xl gap-5 md:grid-cols-2">
           {blocks.map((b) => (
             <StaggerItem key={b.h} as="article" className="rounded-lg border border-stone/8 bg-mist/40 p-6 h-full">
-              <IconMotion className="mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-stone text-ember">
+              <IconMotion className="mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-panel text-ember">
                 <b.icon size={20} />
               </IconMotion>
               <h3 className="font-display text-lg font-semibold text-stone">{b.h}</h3>

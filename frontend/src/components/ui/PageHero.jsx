@@ -30,7 +30,7 @@ const PageHero = ({
         };
 
   return (
-    <section className="relative overflow-hidden bg-stone pt-32 pb-20 text-mist md:pt-40 md:pb-24">
+    <section className="relative overflow-hidden bg-panel pt-28 pb-14 text-cream md:pt-32 md:pb-16">
       <div
         aria-hidden
         className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(240,89,30,0.08),_transparent_55%)]"
@@ -41,17 +41,19 @@ const PageHero = ({
           <motion.nav
             {...fadeUp(0)}
             aria-label="Breadcrumb"
-            className="mb-8 text-xs font-semibold uppercase tracking-[0.16em] text-ember"
+            className={`mb-6 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-ember/90 sm:text-xs ${
+              isCenter ? 'text-center' : ''
+            }`}
           >
             {breadcrumb.map((crumb, i) => (
               <span key={crumb.label}>
-                {i > 0 && <span className="mx-2 text-mist/30">/</span>}
+                {i > 0 && <span className="mx-2 text-cream/30">/</span>}
                 {crumb.to ? (
-                  <Link to={crumb.to} className="hover:text-mist transition-colors">
+                  <Link to={crumb.to} className="hover:text-cream transition-colors">
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className="text-mist/50">{crumb.label}</span>
+                  <span className="text-cream/50">{crumb.label}</span>
                 )}
               </span>
             ))}
@@ -59,23 +61,25 @@ const PageHero = ({
         )}
         <div className={isCenter ? 'mx-auto max-w-3xl text-center' : 'max-w-3xl'}>
           {eyebrow && (
-            <motion.p {...fadeUp(1)} className="kicker !text-ember">
-              {eyebrow}
-            </motion.p>
+            <motion.div
+              {...fadeUp(1)}
+              className={`flex items-center gap-3 ${isCenter ? 'justify-center' : ''}`}
+            >
+              <span aria-hidden className="rule-gold shrink-0" />
+              <p className="kicker !text-ember !text-[0.8rem] sm:!text-[0.8125rem]">{eyebrow}</p>
+              {isCenter && <span aria-hidden className="rule-gold shrink-0" />}
+            </motion.div>
           )}
           <motion.h1
             {...fadeUp(2)}
-            className="mt-5 font-display text-display-2xl !text-mist font-semibold tracking-tight"
+            className="mt-4 font-display text-display-2xl !text-cream font-semibold tracking-tight"
           >
             {title}
           </motion.h1>
-          {isCenter && (
-            <motion.hr {...fadeUp(2)} className="rule-gold mx-auto mt-8" />
-          )}
           {subtitle && (
             <motion.p
               {...fadeUp(3)}
-              className="lede mt-7 !text-mist/75 mx-auto max-w-2xl"
+              className={`lede mt-4 !text-cream/75 max-w-2xl ${isCenter ? 'mx-auto' : ''}`}
             >
               {subtitle}
             </motion.p>
@@ -83,7 +87,7 @@ const PageHero = ({
           {showCta && (
             <motion.div
               {...fadeUp(4)}
-              className={`mt-10 flex flex-wrap gap-3 ${isCenter ? 'justify-center' : ''}`}
+              className={`mt-8 flex flex-wrap gap-3 ${isCenter ? 'justify-center' : ''}`}
             >
               <Link to={ctaHref} className="btn btn-outline">
                 {ctaLabel} <ArrowRight size={16} />
@@ -92,7 +96,7 @@ const PageHero = ({
           )}
         </div>
         {children && (
-          <motion.div {...fadeUp(5)} className="mt-10">
+          <motion.div {...fadeUp(5)} className="mt-8">
             {children}
           </motion.div>
         )}

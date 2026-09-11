@@ -9,25 +9,80 @@ import Footer from '../components/Footer';
 import { publicSettingsAPI } from '../utils/api';
 import GoogleReviews from '../components/ui/GoogleReviews';
 import {
-  ArrowRight, Mountain, Compass, Camera, Sun, Navigation, Wind,
-  Shield, Users, Leaf, Star, ChevronDown, MessageCircle, MapPin,
+  ArrowRight, Mountain, Compass, Camera, Sun, Navigation,
+  Shield, Users, Leaf, ChevronDown, MessageCircle, MapPin,
 } from 'lucide-react';
-
-// Destinations focused on brief (Sahyadri forts / Maharashtra outdoors). TODO: confirm extra ranges with client.
+import ctaBg from '../assets/images/cta-bg.png';
+import {
+  IMG_RAIGAD_VALLEY,
+  IMG_LOHAGAD,
+  IMG_RAJMACHI,
+  IMG_RAJMACHI_AERIAL,
+  IMG_KAZA_CAMP,
+  IMG_LADAKH,
+  IMG_HIMALAYA_TREK,
+  IMG_FALLBACK,
+} from '../data/indiaImages';
+// Destinations focused on brief (Sahyadri forts / Maharashtra outdoors).
+// Use landscape crops (w×h) so wide panels show ridge/fort, not empty sky.
 const destinations = [
-  { name: 'Sahyadris', desc: 'Fort ridges, monsoon trails, and weekend escapes from Mumbai.', image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1200&auto=format&fit=crop' },
-  { name: 'Raigad & Rajgad', desc: 'History-led fort treks at the heart of the Maratha landscape.', image: 'https://images.unsplash.com/photo-1541336032412-204896aeb7d0?q=80&w=1200&auto=format&fit=crop' },
-  { name: 'Torna & Pratapgad', desc: 'Ridge walks with stories of forts and the Konkan wind.', image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1200&auto=format&fit=crop' },
-  { name: 'Shivneri & Hadsar', desc: 'Approachable fort day-treks with end-to-end logistics.', image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=1200&auto=format&fit=crop' },
+  {
+    name: 'Sahyadris',
+    desc: 'Fort ridges, monsoon trails, and weekend escapes from Mumbai.',
+    image: IMG_LOHAGAD(1400, 900),
+  },
+  {
+    name: 'Raigad & Rajgad',
+    desc: 'History-led fort treks at the heart of the Maratha landscape.',
+    image: IMG_RAJMACHI_AERIAL(1400, 900),
+  },
+  {
+    name: 'Torna & Pratapgad',
+    desc: 'Ridge walks with stories of forts and the Konkan wind.',
+    image: IMG_RAJMACHI(1400, 900),
+  },
+  {
+    name: 'Shivneri & Hadsar',
+    desc: 'Approachable fort day-treks with end-to-end logistics.',
+    image: IMG_HIMALAYA_TREK(1400, 900),
+  },
 ];
-
 const categories = [
-  { name: '1-Day Trek', icon: Mountain, href: '/treks', image: 'https://images.unsplash.com/photo-1486915309851-b0cc1f8a0084?q=80&w=800&auto=format&fit=crop', count: 'Sahyadri fort day-hikes' },
-  { name: 'Camping', icon: Sun, href: '/camping', image: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800&auto=format&fit=crop', count: 'Overnight under the stars' },
-  { name: 'Tours', icon: Navigation, href: '/tours', image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?q=80&w=800&auto=format&fit=crop', count: 'Longer multi-day journeys' },
-  { name: 'Gallery', icon: Camera, href: '/gallery', image: 'https://images.unsplash.com/photo-1516738901171-8eb4fc2ab429?q=80&w=800&auto=format&fit=crop', count: 'From the trail' },
+  {
+    name: '1-Day Trek',
+    icon: Mountain,
+    href: '/treks',
+    image: IMG_RAIGAD_VALLEY(800),
+    count: 'Sahyadri fort day-hikes',
+  },
+  {
+    name: 'Camping',
+    icon: Sun,
+    href: '/camping',
+    image: IMG_KAZA_CAMP(800),
+    count: 'Overnight under the stars',
+  },
+  {
+    name: 'Tours',
+    icon: Navigation,
+    href: '/tours',
+    image: IMG_LADAKH(800),
+    count: 'Longer multi-day journeys',
+  },
+  {
+    name: 'Gallery',
+    icon: Camera,
+    href: '/gallery',
+    image: IMG_HIMALAYA_TREK(800),
+    count: 'From the trail',
+  },
 ];
 
+const onImgError = (e) => {
+  if (e.currentTarget.src !== IMG_FALLBACK) {
+    e.currentTarget.src = IMG_FALLBACK;
+  }
+};
 const pillars = [
   { icon: Shield, title: 'Safety first', text: 'Satellite phones, medical kits, and IRCA-trained leaders on every expedition.' },
   { icon: Users, title: 'Small groups', text: 'Capped at 12–14 people so the trail stays personal and the pace stays human.' },
@@ -37,7 +92,7 @@ const pillars = [
 const faqItems = [
   { q: 'What fitness level do I need?', a: 'We run easy weekend treks through high-altitude expeditions. Each trip page lists difficulty, altitude, and prep.' },
   { q: 'What is included?', a: 'Guide, camping gear, trek meals, permits, and first-aid. Transport varies by trip — details are on each adventure page.' },
-  { q: 'How do I book and pay?', a: 'Tap Book Now, choose date and seats (total = price × people). Pay via UPI to our QR / 9372506447@sbi, then upload screenshot + UTR. We confirm after bank verification — no Razorpay/Paytm fees.' },
+  { q: 'How do I book and pay?', a: 'Sign in (required to book), tap Book Now, choose date and seats (total = price × people). Pay via UPI to our QR / 9372506447@sbi, then upload screenshot + UTR. We confirm after bank verification — no Razorpay/Paytm fees.' },
   { q: 'Is it safe for solo travellers?', a: 'Yes — nearly 40% of our guests travel solo. You join a vetted group; guides keep everyone included and safe.' },
   { q: 'Cancellation policy?', a: '30+ days: 90% refund. 15–29 days: 50%. 7–14 days: 25%. Inside 7 days: no refund, but you can transfer your seat. See Refund Policy for full terms.' },
 ];
@@ -72,13 +127,13 @@ const Stat = ({ value, label, suffix = '', className = '' }) => {
   const [count, ref] = useCountUp(n);
   return (
     <div ref={ref} className={`text-center ${className}`}>
-      <p className="font-display text-3xl md:text-4xl text-mist font-semibold tabular-nums leading-none">
+      <p className="font-display text-3xl md:text-4xl text-cream font-semibold tabular-nums leading-none">
         {value.includes('★') ? '4.9' : count.toLocaleString()}
         <span className="text-ember text-xl md:text-2xl">
           {suffix || (value.includes('+') ? '+' : value.includes('★') ? '★' : '')}
         </span>
       </p>
-      <p className="mt-2.5 text-sm text-mist/50 font-medium leading-snug">{label}</p>
+      <p className="mt-2.5 text-sm text-cream/70 font-medium leading-snug">{label}</p>
     </div>
   );
 };
@@ -119,7 +174,7 @@ const Landing = () => {
       <Hero />
 
       {/* Trust strip — tribe framing from brief (no invented publications) */}
-      <section className="py-10 bg-stone border-y border-mist/5" aria-label="Adventure tribe">
+      <section className="py-10 bg-panel border-y border-cream/5" aria-label="Adventure tribe">
         <Marquee speed={28} pauseOnHover gradientWidth={48}>
           {[
             'Discover the great outdoors with our adventure tribe',
@@ -129,7 +184,7 @@ const Landing = () => {
             'Pratapgad · Shivneri · Hadsar · Sagargad',
           ].map((name) => (
             <MarqueeItem key={name}>
-              <span className="font-display text-sm md:text-base font-medium text-mist/35 tracking-wide whitespace-nowrap px-6">
+              <span className="font-display text-sm md:text-base font-medium text-cream/55 tracking-wide whitespace-nowrap px-6">
                 {name}
               </span>
             </MarqueeItem>
@@ -138,7 +193,7 @@ const Landing = () => {
       </section>
 
       {/* Stats from CONTEXT.md — verbatim trust metrics */}
-      <section className="bg-stone py-16 md:py-20">
+      <section className="bg-panel py-16 md:py-20">
         <div className="container">
           <ul className="grid grid-cols-2 gap-x-8 gap-y-10 lg:grid-cols-5 lg:gap-x-10 xl:gap-x-12 list-none m-0 p-0">
             {[
@@ -195,14 +250,19 @@ const Landing = () => {
                 whileHover={{ y: -4 }}
                 className="relative h-64 md:h-72 rounded-lg overflow-hidden text-left group"
               >
-                <img src={cat.image} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                <div className="absolute inset-0 bg-gradient-to-t from-stone via-stone/40 to-transparent" />
+                <img
+                  src={cat.image}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  onError={onImgError}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
                 <div className="absolute bottom-0 inset-x-0 p-5">
                   <span className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-ember/90 text-white mb-3">
                     <IconHover icon={cat.icon} />
                   </span>
-                  <h3 className="font-display text-xl text-mist font-semibold">{cat.name}</h3>
-                  <p className="text-sm text-mist/60 mt-1">{cat.count}</p>
+                  <h3 className="font-display text-xl text-cream font-semibold">{cat.name}</h3>
+                  <p className="text-sm text-cream/75 mt-1">{cat.count}</p>
                 </div>
               </motion.button>
             ))}
@@ -211,7 +271,7 @@ const Landing = () => {
       </section>
 
       {/* Destinations cinematic carousel */}
-      <section className="section bg-stone text-mist overflow-hidden">
+      <section className="section bg-panel text-cream overflow-hidden">
         <div className="container">
           <div className="mb-10 md:mb-12 max-w-xl">
             <p className="kicker mb-3">Where we go</p>
@@ -231,12 +291,12 @@ const Landing = () => {
                     onClick={() => { setActiveDest(i); setPaused(true); }}
                     aria-label={`Destination ${i + 1}`}
                     className={`h-1 rounded-full transition-all duration-400 ${
-                      i === activeDest ? 'w-8 bg-ember' : 'w-3 bg-mist/20 hover:bg-mist/40'
+                      i === activeDest ? 'w-8 bg-ember' : 'w-3 bg-cream/25 hover:bg-cream/45'
                     }`}
                   />
                 ))}
               </div>
-              <span className="text-xs font-bold text-mist/40 tracking-widest">
+              <span className="text-xs font-bold text-cream/55 tracking-widest">
                 {String(activeDest + 1).padStart(2, '0')} / {String(destinations.length).padStart(2, '0')}
               </span>
             </div>
@@ -255,14 +315,15 @@ const Landing = () => {
                   <img
                     src={destinations[activeDest].image}
                     alt={destinations[activeDest].name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-[center_62%]"
+                    onError={onImgError}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-stone via-stone/30 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 inset-x-0 p-6 md:p-10">
-                    <h3 className="font-display text-3xl md:text-5xl font-semibold mb-2">
+                    <h3 className="font-display text-3xl md:text-5xl font-semibold mb-2 text-cream">
                       {destinations[activeDest].name}
                     </h3>
-                    <p className="text-mist/70 max-w-md mb-4">{destinations[activeDest].desc}</p>
+                    <p className="text-cream/80 max-w-md mb-4">{destinations[activeDest].desc}</p>
                     <span className="inline-flex items-center gap-2 text-sm font-bold text-ember">
                       <MapPin size={14} /> Explore departures
                       <ArrowRight size={14} />
@@ -302,9 +363,9 @@ const Landing = () => {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08, duration: 0.45 }}
-                className="flex gap-5 p-5 md:p-6 bg-white rounded-lg border border-stone/8 hover:border-ember/30 transition-colors group"
+                className="flex gap-5 p-5 md:p-6 bg-mist-subtle rounded-lg border border-stone/10 hover:border-ember/30 transition-colors group"
               >
-                <span className="shrink-0 w-12 h-12 rounded-md bg-stone text-ember flex items-center justify-center">
+                <span className="shrink-0 w-12 h-12 rounded-md bg-panel text-ember flex items-center justify-center">
                   <IconHover icon={p.icon} />
                 </span>
                 <div>
@@ -318,11 +379,11 @@ const Landing = () => {
       </section>
 
       {/* Reviews — curated Google 4–5★ quotes; Places API when key available */}
-      <section className="section-tight bg-stone">
+      <section className="section-tight bg-panel">
         <div className="container mb-10">
           <p className="kicker mb-3">From Google</p>
-          <h2 className="font-display text-display-lg text-mist font-semibold">What trekkers say</h2>
-          <p className="mt-3 text-mist/55 text-sm max-w-lg">
+          <h2 className="font-display text-display-lg text-cream font-semibold">What trekkers say</h2>
+          <p className="mt-3 text-cream/75 text-sm max-w-lg">
             Real reviews from our Google Business Profile — fort day-treks, camping, and longer tours across the Sahyadris.
           </p>
         </div>
@@ -339,7 +400,7 @@ const Landing = () => {
             {faqItems.map((item, i) => {
               const open = activeFaq === i;
               return (
-                <div key={item.q} className="bg-white rounded-lg border border-stone/8 overflow-hidden">
+                <div key={item.q} className="bg-mist-subtle rounded-lg border border-stone/10 overflow-hidden">
                   <button
                     onClick={() => setActiveFaq(open ? null : i)}
                     className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left min-h-[56px]"
@@ -373,11 +434,11 @@ const Landing = () => {
       {/* Final CTA */}
       <section className="relative py-24 md:py-32 overflow-hidden">
         <img
-          src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1600&auto=format&fit=crop"
+          src={ctaBg}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-stone/80" />
+        <div className="absolute inset-0 bg-panel/80" />
         <div className="container relative z-10 text-center max-w-2xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -385,10 +446,10 @@ const Landing = () => {
             viewport={{ once: true }}
           >
             <Compass className="mx-auto text-ember mb-6 float-y" size={36} />
-            <h2 className="font-display text-display-lg text-mist font-semibold mb-4">
+            <h2 className="font-display text-display-lg text-cream font-semibold mb-4">
               Ready for the next ridge?
             </h2>
-            <p className="text-mist/65 mb-8 mx-auto">
+            <p className="text-cream/65 mb-8 mx-auto">
               Pick a departure, message us on WhatsApp with your group size. We confirm seats — usually within hours.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">

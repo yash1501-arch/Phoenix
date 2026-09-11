@@ -1,56 +1,124 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useWishlist } from '../context/WishlistContext';
 import {
     Mail, Calendar, Award, LogOut, Phone,
     ChevronRight, Settings, Compass, LayoutDashboard,
-    Heart, ArrowRight, MessageCircle, MapPin, IndianRupee, Clock
+    Heart, ArrowRight, MessageCircle, MapPin, IndianRupee, Clock, FileDown, Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { publicSettingsAPI, getImageUrl, bookingsAPI } from '../utils/api';
+import { canUserCancelBooking } from '../utils/bookingCancel';
 import { motion } from 'framer-motion';
 import UserAvatar from '../components/ui/UserAvatar';
 import './UserDashboard.css';
-
-const STATUS_BADGE = {
-    pending_payment: { label: 'Pay Now', cls: 'bg-amber-100 text-amber-800' },
-    payment_submitted: { label: 'Under Review', cls: 'bg-blue-100 text-blue-800' },
-    confirmed: { label: 'Confirmed', cls: 'bg-emerald-100 text-emerald-800' },
-    rejected: { label: 'Rejected', cls: 'bg-red-100 text-red-800' },
-    expired: { label: 'Expired', cls: 'bg-gray-100 text-gray-600' },
-    cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-600' },
-};
+import { IMG_FALLBACK } from '../data/indiaImages';
 
 const UserDashboard = () => {
     const { user, logout, updateUserContext } = useAuth();
+    const { t } = useLanguage();
+    const STATUS_BADGE = {
+        pending_payment: { label: t.dashboard.payNow, cls: 'bg-amber-100 text-amber-800' },
+        payment_submitted: { label: t.dashboard.underReview, cls: 'bg-blue-100 text-blue-800' },
+        confirmed: { label: t.dashboard.confirmed, cls: 'bg-emerald-100 text-emerald-800' },
+        rejected: { label: t.dashboard.rejected, cls: 'bg-red-100 text-red-800' },
+        expired: { label: t.dashboard.expired, cls: 'bg-gray-100 text-gray-600' },
+        cancelled: { label: t.dashboard.cancelled, cls: 'bg-gray-100 text-gray-600' },
+    };
     const { items: wishlistItems, count: wishlistCount } = useWishlist();
     const [whatsappNumber, setWhatsappNumber] = useState('919372506447');
     const [bookings, setBookings] = useState([]);
     const [bookingsLoading, setBookingsLoading] = useState(true);
+    const [cancellationWindowDays, setCancellationWindowDays] = useState(14);
+    const [cancellingId, setCancellingId] = useState(null);
+    const [pdfBusyId, setPdfBusyId] = useState(null);
+
+    const handleDownloadItinerary = async (bookingId) => {
+        setPdfBusyId(bookingId);
+        try {
+            const res = await bookingsAPI.downloadItinerary(bookingId);
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Phoenix-Itinerary.pdf';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Could not download itinerary');
+        } finally {
+            setPdfBusyId(null);
+        }
+    };
 
     useEffect(() => {
         publicSettingsAPI.getAll().then((all) => {
             if (all.whatsapp) setWhatsappNumber(String(all.whatsapp).replace(/\D/g, '') || '919372506447');
+            const days = parseInt(all.cancellation_window_days, 10);
+            if (Number.isFinite(days) && days >= 0) setCancellationWindowDays(days);
         }).catch(() => {});
     }, []);
 
+    const handleCancelBooking = async (bookingId) => {
+        if (!window.confirm('Cancel this booking? Refunds follow our refund policy.')) return;
+        setCancellingId(bookingId);
+        try {
+            await bookingsAPI.cancel(bookingId);
+            toast.success('Booking cancelled');
+            setBookings((prev) =>
+                prev.map((b) => {
+                    const id = b._id || b.id;
+                    return id === bookingId ? { ...b, booking_status: 'cancelled' } : b;
+                }),
+            );
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Could not cancel booking');
+        } finally {
+            setCancellingId(null);
+        }
+    };
+
     useEffect(() => {
-        if (!user?.id) return;
-        bookingsAPI.getUserBookings(user.id)
-            .then((res) => setBookings(res.data?.data || []))
-            .catch((err) => toast.error(err.response?.data?.message || 'Could not load your bookings'))
-            .finally(() => setBookingsLoading(false));
-    }, [user?.id]);
+        let cancelled = false;
+        if (!user?.id && !user?._id) {
+            setBookings([]);
+            setBookingsLoading(false);
+            return undefined;
+        }
+        const userId = user.id || user._id;
+        setBookingsLoading(true);
+        bookingsAPI.getUserBookings(userId)
+            .then((res) => {
+                if (cancelled) return;
+                const all = res.data?.data || [];
+                const visible = all.filter((b) =>
+                    ['confirmed', 'cancelled', 'pending_payment', 'payment_submitted', 'payment_failed'].includes(b.booking_status)
+                );
+                setBookings(visible);
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setBookings([]);
+                    toast.error(err.response?.data?.message || 'Could not load your bookings');
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setBookingsLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [user?.id, user?._id]);
 
     const confirmedCount = bookings.filter((b) => b.booking_status === 'confirmed').length;
-    const pendingCount = bookings.filter((b) => ['pending_payment', 'payment_submitted'].includes(b.booking_status)).length;
+    const actionCount = bookings.filter((b) =>
+        ['pending_payment', 'payment_submitted', 'payment_failed'].includes(b.booking_status)
+    ).length;
 
     const stats = [
         { label: 'My Trips', value: confirmedCount.toString(), icon: Award, color: 'bg-emerald-50 text-emerald-600' },
-        { label: 'Pending', value: pendingCount.toString(), icon: Clock, color: 'bg-amber-50 text-amber-600' },
+        { label: 'Action needed', value: actionCount.toString(), icon: Clock, color: 'bg-amber-50 text-amber-700' },
         { label: 'Wishlist', value: wishlistCount.toString(), icon: Heart, color: 'bg-pink-50 text-pink-600' },
         { label: 'Member Since', value: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Jan 2026', icon: Calendar, color: 'bg-purple-50 text-purple-600' },
     ];
@@ -143,7 +211,7 @@ const UserDashboard = () => {
                             {q.onClick ? (
                                 <button
                                     onClick={q.onClick}
-                                    className="group block w-full text-left relative overflow-hidden rounded-2xl p-5 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                                    className="group block w-full text-left relative overflow-hidden rounded-2xl p-5 bg-mist-subtle border border-gray-100 shadow-sm hover:shadow-md transition-all"
                                 >
                                     <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full bg-gradient-to-br ${q.gradient} opacity-10 group-hover:opacity-20 transition-opacity`} />
                                     <div className="relative flex items-center gap-4">
@@ -160,7 +228,7 @@ const UserDashboard = () => {
                             ) : (
                                 <Link
                                     to={q.to}
-                                    className="group block relative overflow-hidden rounded-2xl p-5 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                                    className="group block relative overflow-hidden rounded-2xl p-5 bg-mist-subtle border border-gray-100 shadow-sm hover:shadow-md transition-all"
                                 >
                                     <div className={`absolute -top-6 -right-6 w-24 h-24 rounded-full bg-gradient-to-br ${q.gradient} opacity-10 group-hover:opacity-20 transition-opacity`} />
                                     <div className="relative flex items-center gap-4">
@@ -207,10 +275,10 @@ const UserDashboard = () => {
                                         const adv = booking.adventure || {};
                                         const bookingId = booking._id || booking.id;
                                         return (
-                                            <div key={bookingId} className="booking-card bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all">
+                                            <div key={bookingId} className="booking-card bg-mist-subtle rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all">
                                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                                     <img
-                                                        src={getImageUrl(adv.image_url) || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200'}
+                                                        src={getImageUrl(adv.image_url) || IMG_FALLBACK}
                                                         alt={adv.title}
                                                         className="w-full sm:w-20 h-20 rounded-xl object-cover"
                                                     />
@@ -222,25 +290,84 @@ const UserDashboard = () => {
                                                         <p className="text-xs text-gray-500 font-mono mb-2">{booking.booking_code}</p>
                                                         <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                                                             <span className="flex items-center gap-1"><Calendar size={12} /> {booking.adventure_date}</span>
-                                                            <span className="flex items-center gap-1"><MapPin size={12} /> {adv.location}</span>
-                                                            <span className="flex items-center gap-1"><IndianRupee size={12} /> {booking.amount?.toLocaleString()}</span>
+                                                            {adv.location && (
+                                                                <span className="flex items-center gap-1"><MapPin size={12} /> {adv.location}</span>
+                                                            )}
+                                                            <span className="flex items-center gap-1"><IndianRupee size={12} /> {Number(booking.amount || 0).toLocaleString('en-IN')}
+                                                                {booking.payment_type === 'advance' ? ' advance' : ''}
+                                                            </span>
+                                                            {Number(booking.balance_due) > 0 && booking.booking_status === 'confirmed' && (
+                                                                <span className="text-amber-700 font-semibold">Balance ₹{Number(booking.balance_due).toLocaleString('en-IN')}</span>
+                                                            )}
+                                                            {booking.number_of_seats > 0 && (
+                                                                <span>{booking.number_of_seats} seat{booking.number_of_seats !== 1 ? 's' : ''}</span>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    {['pending_payment', 'payment_submitted', 'payment_failed'].includes(booking.booking_status) && (
+                                                    {['pending_payment', 'payment_submitted', 'payment_failed'].includes(booking.booking_status) ? (
                                                         <Link
                                                             to={`/booking/${bookingId}/payment`}
                                                             className="shrink-0 px-4 py-2 bg-[#c9a961] text-white text-sm font-bold rounded-xl hover:bg-[#b8954f] transition"
                                                         >
-                                                            {booking.booking_status === 'payment_submitted' ? 'View Status' : 'Complete Payment'}
+                                                            {booking.booking_status === 'payment_submitted' ? t.dashboard.underReview : t.dashboard.payNow}
                                                         </Link>
-                                                    )}
+                                                    ) : booking.booking_status === 'confirmed' ? (
+                                                        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                                                            {(adv._id || adv.id) && (
+                                                                <Link
+                                                                    to={`/adventure/${adv._id || adv.id}`}
+                                                                    className="px-4 py-2 border border-stone/20 text-stone text-sm font-bold rounded-xl hover:bg-mist-subtle transition text-center"
+                                                                >
+                                                                    View trip
+                                                                </Link>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                disabled={pdfBusyId === bookingId}
+                                                                onClick={() => handleDownloadItinerary(bookingId)}
+                                                                className="px-4 py-2 border border-stone/20 text-stone text-sm font-bold rounded-xl hover:bg-mist-subtle transition disabled:opacity-50 inline-flex items-center justify-center gap-1"
+                                                            >
+                                                                <FileDown size={14} />
+                                                                {pdfBusyId === bookingId ? 'Preparing…' : 'Itinerary PDF'}
+                                                            </button>
+                                                            {Number(booking.balance_due) > 0 && booking.balance_status !== 'submitted' && (
+                                                                <Link
+                                                                    to={`/booking/${bookingId}/payment?kind=balance`}
+                                                                    className="px-4 py-2 bg-[#c9a961] text-white text-sm font-bold rounded-xl hover:bg-[#b8954f] transition text-center"
+                                                                >
+                                                                    Pay remaining
+                                                                </Link>
+                                                            )}
+                                                            {booking.balance_status === 'submitted' && (
+                                                                <span className="px-4 py-2 text-sm font-bold text-blue-800 bg-blue-50 rounded-xl text-center">Balance under review</span>
+                                                            )}
+                                                            {new Date(`${booking.adventure_date}T00:00:00Z`) < new Date() && (adv._id || adv.id) && (
+                                                                <Link
+                                                                    to={`/adventure/${adv._id || adv.id}?booking=${bookingId}#reviews`}
+                                                                    className="px-4 py-2 border border-ember/30 text-ember text-sm font-bold rounded-xl hover:bg-ember/5 transition text-center inline-flex items-center justify-center gap-1"
+                                                                >
+                                                                    <Star size={14} /> Review trip
+                                                                </Link>
+                                                            )}
+                                                            {canUserCancelBooking(booking, cancellationWindowDays) && (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={cancellingId === bookingId}
+                                                                    onClick={() => handleCancelBooking(bookingId)}
+                                                                    className="px-4 py-2 border border-red-200 text-red-700 text-sm font-bold rounded-xl hover:bg-red-50 transition disabled:opacity-50"
+                                                                >
+                                                                    {cancellingId === bookingId ? 'Cancelling…' : 'Cancel booking'}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         );
                                     })}
                                 </div>
                             ) : (
-                                <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-300">
+                                <div className="text-center py-12 bg-mist-subtle rounded-3xl border border-dashed border-gray-300">
                                     <Compass size={32} className="text-gray-300 mx-auto mb-3" />
                                     <p className="text-gray-500 mb-4">No bookings yet. Start your adventure!</p>
                                     <Link to="/adventures" className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#c9a961] text-white font-bold rounded-xl hover:bg-[#b8954f] transition">
@@ -269,7 +396,7 @@ const UserDashboard = () => {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <Link to="/adventures"
-                                        className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-green-200 hover:shadow-md transition-all group"
+                                        className="flex items-center gap-3 p-4 bg-mist-subtle rounded-2xl border border-green-200 hover:shadow-md transition-all group"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
                                             <Compass size={20} />
@@ -283,7 +410,7 @@ const UserDashboard = () => {
 
                                     <button
                                         onClick={() => window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi! I want to know more about your adventures.')}`, '_blank')}
-                                        className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-green-200 hover:shadow-md transition-all group text-left"
+                                        className="flex items-center gap-3 p-4 bg-mist-subtle rounded-2xl border border-green-200 hover:shadow-md transition-all group text-left"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center">
                                             <MessageCircle size={20} />
@@ -320,10 +447,10 @@ const UserDashboard = () => {
                                             <Link
                                                 key={item._id || advId}
                                                 to={`/adventure/${advId}`}
-                                                className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-gray-100 hover:shadow-md transition-all group"
+                                                className="flex items-center gap-3 p-3 bg-mist-subtle rounded-2xl border border-gray-100 hover:shadow-md transition-all group"
                                             >
                                                 <img
-                                                    src={getImageUrl(adventure.image_url) || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200'}
+                                                    src={getImageUrl(adventure.image_url) || IMG_FALLBACK}
                                                     alt={adventure.title || 'Adventure'}
                                                     className="w-14 h-14 rounded-xl object-cover"
                                                 />
@@ -336,7 +463,7 @@ const UserDashboard = () => {
                                     })}
                                 </div>
                             ) : (
-                                <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-300">
+                                <div className="text-center py-12 bg-mist-subtle rounded-3xl border border-dashed border-gray-300">
                                     <Heart size={32} className="text-gray-300 mx-auto mb-3" />
                                     <p className="text-gray-500">Your wishlist is empty. Start exploring!</p>
                                 </div>
@@ -392,7 +519,7 @@ const UserDashboard = () => {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.5 }}
-                            className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm"
+                            className="bg-mist-subtle rounded-3xl p-6 border border-gray-100 shadow-sm"
                         >
                             <h3 className="text-lg font-bold text-gray-900 mb-4 px-2">Quick Navigation</h3>
                             <div className="space-y-2">

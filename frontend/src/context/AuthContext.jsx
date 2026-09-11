@@ -29,12 +29,20 @@ export const AuthProvider = ({ children }) => {
     const hydrateSession = useCallback(async () => {
         try {
             const res = await authAPI.me();
-            const sessionUser = res.data?.user || {
-                id: res.data?.id || res.data?._id,
-                name: res.data?.name,
-                email: res.data?.email,
-                role: res.data?.role,
+            const body = res.data || {};
+            // Prefer nested user, but keep full profile fields from /me root (id, avatar, phone, …)
+            const nested = body.user || {};
+            const sessionUser = {
+                ...body,
+                ...nested,
+                id: nested.id || body.id || body._id,
+                name: nested.name || body.name,
+                email: nested.email || body.email,
+                role: nested.role || body.role,
             };
+            delete sessionUser.user;
+            delete sessionUser.requires2faSetup;
+            delete sessionUser.password;
             if (sessionUser?.id) {
                 setUser(sessionUser);
                 return true;
@@ -83,15 +91,16 @@ export const AuthProvider = ({ children }) => {
             if (data.requires2fa) {
                 return {
                     success: false,
-                    error: 'Admin accounts with two-factor authentication must use the admin panel to sign in.',
+                    requires2fa: true,
+                    challengeToken: data.challengeToken,
                 };
             }
 
-            if (data.user?.role === 'admin') {
+            if (data.user?.role === 'admin' || data.user?.role === 'clerk') {
                 try { await authAPI.logout(); } catch { /* ignore */ }
                 return {
                     success: false,
-                    error: 'Admin accounts must use the admin panel to sign in.',
+                    error: 'Staff accounts must use the admin panel to sign in.',
                 };
             }
 
@@ -104,6 +113,31 @@ export const AuthProvider = ({ children }) => {
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };
+        }
+    };
+
+    const verify2faLogin = async (challengeToken, code) => {
+        try {
+            const response = await authAPI.verify2faLogin(challengeToken, code);
+            const sessionUser = response.data?.user;
+            if (sessionUser?.role === 'admin' || sessionUser?.role === 'clerk') {
+                try { await authAPI.logout(); } catch { /* ignore */ }
+                return {
+                    success: false,
+                    error: 'Staff accounts must use the admin panel to sign in.',
+                };
+            }
+            if (sessionUser?.id) {
+                setUser(sessionUser);
+            } else {
+                await hydrateSession();
+            }
+            return { success: true };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.message || error.message || 'Invalid authentication code',
+            };
         }
     };
 
@@ -152,6 +186,7 @@ export const AuthProvider = ({ children }) => {
         user,
         token: user ? 'session' : null,
         login,
+        verify2faLogin,
         register,
         logout,
         updateUserContext,

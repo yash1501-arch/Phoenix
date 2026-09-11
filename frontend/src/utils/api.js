@@ -46,6 +46,10 @@ export const getImageUrl = (path) => {
     if (/^https?:\/\//i.test(path) || path.startsWith('//')) {
         return path.startsWith('//') ? `https:${path}` : path;
     }
+    // Cloudinary public delivery URLs stored without protocol
+    if (path.includes('res.cloudinary.com')) {
+        return path.startsWith('//') ? `https:${path}` : `https://${path.replace(/^\/+/, '')}`;
+    }
     // Legacy local uploads served by backend (dev only)
     if (path.startsWith('/uploads/')) {
         return `${API_BASE_URL}${path}`;
@@ -65,6 +69,15 @@ export const adventuresAPI = {
 export const authAPI = {
     me: () => api.get('/auth/me'),
     logout: () => api.post('/auth/logout'),
+    verify2faLogin: (challengeToken, code) =>
+        api.post('/auth/2fa/verify-login', { challengeToken, code }),
+};
+
+export const twoFactorAPI = {
+    status: () => api.get('/auth/2fa/status'),
+    setup: () => api.post('/auth/2fa/setup'),
+    enable: (secret, code) => api.post('/auth/2fa/enable', { secret, code }),
+    disable: (code, password) => api.post('/auth/2fa/disable', { code: code || '', password }),
 };
 
 export const contactAPI = {
@@ -73,9 +86,12 @@ export const contactAPI = {
 
 export const bookingsAPI = {
     createManual: (data) => api.post('/bookings/manual', data),
-    getPaymentDetails: (bookingId) => api.get(`/bookings/${bookingId}/payment`),
+    getPaymentDetails: (bookingId, params) => api.get(`/bookings/${bookingId}/payment`, { params }),
     getById: (bookingId) => api.get(`/bookings/${bookingId}`),
     getUserBookings: (userId) => api.get(`/bookings/user/${userId}`),
+    cancel: (bookingId, reason) => api.post(`/bookings/${bookingId}/cancel`, { reason }),
+    downloadItinerary: (bookingId) =>
+        api.get(`/bookings/${bookingId}/itinerary.pdf`, { responseType: 'blob' }),
     submitPayment: (data) => {
         const { screenshot, ...rest } = data;
         if (screenshot) {
@@ -107,6 +123,10 @@ export const usersAPI = {
 export const blogAPI = {
     getAll: (params) => api.get('/blog', { params }),
     getBySlug: (slug) => api.get(`/blog/post/${slug}`),
+};
+
+export const waitlistAPI = {
+    join: (data) => api.post('/waitlist', data),
 };
 
 export const newsletterAPI = {

@@ -73,7 +73,7 @@ const Blog = () => {
                 onClick={() => setSelectedCategory(c.key)}
                 className={`px-4 py-2 text-sm font-semibold transition-colors border rounded-md ${
                   selectedCategory === c.key
-                    ? 'bg-stone text-mist border-stone'
+                    ? 'bg-panel text-cream border-stone'
                     : 'bg-transparent text-stone border-stone/15 hover:border-ember hover:text-ember'
                 }`}
               >

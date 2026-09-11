@@ -41,11 +41,11 @@ const Refund = () => (
       subtitle="Traveller-first cancellation. We keep it simple."
       breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Refund Policy' }]}
     />
-    <section className="bg-white py-16 md:py-24">
+    <section className="bg-mist-subtle py-16 md:py-24">
       <div className="container">
         <Reveal variant="clip" className="mx-auto max-w-4xl overflow-hidden rounded-lg border border-stone/10 shadow-smoke">
           <table className="w-full text-left text-sm">
-            <thead className="bg-stone text-mist">
+            <thead className="bg-panel text-cream">
               <tr>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest">Days before departure</th>
                 <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest">Refund</th>
@@ -75,10 +75,10 @@ const Refund = () => (
           <StaggerContainer className="mt-6 space-y-3">
             {faqs.map((f) => (
               <StaggerItem key={f.q}>
-                <details className="group rounded-lg border border-stone/10 bg-mist/40 p-5 open:bg-white open:shadow-smoke transition-all">
+                <details className="group rounded-lg border border-stone/10 bg-mist/40 p-5 open:bg-mist-subtle open:shadow-smoke transition-all">
                   <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-stone">
                     {f.q}
-                    <IconMotion className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone text-ember">
+                    <IconMotion className="ml-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-panel text-ember">
                       <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
                     </IconMotion>
                   </summary>

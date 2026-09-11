@@ -32,7 +32,7 @@ const BrandLogo = ({
     />
   );
 
-  const wordColor = inverted ? 'text-mist' : 'text-stone';
+  const wordColor = inverted ? 'text-cream' : 'text-stone';
   const accent = 'text-ember';
 
   const inner = (

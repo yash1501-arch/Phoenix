@@ -9,6 +9,8 @@ const { sendPasswordReset } = require('../services/emailService');
 const { setAuthCookie, clearAuthCookie } = require('../utils/authCookie');
 const { sanitizeUser } = require('../utils/sanitizeUser');
 const { getJwtSecret, signAuthToken } = require('../utils/jwtHelpers');
+const { isAdmin2faRequired, adminHas2fa, userHas2fa } = require('../utils/admin2fa');
+const { isAdminRole } = require('../utils/roles');
 const logger = require('../utils/logger');
 
 // Helper function to find user by email (case-insensitive: stores + queries lowercase)
@@ -96,9 +98,26 @@ router.post('/login', [
             return res.status(400).json({ message: 'Invalid Credentials' });
         }
 
+        if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) {
+            return res.status(429).json({
+                message: 'Account temporarily locked due to failed sign-in attempts. Try again later or reset your password.',
+            });
+        }
+
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
+            try {
+                await getConvexClient().recordLoginFailure(user._id);
+            } catch (lockErr) {
+                logger.warn('recordLoginFailure failed:', lockErr.message);
+            }
             return res.status(400).json({ message: 'Invalid Credentials' });
+        }
+
+        try {
+            await getConvexClient().clearLoginLock(user._id);
+        } catch (lockErr) {
+            logger.warn('clearLoginLock failed:', lockErr.message);
         }
 
         const payload = {
@@ -111,7 +130,11 @@ router.post('/login', [
             }
         };
 
-        if (user.role === 'admin' && user.totp_enabled && user.totp_secret) {
+        const shouldChallenge2fa =
+            userHas2fa(user) &&
+            (isAdminRole(user.role) ? isAdmin2faRequired() : true);
+
+        if (shouldChallenge2fa) {
             const challengeToken = jwt.sign(
                 { id: user._id, purpose: '2fa' },
                 getJwtSecret(),
@@ -129,9 +152,11 @@ router.post('/login', [
         res.json({
             success: true,
             user: payload.user,
-            requires2faSetup: user.role === 'admin' && !(user.totp_enabled && user.totp_secret),
+            requires2faSetup:
+                isAdmin2faRequired() &&
+                user.role === 'admin' &&
+                !adminHas2fa(user),
         });
-
     } catch (err) {
         logger.error('Login error:', err.response?.data || err.stack || err.message);
         res.status(500).json({
@@ -198,6 +223,11 @@ router.post('/reset-password', [
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
         // users:update only accepts name/email/password/role — updated_at set inside Convex
         await getConvexClient().updateUser(decoded.id, { password: hashedPassword });
+        try {
+            await getConvexClient().clearLoginLock(decoded.id);
+        } catch {
+            // lock fields optional
+        }
         res.json({ success: true, message: 'Password updated successfully' });
     } catch (err) {
         if (err.name === 'TokenExpiredError') {
@@ -217,10 +247,10 @@ router.post('/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// Complete admin login after TOTP challenge
+// Complete admin login after TOTP challenge (or one-time recovery code)
 router.post('/2fa/verify-login', [
     check('challengeToken', 'Challenge token is required').not().isEmpty(),
-    check('code', '6-digit code is required').isLength({ min: 6, max: 8 }),
+    check('code', 'Authenticator or recovery code is required').isLength({ min: 6, max: 20 }),
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -234,12 +264,34 @@ router.post('/2fa/verify-login', [
         }
 
         const user = await getConvexClient().getUserById(decoded.id);
-        if (!user || user.role !== 'admin' || !user.totp_enabled || !user.totp_secret) {
+        if (!user || !userHas2fa(user)) {
             return res.status(400).json({ success: false, message: '2FA is not enabled for this account' });
         }
 
-        const { verifyTotp } = require('../utils/totp');
-        if (!verifyTotp(user.totp_secret, req.body.code)) {
+        const {
+            verifyTotp,
+            consumeRecoveryCode,
+            isRecoveryCodeShape,
+        } = require('../utils/totp');
+
+        const rawCode = String(req.body.code || '').trim();
+        let ok = verifyTotp(user.totp_secret, rawCode);
+
+        if (!ok) {
+            const remaining = await consumeRecoveryCode(user.totp_recovery_hashes || [], rawCode);
+            if (remaining) {
+                await getConvexClient().replaceRecoveryHashes(user._id, remaining);
+                ok = true;
+                logger.warn(`[2FA] Recovery code used for ${user.email} (${remaining.length} left)`);
+            } else if (!isRecoveryCodeShape(rawCode) && !/^\d{6}$/.test(rawCode.replace(/\s/g, ''))) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Enter a 6-digit authenticator code or a recovery code (XXXX-XXXX)',
+                });
+            }
+        }
+
+        if (!ok) {
             return res.status(401).json({ success: false, message: 'Invalid authentication code' });
         }
 
@@ -268,12 +320,18 @@ router.post('/2fa/verify-login', [
 router.get('/2fa/status', auth, async (req, res) => {
     try {
         const user = await getConvexClient().getUserById(req.user.id);
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Admin only' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
         return res.json({
             success: true,
-            data: { enabled: Boolean(user.totp_enabled && user.totp_secret) },
+            data: {
+                enabled: Boolean(user.totp_enabled && user.totp_secret),
+                recoveryCodesRemaining: Array.isArray(user.totp_recovery_hashes)
+                    ? user.totp_recovery_hashes.length
+                    : 0,
+                required: isAdmin2faRequired() && isAdminRole(user.role),
+            },
         });
     } catch (err) {
         return res.status(500).json({ success: false, message: 'Failed to fetch 2FA status' });
@@ -284,8 +342,8 @@ router.get('/2fa/status', auth, async (req, res) => {
 router.post('/2fa/setup', auth, async (req, res) => {
     try {
         const user = await getConvexClient().getUserById(req.user.id);
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Admin only' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
         const { generateSecret, buildOtpAuthUrl } = require('../utils/totp');
@@ -317,29 +375,58 @@ router.post('/2fa/enable', [
 
     try {
         const user = await getConvexClient().getUserById(req.user.id);
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Admin only' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        const { verifyTotp } = require('../utils/totp');
+        const {
+            verifyTotp,
+            generateRecoveryCodes,
+            hashRecoveryCodes,
+        } = require('../utils/totp');
         if (!verifyTotp(req.body.secret, req.body.code)) {
             return res.status(400).json({ success: false, message: 'Invalid authentication code' });
         }
 
-        await getConvexClient().setUserTotp(user._id, req.body.secret, true);
-        return res.json({ success: true, message: 'Two-factor authentication enabled' });
+        const { encryptSecret } = require('../utils/secretCrypto');
+        const recoveryCodes = generateRecoveryCodes(8);
+        const recoveryHashes = await hashRecoveryCodes(recoveryCodes);
+        await getConvexClient().setUserTotp(user._id, encryptSecret(req.body.secret), true, recoveryHashes);
+        getConvexClient().logAudit({
+            actor_id: user._id,
+            actor_email: user.email,
+            action: '2fa.enable',
+            target_type: 'user',
+            target_id: user._id,
+        }).catch(() => {});
+
+        return res.json({
+            success: true,
+            message: 'Two-factor authentication enabled',
+            data: {
+                recoveryCodes,
+                downloadHint: 'Save these codes offline. Each code works once if you lose your authenticator.',
+            },
+        });
     } catch (err) {
         logger.error('2fa enable error:', err.message);
         return res.status(500).json({ success: false, message: 'Failed to enable 2FA' });
     }
 });
 
-// Disable 2FA
+// Disable 2FA — blocked while ADMIN_REQUIRE_2FA=true (use recovery codes / emergency reset instead)
 router.post('/2fa/disable', [
     auth,
-    check('code', '6-digit code is required').isLength({ min: 6, max: 8 }),
     check('password', 'Password is required').exists(),
 ], async (req, res) => {
+    if (isAdmin2faRequired() && isAdminRole(req.user?.role)) {
+        return res.status(403).json({
+            success: false,
+            message:
+                '2FA cannot be disabled while ADMIN_REQUIRE_2FA is on. Use a recovery code to sign in, or emergency reset if all codes are lost.',
+        });
+    }
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ success: false, errors: errors.array() });
@@ -347,10 +434,10 @@ router.post('/2fa/disable', [
 
     try {
         const user = await getConvexClient().getUserById(req.user.id);
-        if (!user || user.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Admin only' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
-        if (!user.totp_enabled || !user.totp_secret) {
+        if (!adminHas2fa(user)) {
             return res.status(400).json({ success: false, message: '2FA is not enabled' });
         }
 
@@ -359,16 +446,103 @@ router.post('/2fa/disable', [
             return res.status(400).json({ success: false, message: 'Password is incorrect' });
         }
 
-        const { verifyTotp } = require('../utils/totp');
-        if (!verifyTotp(user.totp_secret, req.body.code)) {
-            return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+        const code = String(req.body.code || '').trim();
+        if (code.length >= 6) {
+            const { verifyTotp } = require('../utils/totp');
+            if (!verifyTotp(user.totp_secret, code)) {
+                return res.status(400).json({ success: false, message: 'Invalid authentication code' });
+            }
         }
 
         await getConvexClient().clearUserTotp(user._id);
+        getConvexClient().logAudit({
+            actor_id: user._id,
+            actor_email: user.email,
+            action: '2fa.disable',
+            target_type: 'user',
+            target_id: user._id,
+        }).catch(() => {});
         return res.json({ success: true, message: 'Two-factor authentication disabled' });
     } catch (err) {
         logger.error('2fa disable error:', err.message);
         return res.status(500).json({ success: false, message: 'Failed to disable 2FA' });
+    }
+});
+
+/**
+ * Emergency 2FA reset when authenticator is lost.
+ * Requires account password + ADMIN_2FA_RESET_KEY from server .env (keep offline / in password manager).
+ * Does not require a TOTP code.
+ */
+router.post('/2fa/emergency-reset', [
+    check('email', 'Valid email required').isEmail(),
+    check('password', 'Password is required').exists(),
+    check('resetKey', 'Reset key is required').not().isEmpty(),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const configuredKey = String(process.env.ADMIN_2FA_RESET_KEY || '').trim();
+    if (!configuredKey || configuredKey.length < 16) {
+        return res.status(503).json({
+            success: false,
+            message: 'Emergency 2FA reset is not configured on this server (set ADMIN_2FA_RESET_KEY).',
+        });
+    }
+
+    try {
+        const provided = String(req.body.resetKey || '');
+        if (provided.length !== configuredKey.length) {
+            return res.status(401).json({ success: false, message: 'Invalid reset key or credentials' });
+        }
+        // timing-safe compare
+        const a = Buffer.from(provided);
+        const b = Buffer.from(configuredKey);
+        if (!require('crypto').timingSafeEqual(a, b)) {
+            return res.status(401).json({ success: false, message: 'Invalid reset key or credentials' });
+        }
+
+        const user = await findUserByEmail(req.body.email);
+        if (!user || user.role !== 'admin') {
+            return res.status(401).json({ success: false, message: 'Invalid reset key or credentials' });
+        }
+
+        const isMatch = await bcrypt.compare(req.body.password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Invalid reset key or credentials' });
+        }
+
+        await getConvexClient().clearUserTotp(user._id);
+
+        logger.warn(`[2FA] Emergency reset for admin ${user.email}`);
+        getConvexClient().logAudit({
+            actor_id: user._id,
+            actor_email: user.email,
+            action: '2fa.emergency_reset',
+            target_type: 'user',
+            target_id: user._id,
+        }).catch(() => {});
+        try {
+            const { sendSimpleMail } = require('../services/emailService');
+            if (process.env.ADMIN_EMAIL) {
+                await sendSimpleMail({
+                    to: process.env.ADMIN_EMAIL,
+                    subject: 'Admin 2FA emergency reset',
+                    html: `<p>Emergency 2FA reset completed for ${user.email}.</p>`,
+                });
+            }
+        } catch (mailErr) {
+            logger.warn('Emergency reset email failed:', mailErr.message);
+        }
+        return res.json({
+          success: true,
+          message: 'Two-factor authentication cleared. Sign in with email and password, then set up 2FA again if required.',
+        });
+    } catch (err) {
+        logger.error('2fa emergency-reset error:', err.message);
+        return res.status(500).json({ success: false, message: 'Failed to reset 2FA' });
     }
 });
 
@@ -382,7 +556,9 @@ router.get('/me', auth, async (req, res) => {
 
         const safeUser = sanitizeUser(user);
         const requires2faSetup =
-            safeUser.role === 'admin' && !(user.totp_enabled && user.totp_secret);
+            isAdmin2faRequired() &&
+            safeUser.role === 'admin' &&
+            !adminHas2fa(user);
         res.json({
             ...safeUser,
             requires2faSetup,
@@ -398,7 +574,6 @@ router.get('/me', auth, async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 });
-
 // Change Password (authenticated)
 router.post('/change-password', [
     auth,

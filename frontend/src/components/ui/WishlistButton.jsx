@@ -27,8 +27,8 @@ const WishlistButton = ({ adventure, size = 'md', className = '' }) => {
             aria-pressed={isSaved}
             className={`flex ${s.btn} items-center justify-center rounded-full border-2 transition-all backdrop-blur-sm ${
                 isSaved
-                    ? 'border-red-500 bg-red-500/90 text-white'
-                    : 'border-white/70 bg-white/80 text-gray-700 hover:border-red-500 hover:text-red-500'
+                    ? 'border-ember bg-ember text-cream'
+                    : 'border-cream/70 bg-panel/50 text-cream hover:border-ember hover:text-ember'
             } ${className}`}
         >
             <Heart size={s.icon} className={isSaved ? 'fill-current' : ''} />

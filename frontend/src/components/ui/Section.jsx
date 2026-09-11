@@ -11,9 +11,9 @@ const sizes = {
 const toneClasses = {
   light: 'bg-mist',
   mist: 'bg-mist',
-  white: 'bg-white',
-  stone: 'bg-stone text-mist',
-  dark: 'bg-stone text-mist',
+  white: 'bg-mist-subtle',
+  stone: 'bg-panel text-cream',
+  dark: 'bg-panel text-cream',
   muted: 'bg-mist-subtle',
 };
 

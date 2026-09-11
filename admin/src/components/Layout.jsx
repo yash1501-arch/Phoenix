@@ -17,6 +17,7 @@ import {
     Mail,
     ScrollText,
     Users,
+    Shield,
 } from 'lucide-react';
 import './Layout.css';
 
@@ -24,13 +25,14 @@ const NAV = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { path: '/adventures', icon: Mountain, label: 'Adventures' },
     { path: '/payments', icon: CreditCard, label: 'Payments' },
-    { path: '/messages', icon: Inbox, label: 'Messages' },
-    { path: '/reviews', icon: Star, label: 'Reviews' },
-    { path: '/blog', icon: PenLine, label: 'Blog' },
-    { path: '/newsletter', icon: Mail, label: 'Newsletter' },
-    { path: '/users', icon: Users, label: 'Users' },
-    { path: '/audit', icon: ScrollText, label: 'Audit Log' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
+    { path: '/messages', icon: Inbox, label: 'Messages', adminOnly: true },
+    { path: '/reviews', icon: Star, label: 'Reviews', adminOnly: true },
+    { path: '/blog', icon: PenLine, label: 'Blog', adminOnly: true },
+    { path: '/newsletter', icon: Mail, label: 'Newsletter', adminOnly: true },
+    { path: '/users', icon: Users, label: 'Users', adminOnly: true },
+    { path: '/audit', icon: ScrollText, label: 'Audit Log', adminOnly: true },
+    { path: '/security', icon: Shield, label: 'Security', clerkOnly: true },
+    { path: '/settings', icon: Settings, label: 'Settings', adminOnly: true },
 ];
 
 const PAGE_TITLES = {
@@ -44,6 +46,7 @@ const PAGE_TITLES = {
     '/newsletter': 'Newsletter',
     '/users': 'Users',
     '/audit': 'Audit Log',
+    '/security': 'Security',
     '/settings': 'Settings',
 };
 
@@ -90,6 +93,12 @@ const Layout = ({ children }) => {
 
     const title = pageTitle(location.pathname);
     const closeSidebar = () => setSidebarOpen(false);
+    const isAdmin = user?.role === 'admin';
+    const visibleNav = NAV.filter((item) => {
+        if (item.adminOnly) return isAdmin;
+        if (item.clerkOnly) return !isAdmin;
+        return true;
+    });
 
     return (
         <div className="admin-shell">
@@ -122,7 +131,7 @@ const Layout = ({ children }) => {
                 </div>
 
                 <nav className="sidebar-nav" aria-label="Main">
-                    {NAV.map((item) => (
+                    {visibleNav.map((item) => (
                         <Link
                             key={item.path}
                             to={item.path}
@@ -141,7 +150,7 @@ const Layout = ({ children }) => {
                         <span className="user-initial" aria-hidden>{user?.name?.charAt(0) || 'A'}</span>
                         <div className="user-meta">
                             <span className="user-name">{user?.name || 'Admin'}</span>
-                            <span className="user-role">Administrator</span>
+                            <span className="user-role">{user?.role === 'clerk' ? 'Payments clerk' : 'Administrator'}</span>
                         </div>
                     </div>
                     <button type="button" className="nav-link nav-link--logout" onClick={logout}>

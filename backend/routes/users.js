@@ -11,6 +11,7 @@ router.get('/', auth, adminOnly, userController.getUsers);
 router.get('/:id', auth, userController.getUserById);
 
 // Update user by ID (authenticated)
+router.put('/:id/role', auth, adminOnly, userController.setRole);
 router.put('/:id', auth, userController.updateUser);
 
 // Upload avatar (authenticated, owner only)

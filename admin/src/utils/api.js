@@ -40,6 +40,24 @@ api.interceptors.response.use(
     }
 );
 
+/** Public adventure/tour images (Cloudinary https URLs). Do not use for signed payment screenshots. */
+export const getImageUrl = (path) => {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path) || path.startsWith('//')) {
+        return path.startsWith('//') ? `https:${path}` : path;
+    }
+    if (path.includes('res.cloudinary.com')) {
+        return path.startsWith('//') ? `https:${path}` : `https://${path.replace(/^\/+/, '')}`;
+    }
+    if (path.startsWith('/uploads/')) {
+        return `${API_BASE_URL}${path}`;
+    }
+    if (path.startsWith('/')) {
+        return path;
+    }
+    return `/${path}`;
+};
+
 /**
  * Normalize adventure/user/review objects to always have `id` field
  */
@@ -82,7 +100,11 @@ export const adventuresAPI = {
     generateDescription: (data) => api.post('/adventures/ai/generate-description', data),
     uploadImages: (formData) => api.post('/adventures/upload/images', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    }),
+    downloadItineraryPdf: (id) => api.get(`/adventures/${id}/itinerary.pdf`, {
+        responseType: 'blob',
+        timeout: 60000,
+    }),
 };
 
 // Reviews API
@@ -133,15 +155,18 @@ export const twoFactorAPI = {
     status: () => api.get('/auth/2fa/status'),
     setup: () => api.post('/auth/2fa/setup'),
     enable: (secret, code) => api.post('/auth/2fa/enable', { secret, code }),
-    disable: (code, password) => api.post('/auth/2fa/disable', { code, password }),
+    disable: (code, password) => api.post('/auth/2fa/disable', { code: code || '', password }),
+    emergencyReset: (email, password, resetKey) =>
+        api.post('/auth/2fa/emergency-reset', { email, password, resetKey }),
 };
 
 export const dashboardAPI = {
-    getOverview: () => api.get('/dashboard/overview'),
+    getOverview: (params = {}) => api.get('/dashboard/overview', { params }),
 };
 
 export const newsletterAdminAPI = {
     getAll: () => api.get('/newsletter'),
+    blast: (data) => api.post('/newsletter/blast', data),
 };
 
 export const auditAdminAPI = {
@@ -150,6 +175,7 @@ export const auditAdminAPI = {
 
 export const usersAdminAPI = {
     getAll: (params) => api.get('/users', { params }),
+    setRole: (id, role) => api.put(`/users/${id}/role`, { role }),
 };
 
 export default api;

@@ -73,10 +73,10 @@ const Login = () => {
                 </div>
 
                 <div className="login-header">
-                    <h1 className="login-title">{showOtpStep ? 'Authenticator Code' : 'Welcome Back'}</h1>
+                    <h1 className="login-title">{showOtpStep ? 'Two-factor verification' : 'Welcome Back'}</h1>
                     <p className="login-subtitle">
                         {showOtpStep
-                            ? 'Enter the 6-digit code from your authenticator app'
+                            ? 'Enter the 6-digit authenticator code, or a one-time recovery code (XXXX-XXXX)'
                             : 'Sign in to manage your adventures'}
                     </p>
                 </div>
@@ -91,21 +91,31 @@ const Login = () => {
                 {showOtpStep ? (
                     <form onSubmit={handleOtpSubmit} className="login-form">
                         <div className="form-group">
-                            <label>Authentication code</label>
+                            <label>Authenticator or recovery code</label>
                             <input
                                 type="text"
-                                inputMode="numeric"
                                 autoComplete="one-time-code"
                                 value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                onChange={(e) =>
+                                    setOtp(
+                                        e.target.value
+                                            .toUpperCase()
+                                            .replace(/[^A-Z0-9-]/g, '')
+                                            .slice(0, 20)
+                                    )
+                                }
                                 className="form-input otp-input"
-                                placeholder="000000"
+                                placeholder="000000 or ABCD-EFGH"
                                 required
                                 autoFocus
                             />
                         </div>
 
-                        <button type="submit" className="btn-primary login-btn" disabled={loading || otp.length < 6}>
+                        <button
+                            type="submit"
+                            className="btn-primary login-btn"
+                            disabled={loading || otp.replace(/-/g, '').length < 6}
+                        >
                             {loading ? (
                                 <>
                                     <Loader className="spinning" size={20} />

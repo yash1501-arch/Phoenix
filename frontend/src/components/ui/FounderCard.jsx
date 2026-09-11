@@ -7,7 +7,7 @@ import { IconMotion, EASE } from './Motion';
 const fallbackImage = '/placeholder.jpg';
 
 const socialBtn =
-  'w-10 h-10 flex items-center justify-center bg-stone text-mist hover:text-ember hover:bg-stone-soft rounded-md transition-colors';
+  'w-10 h-10 flex items-center justify-center bg-panel text-cream hover:text-ember hover:bg-panel-soft rounded-md transition-colors';
 
 const FounderCard = ({ founder }) => {
   const [imgSrc, setImgSrc] = useState(founder.image);
@@ -26,9 +26,9 @@ const FounderCard = ({ founder }) => {
       transition={{ duration: 0.5, ease: EASE }}
       className="group relative"
     >
-      <div className="relative rounded-md border border-stone/10 bg-white p-6 sm:p-8 text-center h-full transition-shadow duration-300 group-hover:shadow-lift">
+      <div className="relative rounded-md border border-stone/10 bg-mist-subtle p-6 sm:p-8 text-center h-full transition-shadow duration-300 group-hover:shadow-lift">
         <div className="relative w-28 h-28 mx-auto mb-5">
-          <div className="absolute inset-0 rounded-full ring-2 ring-ember/20 ring-offset-2 ring-offset-white" />
+          <div className="absolute inset-0 rounded-full ring-2 ring-ember/20 ring-offset-2 ring-offset-mist-subtle" />
           {!imgLoaded && (
             <div className="absolute inset-0 rounded-full bg-mist animate-pulse" />
           )}
@@ -83,23 +83,23 @@ export default FounderCard;
 
 export function BusinessInstagramCTA() {
   return (
-    <section className="container my-12 md:my-16">
+    <section className="container my-10 md:my-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-60px' }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="relative overflow-hidden bg-stone rounded-md p-8 sm:p-12"
+        className="relative overflow-hidden bg-panel rounded-md p-8 sm:p-10"
       >
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
           <div className="max-w-lg">
             <p className="meta !text-ember mb-3">Follow the journey</p>
-            <h3 className="font-display text-3xl sm:text-4xl text-mist leading-tight">Live dispatches from the trail</h3>
-            <p className="text-mist/60 mt-3 text-sm md:text-base">
+            <h3 className="font-display text-3xl sm:text-4xl text-cream leading-tight">Live dispatches from the trail</h3>
+            <p className="text-cream/60 mt-3 text-sm md:text-base">
               Real photos and reels from ongoing trips — posted by the guides leading them.
             </p>
           </div>
-          <div className="flex flex-col gap-3 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-3 w-full lg:w-auto lg:min-w-[240px]">
             <a
               href={businessInstagram.url}
               target="_blank"
@@ -111,30 +111,28 @@ export function BusinessInstagramCTA() {
               </IconMotion>
               @{businessInstagram.handle}
             </a>
-            <div className="grid grid-cols-2 gap-3">
-              <a
-                href={businessInstagram.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-outline text-xs justify-center !text-mist !border-mist/25 hover:!border-ember hover:!text-ember"
-              >
-                <IconMotion hoverScale={1.08} hoverRotate={0}>
-                  <Facebook size={14} />
-                </IconMotion>
-                Facebook
-              </a>
-              <a
-                href={businessInstagram.youtube}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-outline text-xs justify-center !text-mist !border-mist/25 hover:!border-ember hover:!text-ember"
-              >
-                <IconMotion hoverScale={1.08} hoverRotate={0}>
-                  <Youtube size={14} />
-                </IconMotion>
-                YouTube
-              </a>
-            </div>
+            <a
+              href={businessInstagram.facebook}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline justify-center !text-cream !border-cream/30 hover:!border-ember hover:!text-ember"
+            >
+              <IconMotion hoverScale={1.08} hoverRotate={0}>
+                <Facebook size={16} />
+              </IconMotion>
+              Facebook
+            </a>
+            <a
+              href={businessInstagram.youtube}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline justify-center !text-cream !border-cream/30 hover:!border-ember hover:!text-ember"
+            >
+              <IconMotion hoverScale={1.08} hoverRotate={0}>
+                <Youtube size={16} />
+              </IconMotion>
+              YouTube
+            </a>
           </div>
         </div>
       </motion.div>

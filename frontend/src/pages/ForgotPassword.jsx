@@ -78,7 +78,7 @@ const ForgotPassword = () => {
                   </div>
                 </div>
                 {devLink && (
-                  <div className="mt-4 rounded-md border border-ember/30 bg-white p-3 text-xs break-all">
+                  <div className="mt-4 rounded-md border border-ember/30 bg-mist-subtle p-3 text-xs break-all">
                     <p className="font-semibold text-ember mb-1">Dev fallback (email failed)</p>
                     <a href={devLink} className="text-stone underline hover:text-ember">{devLink}</a>
                   </div>
