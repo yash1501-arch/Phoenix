@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ShieldCheck, Loader, Save } from 'lucide-react';
-import { twoFactorAPI } from '../utils/api';
+import { twoFactorAPI } from '../../utils/api';
 
 /** Optional TOTP for members. Never required by ADMIN_REQUIRE_2FA. */
 const TwoFactorSettings = () => {
