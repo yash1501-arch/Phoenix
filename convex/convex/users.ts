@@ -84,23 +84,32 @@ export const update = internalMutation({
     email: v.optional(v.string()),
     password: v.optional(v.string()),
     role: v.optional(v.union(v.literal("admin"), v.literal("clerk"), v.literal("user"))),
+    avatar_url: v.optional(v.string()),
     totp_secret: v.optional(v.string()),
     totp_enabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { id, ...updateFields } = args;
-    const now = new Date().toISOString();
+    const existing = await ctx.db.get(id);
+    if (!existing) {
+      return null;
+    }
 
-    const patch: Record<string, unknown> = { ...updateFields, updated_at: now };
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { updated_at: now };
+    for (const [key, value] of Object.entries(updateFields)) {
+      if (value !== undefined) {
+        patch[key] = value;
+      }
+    }
 
     if (updateFields.password || updateFields.role) {
-      const existing = await ctx.db.get(id);
-      patch.session_version = (existing?.session_version ?? 0) + 1;
+      patch.session_version = (existing.session_version ?? 0) + 1;
     }
 
     await ctx.db.patch(id, patch);
 
-    return id;
+    return await ctx.db.get(id);
   },
 });
 

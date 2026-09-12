@@ -15,6 +15,15 @@ router.put('/:id/role', auth, adminOnly, userController.setRole);
 router.put('/:id', auth, userController.updateUser);
 
 // Upload avatar (authenticated, owner only)
-router.post('/:id/avatar', auth, ...uploadImage.single('avatar'), userController.uploadAvatar);
+router.post(
+    '/:id/avatar',
+    auth,
+    (req, _res, next) => {
+        req.cloudinaryFolder = 'phoenix_adventures/avatars';
+        next();
+    },
+    ...uploadImage.single('avatar'),
+    userController.uploadAvatar
+);
 
 module.exports = router;

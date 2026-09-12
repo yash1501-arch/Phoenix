@@ -102,15 +102,34 @@ const uploadAvatar = async (req, res) => {
         }
 
         const avatar_url = req.file.secure_url || req.file.path;
-        const result = await getConvexClient().updateUser(id, { avatar_url, updated_at: new Date().toISOString() });
+        if (!avatar_url) {
+            return res.status(502).json({ success: false, message: 'Image upload did not return a URL' });
+        }
+
+        const result = await getConvexClient().updateUser(id, { avatar_url });
 
         if (!result) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        res.json({ success: true, data: { avatar_url: result.avatar_url } });
+        res.json({ success: true, data: { avatar_url: result.avatar_url || avatar_url } });
     } catch (error) {
-        logger.error('Error uploading avatar:', error);
+        const msg = error?.message || String(error);
+        logger.error('Error uploading avatar:', { message: msg, stack: error?.stack });
+
+        if (/cloudinary|cloud_name|not configured/i.test(msg)) {
+            return res.status(503).json({
+                success: false,
+                message: 'Image upload service is not configured',
+            });
+        }
+        if (/ArgumentValidationError|extra field|validator/i.test(msg)) {
+            return res.status(500).json({
+                success: false,
+                message: 'Server could not save profile photo — redeploy Convex functions',
+            });
+        }
+
         res.status(500).json({ success: false, message: 'Failed to upload avatar' });
     }
 };
