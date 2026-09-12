@@ -1,11 +1,13 @@
 import axios from 'axios';
+import {
+    clearSessionToken,
+    getCsrfToken,
+    getSessionToken,
+    setCachedCsrf,
+    setSessionToken,
+} from './session';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-function getCsrfToken() {
-    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : null;
-}
 
 const api = axios.create({
     baseURL: `${API_BASE_URL}/api`,
@@ -16,6 +18,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+    const token = getSessionToken();
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+
     const method = config.method?.toLowerCase();
     if (method && ['post', 'put', 'patch', 'delete'].includes(method)) {
         const csrf = getCsrfToken();
@@ -28,10 +35,21 @@ api.interceptors.request.use((config) => {
 
 // Response interceptor for handling errors
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const csrf = response.headers?.['x-csrf-token'];
+        if (csrf) setCachedCsrf(csrf);
+        return response;
+    },
     (error) => {
+        if (error.response?.headers?.['x-csrf-token']) {
+            setCachedCsrf(error.response.headers['x-csrf-token']);
+        }
         if (error.response?.status === 401) {
-            window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+            const url = error.config?.url || '';
+            if (!url.includes('/auth/me')) {
+                clearSessionToken();
+                window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+            }
         }
         if (error.response?.status === 403 && error.response?.data?.requires2faSetup) {
             window.dispatchEvent(new CustomEvent('auth:requires2faSetup'));
@@ -180,5 +198,7 @@ export const usersAdminAPI = {
 
 export default api;
 
-// Bootstrap CSRF cookie before any mutating requests
-api.get('/auth/me').catch(() => {});
+export { setSessionToken, clearSessionToken, getSessionToken } from './session';
+
+// Bootstrap CSRF token (cross-site SPAs read it from X-CSRF-Token response header).
+api.get('/settings/public').catch(() => {});

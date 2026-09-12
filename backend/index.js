@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const logger = require('./utils/logger');
 const requestId = require('./middleware/requestId');
+const { validateCookieConfig } = require('./utils/authCookie');
 const { initRedis, getRedis, isRedisReady } = require('./utils/redis');
 
 // ── Startup env validation ────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ const requiredDev = ['CONVEX_URL', 'CONVEX_ADMIN_KEY', 'JWT_SECRET'];
 
 async function boot() {
 await initRedis();
+validateCookieConfig();
 
 if (isProd) {
   const missingProd = requiredProd.filter((k) => !process.env[k]);
@@ -97,6 +99,7 @@ app.use(cors({
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
+    exposedHeaders: ['X-CSRF-Token'],
 }));
 
 // Environment check (used by rate limiters below)
@@ -136,7 +139,12 @@ app.use('/api/', apiLimiter);
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     limit: isDev ? 100 : 10,
-    skip: isDev ? (req) => ['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(req.ip) : undefined,
+    skip: (req) => {
+        if (isDev && ['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(req.ip)) return true;
+        // Session probe is not a credential-guessing attack; exclude from login rate limit.
+        if (req.method === 'GET' && req.originalUrl.split('?')[0] === '/api/auth/me') return true;
+        return false;
+    },
     standardHeaders: true,
     legacyHeaders: false,
     store: buildRateLimitStore('auth'),

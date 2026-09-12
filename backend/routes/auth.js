@@ -61,6 +61,7 @@ router.post('/register', [
         setAuthCookie(res, token, 'user');
         res.json({
             success: true,
+            token,
             user: {
                 id: newUser._id,
                 name,
@@ -151,6 +152,7 @@ router.post('/login', [
         setAuthCookie(res, token, user.role);
         res.json({
             success: true,
+            token,
             user: payload.user,
             requires2faSetup:
                 isAdmin2faRequired() &&
@@ -306,7 +308,7 @@ router.post('/2fa/verify-login', [
         };
         const token = signAuthToken(user);
         setAuthCookie(res, token, user.role);
-        return res.json({ success: true, user: payload.user });
+        return res.json({ success: true, token, user: payload.user });
     } catch (err) {
         if (err.name === 'TokenExpiredError') {
             return res.status(400).json({ success: false, message: 'Login challenge expired. Please sign in again.' });

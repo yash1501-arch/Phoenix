@@ -36,13 +36,22 @@ function shouldSkipCsrf(req) {
 /**
  * Ensure every client has a CSRF cookie (double-submit pattern).
  */
+function exposeCsrfHeader(req, res, next) {
+  const token = req.cookies?.[CSRF_COOKIE];
+  if (token) {
+    // Cross-site SPAs cannot read api-host cookies via document.cookie; echo token for XHR clients.
+    res.setHeader('X-CSRF-Token', token);
+  }
+  next();
+}
+
 function ensureCsrfCookie(req, res, next) {
   if (!req.cookies?.[CSRF_COOKIE]) {
     const token = crypto.randomBytes(32).toString('hex');
     res.cookie(CSRF_COOKIE, token, getCookieOptions());
     req.cookies = { ...req.cookies, [CSRF_COOKIE]: token };
   }
-  next();
+  exposeCsrfHeader(req, res, next);
 }
 
 /**
@@ -74,5 +83,6 @@ function validateCsrf(req, res, next) {
 module.exports = {
   CSRF_COOKIE,
   ensureCsrfCookie,
+  exposeCsrfHeader,
   validateCsrf,
 };

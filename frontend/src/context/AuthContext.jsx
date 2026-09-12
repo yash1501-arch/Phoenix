@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../utils/api';
+import { clearSessionToken, setSessionToken } from '../utils/session';
 
 const AuthContext = createContext();
 
@@ -96,8 +97,11 @@ export const AuthProvider = ({ children }) => {
                 };
             }
 
+            if (data.token) setSessionToken(data.token);
+
             if (data.user?.role === 'admin' || data.user?.role === 'clerk') {
                 try { await authAPI.logout(); } catch { /* ignore */ }
+                clearSessionToken();
                 return {
                     success: false,
                     error: 'Staff accounts must use the admin panel to sign in.',
@@ -120,8 +124,10 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await authAPI.verify2faLogin(challengeToken, code);
             const sessionUser = response.data?.user;
+            if (response.data?.token) setSessionToken(response.data.token);
             if (sessionUser?.role === 'admin' || sessionUser?.role === 'clerk') {
                 try { await authAPI.logout(); } catch { /* ignore */ }
+                clearSessionToken();
                 return {
                     success: false,
                     error: 'Staff accounts must use the admin panel to sign in.',
@@ -156,6 +162,8 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(data.message || 'Registration failed');
             }
 
+            if (data.token) setSessionToken(data.token);
+
             if (data.user?.id) {
                 setUser(data.user);
             } else {
@@ -174,6 +182,7 @@ export const AuthProvider = ({ children }) => {
         } catch {
             // Clear local state even if cookie clear fails
         }
+        clearSessionToken();
         setUser(null);
         navigate('/');
     };
