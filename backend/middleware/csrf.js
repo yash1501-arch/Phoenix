@@ -33,6 +33,11 @@ function shouldSkipCsrf(req) {
   return SKIP_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 
+function hasBearerToken(req) {
+  const authHeader = req.header('Authorization');
+  return Boolean(authHeader && authHeader.startsWith('Bearer ') && authHeader.length > 7);
+}
+
 /**
  * Ensure every client has a CSRF cookie (double-submit pattern).
  */
@@ -64,6 +69,11 @@ function validateCsrf(req, res, next) {
 
   const path = req.originalUrl.split('?')[0];
   if (!path.startsWith('/api/') || shouldSkipCsrf(req)) {
+    return next();
+  }
+
+  // Cross-site SPAs send Authorization: Bearer; browsers never auto-attach that header.
+  if (hasBearerToken(req)) {
     return next();
   }
 

@@ -1,5 +1,6 @@
 /** Session token for cross-site API (Vercel SPA + Render API). Tab-scoped, not localStorage. */
 const STORAGE_KEY = 'phoenix_session';
+const CSRF_STORAGE_KEY = 'phoenix_csrf';
 let sessionToken = null;
 let cachedCsrf = null;
 
@@ -30,10 +31,26 @@ export function clearSessionToken() {
     } catch {
         // ignore
     }
+    clearCachedCsrf();
 }
 
 export function setCachedCsrf(token) {
     cachedCsrf = token || null;
+    try {
+        if (token) sessionStorage.setItem(CSRF_STORAGE_KEY, token);
+        else sessionStorage.removeItem(CSRF_STORAGE_KEY);
+    } catch {
+        // sessionStorage unavailable (private mode)
+    }
+}
+
+export function clearCachedCsrf() {
+    cachedCsrf = null;
+    try {
+        sessionStorage.removeItem(CSRF_STORAGE_KEY);
+    } catch {
+        // ignore
+    }
 }
 
 export function getCachedCsrf() {
@@ -46,5 +63,13 @@ export function readCsrfFromDocument() {
 }
 
 export function getCsrfToken() {
-    return readCsrfFromDocument() || cachedCsrf;
+    const fromDoc = readCsrfFromDocument();
+    if (fromDoc) return fromDoc;
+    if (cachedCsrf) return cachedCsrf;
+    try {
+        cachedCsrf = sessionStorage.getItem(CSRF_STORAGE_KEY);
+    } catch {
+        cachedCsrf = null;
+    }
+    return cachedCsrf;
 }

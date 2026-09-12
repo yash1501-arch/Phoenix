@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../utils/api';
-import { clearSessionToken, setSessionToken } from '../utils/session';
+import { clearSessionToken, setCachedCsrf, setSessionToken } from '../utils/session';
 
 const AuthContext = createContext();
 
@@ -89,6 +89,9 @@ export const AuthProvider = ({ children }) => {
                 throw new Error(data.message || 'Login failed');
             }
 
+            const csrf = response.headers.get('x-csrf-token');
+            if (csrf) setCachedCsrf(csrf);
+
             if (data.requires2fa) {
                 return {
                     success: false,
@@ -161,6 +164,9 @@ export const AuthProvider = ({ children }) => {
             if (!response.ok) {
                 throw new Error(data.message || 'Registration failed');
             }
+
+            const csrf = response.headers.get('x-csrf-token');
+            if (csrf) setCachedCsrf(csrf);
 
             if (data.token) setSessionToken(data.token);
 

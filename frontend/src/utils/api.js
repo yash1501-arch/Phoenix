@@ -23,6 +23,11 @@ api.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Let the browser set multipart boundary; default application/json breaks FormData uploads.
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
+
     const method = config.method?.toLowerCase();
     if (method && ['post', 'put', 'patch', 'delete'].includes(method)) {
         const csrf = getCsrfToken();
@@ -118,9 +123,7 @@ export const bookingsAPI = {
                 if (v != null && v !== '') fd.append(k, v);
             });
             fd.append('screenshot', screenshot);
-            return api.post('/payments/manual/submit', fd, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            return api.post('/payments/manual/submit', fd);
         }
         return api.post('/payments/manual/submit', rest);
     },
@@ -131,9 +134,7 @@ export const usersAPI = {
     uploadAvatar: (id, file) => {
         const fd = new FormData();
         fd.append('avatar', file);
-        return api.post(`/users/${id}/avatar`, fd, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        return api.post(`/users/${id}/avatar`, fd);
     },
     changePassword: (data) => api.post('/auth/change-password', data),
 };
