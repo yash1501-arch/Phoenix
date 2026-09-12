@@ -48,6 +48,7 @@ export default defineSchema({
       day: v.number(),
       title: v.string(),
       description: v.string(),
+      schedule: v.optional(v.array(v.object({ time: v.string(), activity: v.string() }))),
       activities: v.optional(v.array(v.string())),
       meals: v.optional(v.array(v.string())),
       accommodation: v.optional(v.string()),

@@ -74,19 +74,26 @@ const openWhatsApp = (adventure, phone) => {
 };
 
 // ── Itinerary Accordion ──────────────────────────────────────────────────────
-const ItineraryItem = ({ day }) => {
-    const [open, setOpen] = useState(false);
+const ItineraryItem = ({ day, defaultOpen = false }) => {
+    const [open, setOpen] = useState(defaultOpen);
+    const schedule = Array.isArray(day.schedule)
+        ? day.schedule.filter((row) => row?.time || row?.activity)
+        : [];
+    const activities = Array.isArray(day.activities) ? day.activities.filter(Boolean) : [];
+    const meals = Array.isArray(day.meals) ? day.meals.filter(Boolean) : [];
+    const stay = String(day.accommodation || '').trim();
+
     return (
         <div className="border border-stone/10 rounded-lg overflow-hidden bg-mist-subtle">
             <button
                 onClick={() => setOpen(o => !o)}
-                className="w-full flex items-center justify-between p-5 text-left hover:bg-mist transition-colors"
+                className="w-full flex items-center justify-between gap-3 p-4 sm:p-5 text-left hover:bg-mist transition-colors"
             >
-                <div className="flex items-center gap-4">
-                    <span className="w-10 h-10 rounded-md bg-panel text-ember font-bold text-sm flex items-center justify-center shrink-0">
-                        D{day.day}
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <span className="min-w-10 h-10 px-2 rounded-md bg-panel text-ember font-bold text-xs sm:text-sm flex items-center justify-center shrink-0">
+                        Day {day.day}
                     </span>
-                    <span className="font-semibold text-stone">{day.title}</span>
+                    <span className="font-semibold text-stone truncate">{day.title || `Day ${day.day}`}</span>
                 </div>
                 {open ? <ChevronUp size={18} className="text-ember shrink-0" /> : <ChevronDown size={18} className="text-muted shrink-0" />}
             </button>
@@ -99,9 +106,48 @@ const ItineraryItem = ({ day }) => {
                         transition={{ duration: 0.25 }}
                         className="overflow-hidden"
                     >
-                        <p className="px-5 pb-5 text-muted text-sm leading-relaxed border-t border-stone/10 pt-4">
-                            {day.description}
-                        </p>
+                        <div className="px-4 sm:px-5 pb-5 border-t border-stone/10 pt-4 space-y-4">
+                            {schedule.length > 0 ? (
+                                <ol className="space-y-0">
+                                    {schedule.map((row, i) => (
+                                        <li key={i} className="flex gap-3 sm:gap-4">
+                                            <div className="w-[4.25rem] sm:w-20 shrink-0 pt-0.5">
+                                                <span className="text-ember font-semibold text-xs sm:text-sm tabular-nums">
+                                                    {row.time || '—'}
+                                                </span>
+                                            </div>
+                                            <div className="relative flex-1 min-w-0 pb-4 last:pb-0 border-l border-stone/15 pl-4">
+                                                <span className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-ember" />
+                                                <p className="text-stone text-sm leading-relaxed">{row.activity}</p>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ol>
+                            ) : (
+                                <>
+                                    {day.description ? (
+                                        <p className="text-muted text-sm leading-relaxed">{day.description}</p>
+                                    ) : null}
+                                    {activities.length > 0 ? (
+                                        <ul className="list-disc pl-5 space-y-1 text-sm text-stone">
+                                            {activities.map((item, i) => (
+                                                <li key={i}>{item}</li>
+                                            ))}
+                                        </ul>
+                                    ) : null}
+                                </>
+                            )}
+                            {meals.length > 0 && (
+                                <p className="text-sm text-muted">
+                                    <span className="font-semibold text-moss">Meals:</span> {meals.join(' · ')}
+                                </p>
+                            )}
+                            {stay && (
+                                <p className="text-sm text-muted">
+                                    <span className="font-semibold text-moss">Stay:</span> {stay}
+                                </p>
+                            )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -455,7 +501,9 @@ const AdventureDetail = () => {
                         <Reveal variant="slideLeft" as="section">
                             <h2 className="font-display text-2xl font-semibold text-stone mb-4">Day-by-day itinerary</h2>
                             <div className="space-y-3">
-                                {adventure.itinerary.map(day => <ItineraryItem key={day.day} day={day} />)}
+                                {adventure.itinerary.map((day, index) => (
+                                    <ItineraryItem key={`${day.day}-${index}`} day={day} defaultOpen={index === 0} />
+                                ))}
                             </div>
                         </Reveal>
                     )}

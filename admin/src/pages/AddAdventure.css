@@ -445,6 +445,32 @@
     margin-bottom: 0;
 }
 
+.schedule-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.schedule-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.schedule-row .schedule-time {
+    width: 6.5rem;
+    flex-shrink: 0;
+}
+
+.schedule-row .schedule-activity {
+    flex: 1;
+    min-width: 0;
+}
+
+.schedule-add-row {
+    align-self: flex-start;
+}
+
 .day-header {
     display: flex;
     align-items: center;
@@ -657,6 +683,10 @@
 
     .itinerary-day {
         padding: 1rem;
+    }
+
+    .schedule-row {
+        flex-wrap: wrap;
     }
 }
 

@@ -31,6 +31,12 @@ function asItinerary(value) {
       day: day.day ?? day.Day ?? '',
       title: day.title || day.Title || 'Schedule',
       description: day.description || day.Description || '',
+      schedule: asList(day.schedule || day.Schedule)
+        .map((row) => ({
+          time: String(row?.time || row?.Time || '').trim(),
+          activity: String(row?.activity || row?.Activity || '').trim(),
+        }))
+        .filter((row) => row.time || row.activity),
       activities: asList(day.activities || day.Activities),
       meals: asList(day.meals || day.Meals),
       accommodation: day.accommodation || day.Accommodation || '',
@@ -362,6 +368,30 @@ function drawDayCard(doc, day, index, total) {
       });
     resetCursor(doc);
     doc.moveDown(0.45);
+  }
+
+  if (day.schedule.length) {
+    breakIfTight(doc, 20);
+    resetCursor(doc);
+    doc.fillColor(COLORS.moss).font('Helvetica-Bold').fontSize(8.5).text('SCHEDULE', left, doc.y, { width });
+    resetCursor(doc);
+    doc.moveDown(0.25);
+    day.schedule.forEach((row) => {
+      breakIfTight(doc, 14);
+      const y = doc.y;
+      const timeLabel = row.time || '—';
+      doc.fillColor(COLORS.ember).font('Helvetica-Bold').fontSize(9).text(timeLabel, left, y, {
+        width: 48,
+        lineBreak: false,
+      });
+      doc.fillColor(COLORS.stone).font('Helvetica').fontSize(9.5).text(`·  ${row.activity || ''}`, left + 52, y, {
+        width: width - 52,
+        lineGap: 1.5,
+      });
+      resetCursor(doc);
+      doc.moveDown(0.12);
+    });
+    doc.moveDown(0.3);
   }
 
   if (day.activities.length) {

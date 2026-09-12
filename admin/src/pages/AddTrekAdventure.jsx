@@ -9,6 +9,7 @@ import { downloadItineraryPdf } from '../utils/downloadItineraryPdf';
 import { normalizeDepartureCities } from '../utils/departureCities';
 import DepartureCitiesField from '../components/DepartureCitiesField';
 import TagListField from '../components/TagListField';
+import ItineraryEditor from '../components/ItineraryEditor';
 import './AddAdventure.css';
 
 const AddTrekAdventure = () => {
@@ -425,23 +426,17 @@ const AddTrekAdventure = () => {
                         items={form.trek_guidelines} onChange={v => set('trek_guidelines', v)} />
                 </div>
 
-                {/* ── Itinerary (read-only from PDF) ── */}
-                {form.itinerary.length > 0 && (
-                    <div className="form-section">
-                        <h2 className="section-title">Itinerary</h2>
-                        <div className="itinerary-preview">
-                            {form.itinerary.map((day, i) => (
-                                <div key={i} className="itinerary-day">
-                                    <div className="day-header">
-                                        <span className="day-number">Day {day.day}</span>
-                                        <h4>{day.title}</h4>
-                                    </div>
-                                    <p className="day-description">{day.description}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                <div className="form-section">
+                    <h2 className="section-title">Day-by-day itinerary</h2>
+                    <p className="form-help section-help">
+                        Add each day and timed activities. This appears on the website and in the customer itinerary PDF.
+                    </p>
+                    <ItineraryEditor
+                        variant="trek"
+                        value={form.itinerary}
+                        onChange={(itinerary) => set('itinerary', itinerary)}
+                    />
+                </div>
 
                 {/* ── Actions ── */}
                 <div className="form-actions">

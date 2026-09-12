@@ -35,12 +35,43 @@ const ADVENTURE_FIELDS = new Set([
   'start_time',
 ]);
 
+function asStringList(value) {
+  if (!Array.isArray(value)) return undefined;
+  return value.map((item) => String(item ?? '').trim()).filter(Boolean);
+}
+
+function normalizeSchedule(schedule) {
+  if (!Array.isArray(schedule)) return undefined;
+  const rows = schedule
+    .map((row) => ({
+      time: String(row?.time ?? '').trim(),
+      activity: String(row?.activity ?? '').trim(),
+    }))
+    .filter((row) => row.time || row.activity);
+  return rows.length ? rows : undefined;
+}
+
 function normalizeItinerary(itinerary) {
   if (!Array.isArray(itinerary)) return itinerary;
-  return itinerary.map((day) => ({
-    ...day,
-    day: typeof day.day === 'string' ? parseInt(day.day, 10) : day.day,
-  }));
+  return itinerary.map((day, index) => {
+    const parsed = typeof day?.day === 'string' ? parseInt(day.day, 10) : Number(day?.day);
+    const dayNum = Number.isFinite(parsed) && parsed > 0 ? parsed : index + 1;
+    const out = {
+      day: dayNum,
+      title: String(day?.title ?? ''),
+      description: String(day?.description ?? ''),
+    };
+    const schedule = normalizeSchedule(day?.schedule);
+    if (schedule) out.schedule = schedule;
+    const activities = asStringList(day?.activities);
+    if (activities) out.activities = activities;
+    const meals = asStringList(day?.meals);
+    if (meals) out.meals = meals;
+    if (day?.accommodation != null && String(day.accommodation).trim() !== '') {
+      out.accommodation = String(day.accommodation).trim();
+    }
+    return out;
+  });
 }
 
 function pickAdventureFields(data) {

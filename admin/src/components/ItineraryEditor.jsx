@@ -1,10 +1,13 @@
 import React from 'react';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 
+const emptyScheduleRow = () => ({ time: '', activity: '' });
+
 const emptyDay = (dayNum) => ({
   day: dayNum,
   title: '',
   description: '',
+  schedule: [emptyScheduleRow()],
   activities: [],
   meals: [],
   accommodation: '',
@@ -17,11 +20,17 @@ function parseCommaList(str) {
     .filter(Boolean);
 }
 
+function daySchedule(day) {
+  const rows = Array.isArray(day?.schedule) ? day.schedule : [];
+  return rows.length ? rows : [emptyScheduleRow()];
+}
+
 /**
- * Day-by-day itinerary editor for tour (and trek) packages.
+ * Day-by-day itinerary editor for tour, trek, and camping packages.
  */
-const ItineraryEditor = ({ value = [], onChange }) => {
+const ItineraryEditor = ({ value = [], onChange, variant }) => {
   const days = Array.isArray(value) ? value : [];
+  const isTrek = variant === 'trek' || variant === 'camping';
 
   const setDays = (next) => onChange(next);
 
@@ -42,11 +51,29 @@ const ItineraryEditor = ({ value = [], onChange }) => {
     );
   };
 
+  const updateScheduleRow = (dayIndex, rowIndex, patch) => {
+    const schedule = daySchedule(days[dayIndex]).map((row, i) =>
+      i === rowIndex ? { ...row, ...patch } : row,
+    );
+    updateDay(dayIndex, { schedule });
+  };
+
+  const addScheduleRow = (dayIndex) => {
+    updateDay(dayIndex, { schedule: [...daySchedule(days[dayIndex]), emptyScheduleRow()] });
+  };
+
+  const removeScheduleRow = (dayIndex, rowIndex) => {
+    const schedule = daySchedule(days[dayIndex]).filter((_, i) => i !== rowIndex);
+    updateDay(dayIndex, { schedule: schedule.length ? schedule : [emptyScheduleRow()] });
+  };
+
   return (
     <div className="itinerary-input-section">
       {days.length === 0 ? (
         <p className="empty-hint">
-          Add each day of the tour — where you go, what guests do, meals, and overnight stay.
+          {isTrek
+            ? 'Add each day and timed activities.'
+            : 'Add each day of the tour — where you go, what guests do, meals, and overnight stay.'}
         </p>
       ) : (
         days.map((day, index) => (
@@ -71,19 +98,57 @@ const ItineraryEditor = ({ value = [], onChange }) => {
                   className="form-input"
                   value={day.title || ''}
                   onChange={(e) => updateDay(index, { title: e.target.value })}
-                  placeholder="e.g., Haridwar → Rishikesh"
+                  placeholder={isTrek ? 'e.g., Base village → summit' : 'e.g., Haridwar → Rishikesh'}
                 />
               </div>
               <div className="form-group full-width">
-                <label className="form-label">Activities &amp; plan</label>
+                <label className="form-label">Description (optional)</label>
                 <textarea
                   className="form-textarea"
-                  rows={4}
+                  rows={3}
                   value={day.description || ''}
                   onChange={(e) => updateDay(index, { description: e.target.value })}
-                  placeholder="What happens this day — sightseeing, travel, free time…"
+                  placeholder={isTrek ? 'Overview of the day — optional if you add timed activities.' : 'What happens this day — sightseeing, travel, free time…'}
                 />
               </div>
+
+              <div className="form-group full-width">
+                <label className="form-label">Timed schedule</label>
+                <div className="schedule-table">
+                  {daySchedule(day).map((row, rowIndex) => (
+                    <div key={rowIndex} className="schedule-row">
+                      <input
+                        type="text"
+                        className="form-input schedule-time"
+                        value={row.time || ''}
+                        onChange={(e) => updateScheduleRow(index, rowIndex, { time: e.target.value })}
+                        placeholder="05:30"
+                        aria-label={`Day ${index + 1} time ${rowIndex + 1}`}
+                      />
+                      <input
+                        type="text"
+                        className="form-input schedule-activity"
+                        value={row.activity || ''}
+                        onChange={(e) => updateScheduleRow(index, rowIndex, { activity: e.target.value })}
+                        placeholder="Assemble at Lonavala"
+                        aria-label={`Day ${index + 1} activity ${rowIndex + 1}`}
+                      />
+                      <button
+                        type="button"
+                        className="pdf-remove-btn"
+                        onClick={() => removeScheduleRow(index, rowIndex)}
+                        aria-label={`Remove schedule row ${rowIndex + 1}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn-secondary schedule-add-row" onClick={() => addScheduleRow(index)}>
+                    <Plus size={16} /> Add time
+                  </button>
+                </div>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Activities (comma-separated)</label>
                 <input
@@ -108,7 +173,7 @@ const ItineraryEditor = ({ value = [], onChange }) => {
                   className="form-input"
                   value={day.accommodation || ''}
                   onChange={(e) => updateDay(index, { accommodation: e.target.value })}
-                  placeholder="e.g., Hotel in Rishikesh (group stay, 3 per room)"
+                  placeholder={isTrek ? 'e.g., Tent at base camp' : 'e.g., Hotel in Rishikesh (group stay, 3 per room)'}
                 />
               </div>
             </div>
