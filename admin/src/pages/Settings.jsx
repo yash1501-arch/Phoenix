@@ -13,8 +13,11 @@ const SETTINGS_FIELDS = [
     { key: 'instagram', label: 'Instagram URL', type: 'url' },
     { key: 'instagram_handle', label: 'Instagram handle (e.g. @phoenixadventures)', type: 'text' },
     { key: 'maps_url', label: 'Google Maps URL', type: 'url' },
-    { key: 'advance_per_person', label: 'Tour advance per person (₹)', type: 'number' },
-    { key: 'cancellation_window_days', label: 'Cancellation window (days)', type: 'number' },
+    { key: 'advance_per_person', label: 'Tour advance per person (₹)', type: 'number', help: 'Default UPI advance per seat for tours. A tour can override this. Treks/camping pay in full.' },
+    { key: 'cancellation_window_days', label: 'Cancellation window (days)', type: 'number', help: 'Minimum days before departure for travellers to self-cancel a confirmed booking. Default 14. Used in the app and shown on Refund Policy / Terms / FAQ.' },
+    { key: 'seat_hold_minutes', label: 'Seat hold (minutes)', type: 'number', help: 'How long unpaid checkout holds a seat. Default 15. Shown on the UPI payment page.' },
+    { key: 'upi_id', label: 'UPI ID', type: 'text', help: 'Merchant VPA shown at checkout (e.g. 9372506447@sbi).' },
+    { key: 'upi_payee_name', label: 'UPI payee name', type: 'text', help: 'Name on the UPI collect / QR (default PHEONIX ADVENTURES LLP). Public brand remains Phoenix Adventures.' },
     { key: 'maintenance_mode', label: 'Maintenance mode (true/false)', type: 'text' },
 ];
 
@@ -231,6 +234,9 @@ const Settings = () => {
                                 {field.label}
                                 <span className="settings-key">{field.key}</span>
                             </label>
+                            {field.help && (
+                                <p className="page-subtitle" style={{ marginTop: 0, marginBottom: '0.65rem' }}>{field.help}</p>
+                            )}
                             <div className="settings-field-row">
                                 <input
                                     type={field.type}

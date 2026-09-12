@@ -151,8 +151,8 @@ const Adventures = () => {
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted block">From</span>
                                                 <span className="font-display text-xl text-stone font-semibold">₹{adv.price?.toLocaleString('en-IN')}</span>
                                             </div>
-                                            <span className="text-sm font-bold text-ember inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                                                Book <ArrowRight size={14} />
+                                            <span className="text-sm font-bold text-ember inline-flex items-center gap-1 group-hover:gap-2 transition-all line-clamp-1 max-w-[55%] text-right">
+                                                {adv.title}
                                             </span>
                                         </div>
                                     </div>

@@ -20,6 +20,7 @@ import type * as newsletter from "../newsletter.js";
 import type * as reviews from "../reviews.js";
 import type * as settings from "../settings.js";
 import type * as users from "../users.js";
+import type * as waitlist from "../waitlist.js";
 import type * as wishlist from "../wishlist.js";
 
 import type {
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   reviews: typeof reviews;
   settings: typeof settings;
   users: typeof users;
+  waitlist: typeof waitlist;
   wishlist: typeof wishlist;
 }>;
 

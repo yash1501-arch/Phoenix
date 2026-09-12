@@ -55,7 +55,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-mist flex flex-col">
-      <Seo title="Sign In" description="Access your Phoenix Adventures account." />
+      <Seo title="Sign In" description="Access your Phoenix Adventures account." noindex />
       <Navbar />
 
       <main id="main-content" className="flex-1 flex flex-col lg:flex-row pt-16 md:pt-[4.5rem] lg:min-h-[calc(100svh)]">

@@ -43,7 +43,7 @@ const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen bg-mist">
-      <Seo title="Forgot Password" description="Reset your Phoenix Adventures password securely." />
+      <Seo title="Forgot Password" description="Reset your Phoenix Adventures password securely." noindex />
       <Navbar />
       <main id="main-content" className="pt-28 pb-16">
         <div className="container">

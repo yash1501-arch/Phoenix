@@ -12,4 +12,4 @@ Disallow: /wishlist
 Disallow: /api/
 
 # Sitemap
-Sitemap: https://phoenixadventures.in/sitemap.xml
+Sitemap: https://www.phoenixadventures.in/sitemap.xml

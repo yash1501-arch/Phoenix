@@ -15,7 +15,7 @@ const Wishlist = () => {
 
   return (
     <div className="min-h-screen bg-mist">
-      <Seo title="My Wishlist" description="Treks and adventures you've saved for later." />
+      <Seo title="My Wishlist" description="Treks and adventures you've saved for later." noindex />
       <Navbar />
       <PageHero
         eyebrow="Saved for later"

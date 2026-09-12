@@ -75,7 +75,7 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-mist flex flex-col">
-      <Seo title="Create Account" description="Join Phoenix Adventures to book treks and manage your trips." />
+      <Seo title="Create Account" description="Join Phoenix Adventures to book treks and manage your trips." noindex />
       <Navbar />
 
       <main id="main-content" className="flex-1 flex flex-col lg:flex-row pt-16 md:pt-[4.5rem] lg:min-h-[calc(100svh)]">

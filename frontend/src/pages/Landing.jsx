@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Navbar from '../components/Navbar';
+import Seo from '../components/Seo';
 import Hero from '../components/Hero';
 import Adventures from '../components/Adventures';
 import Marquee, { MarqueeItem } from '../components/ui/Marquee';
@@ -170,6 +171,12 @@ const Landing = () => {
 
   return (
     <div className="overflow-x-hidden bg-mist">
+      <Seo
+        title="Phoenix Adventures — Discover the great outdoors with our adventure tribe"
+        description="Phoenix Adventures — Discover the great outdoors with our adventure tribe. Sahyadri fort treks and Maharashtra outdoor destinations. Est. 22 March 2023."
+        titleSuffix={false}
+        path="/"
+      />
       <Navbar />
       <Hero />
 

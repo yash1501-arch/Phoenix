@@ -163,7 +163,7 @@ const Profile = () => {
 
   return (
     <div className="user-dashboard-wrapper">
-      <Seo title="My Profile" description="Update your Phoenix Adventures profile." />
+      <Seo title="My Profile" description="Update your Phoenix Adventures profile." noindex />
       <Navbar />
 
       <div className="dashboard-hero">

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Clock, Star, ArrowRight } from 'lucide-react';
+import { MapPin, Clock, Star } from 'lucide-react';
 import { getImageUrl } from '../../utils/api';
 import { StaggerItem } from './Motion';
 import { IMG_FALLBACK } from '../../data/indiaImages';
@@ -68,8 +68,8 @@ const AdventureCard = ({ adventure, index = 0 }) => {
                   ₹{Number(adventure.price || 0).toLocaleString('en-IN')}
                 </span>
               </div>
-              <span className="text-sm font-bold text-ember inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                Book <ArrowRight size={14} />
+              <span className="text-sm font-bold text-ember inline-flex items-center gap-1 group-hover:gap-2 transition-all line-clamp-1 max-w-[55%] text-right">
+                {adventure.title || 'View trek'}
               </span>
             </div>
           </div>

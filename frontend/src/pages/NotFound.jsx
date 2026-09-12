@@ -11,7 +11,7 @@ const NotFound = () => {
 
   return (
     <div className="min-h-screen bg-panel">
-      <Seo title="404 | Page Not Found" description="The page you are looking for has wandered off the trail." />
+      <Seo title="Page not found" description="The page you are looking for has wandered off the trail." noindex />
       <Navbar />
       <main id="main-content" className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 pt-24 text-cream">
         <div

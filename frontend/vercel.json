@@ -2,7 +2,22 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "phoenixadventures.in" }],
+      "destination": "https://www.phoenixadventures.in/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "phoenixadventures.in" }],
+      "destination": "https://www.phoenixadventures.in/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://api.phoenixadventures.in/api/sitemap.xml" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [

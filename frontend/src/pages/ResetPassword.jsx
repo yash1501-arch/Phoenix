@@ -39,7 +39,7 @@ const ResetPassword = () => {
   if (!token) {
     return (
       <div className="min-h-screen bg-mist">
-        <Seo title="Reset Password" />
+        <Seo title="Reset Password" noindex />
         <Navbar />
         <main className="pt-28 pb-16 container max-w-md mx-auto text-center">
           <h1 className="font-display text-2xl font-semibold text-stone">Invalid reset link</h1>
@@ -53,7 +53,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-mist">
-      <Seo title="Reset Password" />
+      <Seo title="Reset Password" noindex />
       <Navbar />
       <main id="main-content" className="pt-28 pb-16">
         <div className="container">

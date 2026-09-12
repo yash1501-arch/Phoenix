@@ -29,14 +29,6 @@ const Hero = () => {
   const [paused, setPaused] = useState(false);
   const timerRef = useRef(null);
 
-  // Preload every slide once so fades don't flash empty frames
-  useEffect(() => {
-    SLIDES.forEach((slide) => {
-      const img = new Image();
-      img.src = slide.src;
-    });
-  }, []);
-
   const goTo = useCallback((index) => {
     setActive(((index % SLIDES.length) + SLIDES.length) % SLIDES.length);
   }, []);
@@ -80,6 +72,7 @@ const Hero = () => {
               },
             }}
             loading={active === 0 ? 'eager' : 'lazy'}
+            fetchPriority={active === 0 ? 'high' : 'low'}
             decoding="async"
             draggable={false}
             onError={(e) => {

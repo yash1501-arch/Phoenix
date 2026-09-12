@@ -42,7 +42,7 @@ The backend talks to Convex for every database operation, so this must be live f
 In the Convex dashboard, create a **Production** deployment (e.g. `elated-eel-875`). Note:
 
 - **Deployment URL** — looks like `https://elated-eel-875.convex.cloud`
-- **Deploy key** — dashboard → Settings → Deploy Keys → "Generate Production Deploy Key". It looks like `prod:elated-eel-875|eyJ…`.
+- **Deploy key** — dashboard → Settings → Deploy Keys → "Generate Production Deploy Key" (`prod:<deployment>|…`). Never paste the value into git or chat.
 
 ### 1.2 Push schema and functions
 
@@ -65,10 +65,7 @@ cd backend
 node seedAdmin.js
 ```
 
-Default credentials (rotate immediately after first login):
-
-- **Email:** `admin@phoenix.com`
-- **Password:** `admin123`
+Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in a gitignored `backend/.env`, then run the seed script. Rotate that password after first login. Do not use sample passwords from docs.
 
 ### 1.4 Verify
 
@@ -243,7 +240,7 @@ Both have first-class GitHub integration:
 
 - [ ] `npx convex deploy` succeeds against the prod deployment
 - [ ] `node backend/seedAdmin.js` has been run on the prod Convex
-- [ ] Admin password has been **rotated** (not still `admin123`)
+- [ ] Admin password is unique (never use sample/doc passwords)
 - [ ] Backend env vars are all set, including a fresh `JWT_SECRET`
 - [ ] `CORS_ORIGINS` includes the exact prod frontend + admin origins (no trailing slash, https)
 - [ ] `NODE_ENV=production` is set on the backend
@@ -268,8 +265,8 @@ curl -sI https://admin.phoenixadventures.in/adventures | head -1   # → HTTP/2 
 # End-to-end login
 curl -s -X POST https://api.phoenixadventures.in/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@phoenix.com","password":"<your-new-password>"}' | jq -r .token
-# → eyJ… (a JWT)
+  -d '{"email":"<admin-email>","password":"<your-password>"}' | jq -r .token
+# → a JWT string (do not commit or paste tokens)
 ```
 
 Manual checks:

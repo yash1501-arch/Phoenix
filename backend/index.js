@@ -130,6 +130,8 @@ const apiLimiter = rateLimit({
     store: buildRateLimitStore('api'),
     skip: (req) => req.path === '/health'
         || req.path === '/settings/public'
+        || req.path === '/sitemap.xml'
+        || req.path === '/api/sitemap.xml'
         || req.method === 'GET' && req.path.startsWith('/adventures'),
     message: { success: false, message: 'Too many requests, please try again later.' },
 });
@@ -236,6 +238,7 @@ app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api', require('./routes/sitemap'));
 
 // Root endpoint
 app.get('/', (req, res) => {

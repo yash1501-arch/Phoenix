@@ -17,10 +17,13 @@ import WeatherWidget from '../components/ui/WeatherWidget';
 import ShareButtons from '../components/ui/ShareButtons';
 import Reviews from '../components/ui/Reviews';
 import BookingModal from '../components/BookingModal';
-import { Reveal, IconMotion } from '../components/ui/Motion';
+import { Reveal, IconMotion, StaggerContainer } from '../components/ui/Motion';
 import { IMG_FALLBACK } from '../data/indiaImages';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import Seo from '../components/Seo';
+import AdventureCard from '../components/ui/AdventureCard';
+import { absoluteAssetUrl, adventureJsonLd, adventureMetaDescription } from '../utils/seo';
 
 const asStringList = (value) => {
     if (!value) return [];
@@ -335,6 +338,7 @@ const AdventureDetail = () => {
     const [whatsappNumber, setWhatsappNumber] = useState('919372506447');
     const [lightboxIndex, setLightboxIndex] = useState(null);
     const [showBooking, setShowBooking] = useState(false);
+    const [related, setRelated] = useState([]);
 
     const handleBook = () => {
         if (!isAuthenticated) {
@@ -346,18 +350,49 @@ const AdventureDetail = () => {
     };
 
     useEffect(() => {
-        const fetch = async () => {
-            try {
-                const res = await adventuresAPI.getById(id);
+        let alive = true;
+        setLoading(true);
+        setRelated([]);
+        setAdventure(null);
+        adventuresAPI
+            .getById(id)
+            .then((res) => {
+                if (!alive) return;
                 setAdventure(res.data.data);
-            } catch {
-                navigate('/adventures');
-            } finally {
-                setLoading(false);
-            }
+            })
+            .catch(() => {
+                if (alive) navigate('/adventures');
+            })
+            .finally(() => {
+                if (alive) setLoading(false);
+            });
+        return () => {
+            alive = false;
         };
-        fetch();
-    }, [id]);
+    }, [id, navigate]);
+
+    useEffect(() => {
+        if (!adventure) return undefined;
+        let alive = true;
+        const currentId = String(adventure._id || id);
+        adventuresAPI
+            .getAll({ status: 'active', limit: 24 })
+            .then((res) => {
+                if (!alive) return;
+                const list = Array.isArray(res.data?.data) ? res.data.data : [];
+                const others = list.filter((a) => String(a._id || a.id) !== currentId);
+                const cat = (adventure.category || '').toLowerCase();
+                const same = others.filter((a) => (a.category || '').toLowerCase() === cat);
+                const rest = others.filter((a) => (a.category || '').toLowerCase() !== cat);
+                setRelated([...same, ...rest].slice(0, 3));
+            })
+            .catch(() => {
+                if (alive) setRelated([]);
+            });
+        return () => {
+            alive = false;
+        };
+    }, [adventure, id]);
 
     useEffect(() => {
         publicSettingsAPI.getAll().then((all) => {
@@ -367,6 +402,7 @@ const AdventureDetail = () => {
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-mist">
+            <Seo title="Adventure" description="Sahyadri treks and outdoor adventures with Phoenix Adventures." />
             <div className="w-12 h-12 border-4 border-ember border-t-transparent rounded-full animate-spin" />
         </div>
     );
@@ -389,8 +425,17 @@ const AdventureDetail = () => {
         Challenging: 'bg-red-100 text-red-700',
     }[adventure.difficulty] || 'bg-mist-muted text-stone';
 
+    const ogImage = absoluteAssetUrl(getImageUrl(adventure.image_url));
+    const trekId = adventure._id || id;
+
     return (
         <div id="main-content" className="min-h-screen bg-mist">
+            <Seo
+                title={adventure.title}
+                description={adventureMetaDescription(adventure)}
+                image={ogImage}
+                jsonLd={adventureJsonLd(adventure, { id: trekId, image: ogImage })}
+            />
             <Navbar />
 
             <motion.div
@@ -405,6 +450,9 @@ const AdventureDetail = () => {
                     src={getImageUrl(adventure.image_url) || IMG_FALLBACK}
                     alt={adventure.title}
                     className="w-full h-full object-cover cursor-zoom-in"
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
                     onClick={() => setLightboxIndex(0)}
                     onError={e => { e.target.src = IMG_FALLBACK; }}
                 />
@@ -631,6 +679,17 @@ const AdventureDetail = () => {
                         <Reveal variant="rise" as="section">
                             <h2 className="font-display text-2xl font-semibold text-stone mb-4">Trek guidelines</h2>
                             <BrochureList items={guidelines} />
+                        </Reveal>
+                    )}
+
+                    {related.length > 0 && (
+                        <Reveal variant="rise" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Related treks</h2>
+                            <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                                {related.map((a, i) => (
+                                    <AdventureCard key={a._id || a.id || i} adventure={a} index={i} />
+                                ))}
+                            </StaggerContainer>
                         </Reveal>
                     )}
 

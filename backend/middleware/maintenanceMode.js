@@ -9,6 +9,7 @@ const BYPASS_PREFIXES = [
   '/api/health',
   '/api/auth/',
   '/api/settings/public',
+  '/api/sitemap.xml',
 ];
 
 let cache = { on: false, checkedAt: 0 };

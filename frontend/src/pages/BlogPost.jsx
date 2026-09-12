@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Seo from '../components/Seo';
 import { blogAPI, getImageUrl } from '../utils/api';
+import { absoluteAssetUrl, articleJsonLd } from '../utils/seo';
 import { Reveal } from '../components/ui/Motion';
 
 const formatDate = (iso) =>
@@ -86,7 +87,13 @@ const BlogPost = () => {
 
   return (
     <div className="min-h-screen bg-mist">
-      <Seo title={post.title} description={post.excerpt} image={post.cover_image} type="article" />
+      <Seo
+        title={post.title}
+        description={post.excerpt}
+        image={absoluteAssetUrl(getImageUrl(post.cover_image))}
+        type="article"
+        jsonLd={articleJsonLd(post, { image: absoluteAssetUrl(getImageUrl(post.cover_image)) })}
+      />
       <Navbar />
 
       <article className="pt-28 md:pt-36 pb-20">
