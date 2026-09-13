@@ -11,11 +11,16 @@ import Footer from '../components/Footer';
 import { bookingsAPI, publicSettingsAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { canUserCancelBooking } from '../utils/bookingCancel';
-
-const UPI_QR_SRC = '/upi-merchant-qr.png';
+import {
+    MERCHANT_PAYEE_NAME,
+    MERCHANT_UPI_ID,
+    UPI_QR_SRC,
+    merchantUpiLink,
+    verifyMerchantQr,
+} from '../utils/merchantUpi';
 
 /** Full-screen QR viewer with zoom — easier to scan from a desktop monitor */
-const QrZoomModal = ({ src, onClose }) => {
+const QrZoomModal = ({ src, payeeName = 'PHEONIX ADVENTURES LLP', onClose }) => {
     const [zoom, setZoom] = useState(1.4);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [dragging, setDragging] = useState(false);
@@ -158,6 +163,7 @@ const BookingPayment = () => {
     const [submitting, setSubmitting] = useState(false);
     const [copied, setCopied] = useState(false);
     const [qrOpen, setQrOpen] = useState(false);
+    const [qrTrusted, setQrTrusted] = useState(null);
     const [data, setData] = useState(null);
     const [remaining, setRemaining] = useState(null);
     const [form, setForm] = useState({
@@ -176,6 +182,20 @@ const BookingPayment = () => {
             const days = parseInt(all.cancellation_window_days, 10);
             if (Number.isFinite(days) && days >= 0) setCancellationWindowDays(days);
         }).catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        let alive = true;
+        verifyMerchantQr(UPI_QR_SRC)
+            .then((ok) => {
+                if (alive) setQrTrusted(ok);
+            })
+            .catch(() => {
+                if (alive) setQrTrusted(false);
+            });
+        return () => {
+            alive = false;
+        };
     }, []);
 
     const load = useCallback(async () => {
@@ -216,9 +236,17 @@ const BookingPayment = () => {
     const adventure = data?.adventure;
     const payment = data?.payment;
     const upi = data?.upi || {};
-    const upiId = upi.id || '';
-    const payeeName = upi.payee_name || 'PHEONIX ADVENTURES LLP';
+    const upiId = MERCHANT_UPI_ID;
+    const payeeName = MERCHANT_PAYEE_NAME;
     const holdMinutes = upi.hold_minutes || 15;
+    const upiAppLink = merchantUpiLink({
+        amount: data?.pay_balance
+            ? Number(data.upi_amount ?? data?.booking?.balance_due ?? 0)
+            : Number(data?.booking?.amount || 0),
+        note: data?.pay_balance
+            ? `${data?.booking?.booking_code}-BAL`
+            : (data?.booking?.booking_code || ''),
+    });
     const status = booking?.booking_status;
     const payAmount = data?.pay_balance
         ? Number(data.upi_amount ?? booking?.balance_due ?? 0)
@@ -492,23 +520,33 @@ const BookingPayment = () => {
 
                             <div className="grid md:grid-cols-2 gap-6 items-start">
                                 <div className="flex flex-col items-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => setQrOpen(true)}
-                                        className="group relative w-full max-w-[260px] rounded-lg border border-stone/10 bg-mist-subtle overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
-                                        aria-label="Open QR code fullscreen to scan"
-                                    >
-                                        <img
-                                            src={UPI_QR_SRC}
-                                            alt={`${payeeName} UPI QR`}
-                                            className="w-full block transition group-hover:scale-[1.02]"
-                                        />
-                                        <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-panel/75 text-cream text-xs font-semibold py-2 opacity-0 group-hover:opacity-100 transition">
-                                            <Maximize2 size={14} /> Click to enlarge &amp; zoom
-                                        </span>
-                                    </button>
+                                    {qrTrusted === null ? (
+                                        <div className="w-full max-w-[260px] aspect-square rounded-lg border border-stone/10 bg-mist flex items-center justify-center text-xs text-muted">
+                                            Checking merchant QR…
+                                        </div>
+                                    ) : qrTrusted ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setQrOpen(true)}
+                                            className="group relative w-full max-w-[260px] rounded-lg border border-stone/10 bg-mist-subtle overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-ember"
+                                            aria-label="Open QR code fullscreen to scan"
+                                        >
+                                            <img
+                                                src={UPI_QR_SRC}
+                                                alt={`${payeeName} UPI QR`}
+                                                className="w-full block transition group-hover:scale-[1.02]"
+                                            />
+                                            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-panel/75 text-cream text-xs font-semibold py-2 opacity-0 group-hover:opacity-100 transition">
+                                                <Maximize2 size={14} /> Click to enlarge &amp; zoom
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <div className="w-full max-w-[260px] rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                                            QR image could not be verified. Pay only to <strong className="font-mono">{upiId}</strong> using Copy or Open UPI App. Do not scan a QR from a screenshot or chat.
+                                        </div>
+                                    )}
                                     <p className="text-xs text-muted mt-2 text-center">
-                                        Official merchant QR placard — update the image in admin if UPI ID changes
+                                        Official merchant QR — checked against a fixed hash. Payee is always {payeeName}.
                                     </p>
                                 </div>
 
@@ -528,11 +566,9 @@ const BookingPayment = () => {
                                         <p className="text-xs text-muted mt-1.5">UPI — {payeeName}{upiId ? ` · ${upiId}` : ''}</p>
                                     </div>
 
-                                    {upi.link && (
-                                        <a href={upi.link} className="btn btn-primary w-full inline-flex items-center justify-center gap-2">
-                                            <ExternalLink size={16} /> Open UPI App
-                                        </a>
-                                    )}
+                                    <a href={upiAppLink} className="btn btn-primary w-full inline-flex items-center justify-center gap-2">
+                                        <ExternalLink size={16} /> Open UPI App
+                                    </a>
 
                                     <div className="text-xs text-muted space-y-1 bg-mist-subtle rounded-lg p-3 border border-stone/10">
                                         <p className="font-semibold text-stone mb-1">Payment instructions</p>
@@ -678,8 +714,8 @@ const BookingPayment = () => {
                     </div>
                 )}
             </div>
-            {qrOpen && (
-                <QrZoomModal src={UPI_QR_SRC} onClose={() => setQrOpen(false)} />
+            {qrOpen && qrTrusted === true && (
+                <QrZoomModal src={UPI_QR_SRC} payeeName={payeeName} onClose={() => setQrOpen(false)} />
             )}
                         <Footer />
         </div>

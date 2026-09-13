@@ -1,5 +1,5 @@
 const { getConvexClient } = require('../utils/convexClient');
-const { generateUpiLink } = require('../utils/upi');
+const { generateUpiLink, MERCHANT_UPI_ID, MERCHANT_PAYEE_NAME } = require('../utils/upi');
 const { validateBookingExtras } = require('../utils/bookingFields');
 const { isBookingOpen } = require('../utils/bookingWindow');
 const { computeBookingAmounts, resolveAdvancePerPerson } = require('../utils/tourPricing');
@@ -9,8 +9,8 @@ const logger = require('../utils/logger');
 async function getUpiSettings() {
   const settings = await getConvexClient().getSettings();
   return {
-    upiId: settings.upi_id || '9372506447@sbi',
-    payeeName: settings.upi_payee_name || 'PHEONIX ADVENTURES LLP',
+    upiId: MERCHANT_UPI_ID,
+    payeeName: MERCHANT_PAYEE_NAME,
     holdMinutes: parseInt(settings.seat_hold_minutes || '15', 10),
   };
 }
@@ -166,8 +166,6 @@ exports.getPaymentDetails = async (req, res) => {
       && Number(details.booking.balance_due || 0) > 0;
     const upiAmount = payBalance ? details.booking.balance_due : details.booking.amount;
     const upiLink = generateUpiLink({
-      upiId: upiSettings.upiId,
-      payeeName: upiSettings.payeeName,
       amount: upiAmount,
       note: payBalance
         ? `${details.booking.booking_code}-BAL`

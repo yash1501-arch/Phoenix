@@ -16,8 +16,8 @@ const SETTINGS_FIELDS = [
     { key: 'advance_per_person', label: 'Tour advance per person (₹)', type: 'number', help: 'Default UPI advance per seat for tours. A tour can override this. Treks/camping pay in full.' },
     { key: 'cancellation_window_days', label: 'Cancellation window (days)', type: 'number', help: 'Minimum days before departure for travellers to self-cancel a confirmed booking. Default 14. Used in the app and shown on Refund Policy / Terms / FAQ.' },
     { key: 'seat_hold_minutes', label: 'Seat hold (minutes)', type: 'number', help: 'How long unpaid checkout holds a seat. Default 15. Shown on the UPI payment page.' },
-    { key: 'upi_id', label: 'UPI ID', type: 'text', help: 'Merchant VPA shown at checkout (e.g. 9372506447@sbi).' },
-    { key: 'upi_payee_name', label: 'UPI payee name', type: 'text', help: 'Name on the UPI collect / QR (default PHEONIX ADVENTURES LLP). Public brand remains Phoenix Adventures.' },
+    { key: 'upi_id', label: 'UPI ID (FAQ / legal copy only)', type: 'text', help: 'Shown on FAQ and policies. Checkout always pays 9372506447@sbi — changing this field does not change the QR or Open UPI App.' },
+    { key: 'upi_payee_name', label: 'UPI payee name (FAQ / legal copy only)', type: 'text', help: 'Checkout payee is always PHEONIX ADVENTURES LLP in code. Public brand remains Phoenix Adventures.' },
     { key: 'maintenance_mode', label: 'Maintenance mode (true/false)', type: 'text' },
 ];
 
