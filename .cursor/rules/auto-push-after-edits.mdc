@@ -1,0 +1,45 @@
+---
+description: Commit and push to GitHub after every successful code edit session
+alwaysApply: true
+---
+
+# Auto-push after successful edits
+
+When you finish a task that changed project files, **commit and push to GitHub automatically** — do not wait for the user to ask.
+
+## When to push
+
+Push after:
+- Bug fixes, features, refactors, or UI changes that are complete and working
+- The user confirms success (e.g. "yes", "done", "looks good") on a change set
+
+Do **not** push when:
+- The task was question-only or review-only (no file changes)
+- Changes are incomplete, broken, or intentionally left for the user to review first
+- Files likely contain secrets (`.env`, credentials) — warn instead of committing
+
+## Workflow
+
+1. Run `git status`, `git diff`, and `git log -3 --oneline` in parallel
+2. Stage only relevant changed files (never `.env` or secrets)
+3. Write a concise 1–2 sentence commit message focused on **why**
+4. Commit, then `git push origin HEAD`
+5. Run `git status` to confirm clean tree and synced branch
+6. Tell the user the commit hash and that it was pushed
+
+## Commit message style
+
+Match recent history: short imperative subject, optional body explaining purpose.
+
+Example:
+```
+Fix date formatting crash on adventure detail pages.
+
+Map weekday/year flags to valid toLocaleDateString options instead of passing booleans.
+```
+
+## Notes
+
+- Never force-push to `main`
+- Never amend unless the user explicitly requests it and amend rules are satisfied
+- If push fails, report the error and retry or ask the user only if blocked on auth
