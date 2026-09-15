@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Clock, Star } from 'lucide-react';
+import { MapPin, Clock, Star, Heart } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { getImageUrl } from '../../utils/api';
 import { StaggerItem } from './Motion';
 import { IMG_FALLBACK } from '../../data/indiaImages';
+import ShareAdventureButton from './ShareAdventureButton';
+import { useAuth } from '../../context/AuthContext';
+import { useWishlist } from '../../context/WishlistContext';
 
 const PLACEHOLDER = IMG_FALLBACK;
 /**
@@ -12,6 +16,19 @@ const AdventureCard = ({ adventure, index = 0 }) => {
   const id = adventure._id || adventure.id;
   const img =
     getImageUrl(adventure.image_url || adventure.image) || PLACEHOLDER;
+  const { isAuthenticated } = useAuth();
+  const { toggle, isWishlisted } = useWishlist();
+  const wishlisted = isAuthenticated && isWishlisted?.(id);
+
+  const handleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.error('Sign in to save adventures to your wishlist');
+      return;
+    }
+    toggle(adventure);
+  };
 
   return (
     <StaggerItem>
@@ -33,6 +50,18 @@ const AdventureCard = ({ adventure, index = 0 }) => {
             <span className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
               {adventure.difficulty || 'Moderate'}
             </span>
+            <div className="absolute top-3 right-3 flex flex-col gap-2">
+              <ShareAdventureButton adventure={adventure} />
+              <button
+                type="button"
+                onClick={handleWishlist}
+                aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+                aria-pressed={wishlisted}
+                className="w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke"
+              >
+                <Heart size={15} className={wishlisted ? 'fill-current text-ember' : ''} />
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-1 flex-col p-4">

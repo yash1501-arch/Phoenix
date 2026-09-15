@@ -50,7 +50,11 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
         if (!itineraryAttachment?.content && bookingDetails.adventure) {
             try {
                 const { buildItineraryPdf } = require('../utils/itineraryPdf');
-                const generated = await buildItineraryPdf(bookingDetails.adventure, { audience: 'customer' });
+                const generated = await buildItineraryPdf(bookingDetails.adventure, {
+                    audience: 'customer',
+                    departureDate: bookingDetails.departureDate || bookingDetails.date,
+                    upcomingDates: bookingDetails.upcomingDates,
+                });
                 itineraryAttachment = {
                     filename: generated.filename,
                     content: generated.buffer,
@@ -62,13 +66,29 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
         }
         const itineraryPdfAttached = Boolean(itineraryAttachment?.content);
 
+        const dayHeading = (day) => {
+            const n = Number(day.day);
+            if (n === 0) return 'Day 0 · Pickup';
+            return `Day ${escapeHtml(day.day ?? '')}`;
+        };
+        const upcomingDates = Array.isArray(bookingDetails.upcomingDates) ? bookingDetails.upcomingDates : [];
+        const upcomingHtml = upcomingDates.length
+            ? `
+                <h3 style="margin: 28px 0 12px; color: #2F4A3D; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">This trip runs again on</h3>
+                <ul style="padding-left: 18px; margin: 0; color: #555; font-size: 14px; line-height: 1.5;">
+                  ${upcomingDates.map((row) => `<li style="margin-bottom: 6px;">${escapeHtml(row.summary || row.departureLabel || row.date)}</li>`).join('')}
+                </ul>
+              `
+            : '';
+
         const itineraryHtml = itinerary.length
             ? `
-                <h3 style="margin: 28px 0 12px; color: #2F4A3D; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Day-by-day itinerary</h3>
+                <h3 style="margin: 28px 0 12px; color: #2F4A3D; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Day-by-day itinerary (your booking dates)</h3>
                 <ol style="padding-left: 18px; margin: 0; color: #555; line-height: 1.55;">
                   ${itinerary.map((day) => `
                     <li style="margin-bottom: 12px;">
-                      <strong>Day ${escapeHtml(day.day ?? '')}: ${escapeHtml(day.title || 'Schedule')}</strong>
+                      <strong>${dayHeading(day)}: ${escapeHtml(day.title || 'Schedule')}</strong>
+                      ${day.calendar_label ? `<br/><span style="font-size: 13px; color: #7a776c;">${escapeHtml(day.calendar_label)}</span>` : ''}
                       ${day.description ? `<br/><span style="font-size: 14px;">${escapeHtml(day.description)}</span>` : ''}
                     </li>
                   `).join('')}
@@ -90,6 +110,14 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
         const safeTitle = escapeHtml(adventureTitle);
         const safeCode = escapeHtml(bookingDetails.bookingCode || '—');
         const safeDate = escapeHtml(bookingDetails.date || '—');
+        const safeDeparture = escapeHtml(bookingDetails.departureLabel || bookingDetails.date || '—');
+        const safeEvent = bookingDetails.eventLabel ? escapeHtml(bookingDetails.eventLabel) : '';
+        const safeBookingHeadline = bookingDetails.bookingHeadline
+            ? escapeHtml(bookingDetails.bookingHeadline)
+            : safeDeparture;
+        const safeRewardCode = bookingDetails.rewardDiscountCode
+            ? escapeHtml(bookingDetails.rewardDiscountCode)
+            : '';
         const safeParticipants = escapeHtml(bookingDetails.participants ?? '—');
         const safeAmount = escapeHtml(bookingDetails.amountPaid ?? '—');
         const safeTotal = bookingDetails.totalAmount != null ? escapeHtml(bookingDetails.totalAmount) : '';
@@ -117,12 +145,19 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                         ${isTour ? 'We look forward to travelling with you.' : "We can't wait to see you on the trail."}
                     </p>
 
+                    <div style="background-color: #eef6f0; padding: 18px 20px; border-radius: 8px; margin: 22px 0; border: 1px solid #c5dcc9;">
+                        <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your booking date</h3>
+                        <p style="margin: 0; color: #2F4A3D; font-size: 18px; font-weight: 700;">${safeBookingHeadline}</p>
+                        <p style="margin: 10px 0 0; color: #5c5a52; font-size: 14px;">This confirmation is only for the date above — not any other departure.</p>
+                    </div>
+
                     <div style="background-color: #FAF7F1; padding: 18px 20px; border-radius: 8px; margin: 22px 0; border: 1px solid #ebe4d8;">
                         <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Booking details</h3>
                         <ul style="list-style: none; padding: 0; margin: 0; color: #5c5a52; font-size: 15px;">
                             <li style="margin-bottom: 8px;"><strong>Booking ID:</strong> ${safeCode}</li>
                             <li style="margin-bottom: 8px;"><strong>Adventure:</strong> ${safeTitle}</li>
-                            <li style="margin-bottom: 8px;"><strong>Date:</strong> ${safeDate}</li>
+                            <li style="margin-bottom: 8px;"><strong>Departure:</strong> ${safeDeparture}</li>
+                            ${safeEvent ? `<li style="margin-bottom: 8px;"><strong>Event date:</strong> ${safeEvent}</li>` : ''}
                             <li style="margin-bottom: 8px;"><strong>Seats:</strong> ${safeParticipants}</li>
                             <li style="margin-bottom: 8px;"><strong>Amount paid:</strong> ₹${safeAmount}</li>
                             ${safeTotal ? `<li style="margin-bottom: 8px;"><strong>Trip total:</strong> ₹${safeTotal}</li>` : ''}
@@ -136,7 +171,15 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                         </ul>
                     </div>
 
+                    ${safeRewardCode ? `
+                    <div style="background-color: #eef6f0; padding: 18px 20px; border-radius: 8px; margin: 22px 0; border: 1px solid #c5dcc9;">
+                        <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your 10% reward</h3>
+                        <p style="color: #5c5a52; font-size: 15px; margin: 0;">
+                            Use code <strong style="font-size: 18px; letter-spacing: 0.04em;">${safeRewardCode}</strong> on your next booking within 30 days.
+                        </p>
+                    </div>` : ''}
                     ${itineraryHtml}
+                    ${upcomingHtml}
                     ${listHtml("What's included", included)}
                     ${listHtml('Not included', excluded)}
 

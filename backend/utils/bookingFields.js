@@ -1,5 +1,6 @@
 const MEAL_PREFERENCES = ['veg', 'non_veg', 'jain'];
 const { isTour, findPricingGroup } = require('./tourPricing');
+const { resolveMealOptions } = require('./adventureDates');
 
 function normalizePhone(raw) {
   if (!raw) return '';
@@ -58,6 +59,7 @@ function validateBookingExtras({
     };
   }
 
+  const allowedMeals = new Set(resolveMealOptions(adventure));
   const tour = isTour(adventure);
   const trainGroup = tour ? findPricingGroup(adventure, 'train') : null;
   const validTrainIds = new Set(
@@ -79,8 +81,8 @@ function validateBookingExtras({
     if (!phoneDigits || phoneDigits.length < 10) {
       return { ok: false, message: `Participant ${i + 1}: valid contact number is required` };
     }
-    if (!MEAL_PREFERENCES.includes(meal)) {
-      return { ok: false, message: `Participant ${i + 1}: select a meal preference` };
+    if (!MEAL_PREFERENCES.includes(meal) || !allowedMeals.has(meal)) {
+      return { ok: false, message: `Participant ${i + 1}: select a valid meal preference for this adventure` };
     }
     if (!pickup || !pickupOptions.includes(pickup)) {
       return { ok: false, message: `Participant ${i + 1}: select a valid pickup point` };

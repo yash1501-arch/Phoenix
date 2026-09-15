@@ -57,7 +57,7 @@ class ConvexClient {
     'contact:list',
     'bookings:getById', 'bookings:getByCode', 'bookings:getByUser',
     'bookings:getPaymentDetails', 'bookings:listPendingPayments', 'bookings:listAll',
-    'bookings:listDueReminders',
+    'bookings:listDueReminders', 'bookings:validateDiscountCode',
     'dashboard:getOverview',
     'analytics:getVisitStats',
     'waitlist:listWaitingForAdventure',
@@ -172,6 +172,9 @@ class ConvexClient {
   async setContactMessageStatus(id, status) { return this.callFunction('contact:setStatus', { id, status }); }
   async deleteContactMessage(id) { return this.callFunction('contact:remove', { id }); }
 
+  async validateDiscountCode(code, userId) {
+    return this.callFunction('bookings:validateDiscountCode', { code, user_id: userId });
+  }
   async createManualBooking(data) { return this.callFunction('bookings:createManual', data); }
   async getBookingById(id) { return this.callFunction('bookings:getById', { id }); }
   async getBookingByCode(code) { return this.callFunction('bookings:getByCode', { booking_code: code }); }

@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
+const { buildBookingConfirmationText } = require('../utils/adventureDates');
 
 /**
  * Normalize Indian / international phone to WhatsApp digits (E.164 without +).
@@ -94,34 +95,7 @@ async function sendCustomerWhatsApp({
 }
 
 function buildConfirmationText(userName, adventureTitle, details = {}) {
-  const lines = [
-    `✅ Booking confirmed`,
-    ``,
-    `Hi ${userName || 'Adventurer'},`,
-    `Your payment is verified and your seats are confirmed.`,
-    ``,
-    `🏔 ${adventureTitle}`,
-    details.bookingCode ? `Booking ID: ${details.bookingCode}` : null,
-    details.date ? `Date: ${details.date}` : null,
-    details.participants ? `Seats: ${details.participants}` : null,
-    details.amountPaid != null ? `Amount paid: ₹${details.amountPaid}` : null,
-    details.totalAmount != null && Number(details.totalAmount) !== Number(details.amountPaid)
-      ? `Trip total: ₹${details.totalAmount}`
-      : null,
-    details.balanceDue != null && Number(details.balanceDue) > 0
-      ? `Balance due: ₹${details.balanceDue}`
-      : null,
-    details.location ? `Location: ${details.location}` : null,
-    details.meetingPoint ? `Pickup: ${details.meetingPoint}` : null,
-    details.travelCoachSummary ? `Train (per person): ${details.travelCoachSummary}` : null,
-    details.stayNote ? `Stay: ${details.stayNote}` : null,
-    ``,
-    `Bring a valid government ID. We'll share the exact reporting time on WhatsApp before departure.`,
-    ``,
-    `Questions? Call +91 93725 06447 / +91 77580 79726`,
-    `— Team Phoenix Adventures`,
-  ];
-  return lines.filter((l) => l !== null).join('\n');
+  return buildBookingConfirmationText(userName, adventureTitle, details);
 }
 
 /**
@@ -171,7 +145,7 @@ async function sendBookingConfirmationWhatsApp(phone, userName, adventureTitle, 
     const params = [
       userName || 'Adventurer',
       adventureTitle || 'Adventure',
-      bookingDetails.date || '—',
+      bookingDetails.departureLabel || bookingDetails.bookingHeadline || bookingDetails.date || '—',
       bookingDetails.bookingCode || '—',
       String(bookingDetails.participants ?? '—'),
       bookingDetails.amountPaid != null ? String(bookingDetails.amountPaid) : '—',

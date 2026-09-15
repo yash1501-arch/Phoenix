@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Bus } from 'lucide-react';
 
 const emptyScheduleRow = () => ({ time: '', activity: '' });
 
@@ -25,12 +25,19 @@ function daySchedule(day) {
   return rows.length ? rows : [emptyScheduleRow()];
 }
 
+function dayHeading(day, index) {
+  const n = Number(day.day);
+  if (n === 0) return 'Day 0 · Pickup';
+  return `Day ${day.day ?? index + 1}`;
+}
+
 /**
  * Day-by-day itinerary editor for tour, trek, and camping packages.
  */
 const ItineraryEditor = ({ value = [], onChange, variant }) => {
   const days = Array.isArray(value) ? value : [];
   const isTrek = variant === 'trek' || variant === 'camping';
+  const hasPickupDay = days.some((d) => Number(d.day) === 0);
 
   const setDays = (next) => onChange(next);
 
@@ -39,15 +46,33 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
   };
 
   const addDay = () => {
-    const nextNum = days.length ? Math.max(...days.map((d) => Number(d.day) || 0)) + 1 : 1;
+    const regularDays = days.filter((d) => Number(d.day) !== 0);
+    const nextNum = regularDays.length
+      ? Math.max(...regularDays.map((d) => Number(d.day) || 0)) + 1
+      : 1;
     setDays([...days, emptyDay(nextNum)]);
   };
 
+  const addPickupDay = () => {
+    if (hasPickupDay) return;
+    const pickupDay = {
+      ...emptyDay(0),
+      title: 'Pickup & departure',
+      description: 'Pickup from Mumbai / Pune and travel to the destination.',
+    };
+    setDays([pickupDay, ...days]);
+  };
+
   const removeDay = (index) => {
+    const filtered = days.filter((_, i) => i !== index);
+    let nextRegular = 1;
     setDays(
-      days
-        .filter((_, i) => i !== index)
-        .map((d, i) => ({ ...d, day: i + 1 })),
+      filtered.map((d) => {
+        if (Number(d.day) === 0) return { ...d, day: 0 };
+        const updated = { ...d, day: nextRegular };
+        nextRegular += 1;
+        return updated;
+      }),
     );
   };
 
@@ -67,25 +92,35 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
     updateDay(dayIndex, { schedule: schedule.length ? schedule : [emptyScheduleRow()] });
   };
 
+  const sortedDays = [...days].sort((a, b) => Number(a.day) - Number(b.day));
+
   return (
     <div className="itinerary-input-section">
       {days.length === 0 ? (
         <p className="empty-hint">
           {isTrek
-            ? 'Add each day and timed activities.'
-            : 'Add each day of the tour — where you go, what guests do, meals, and overnight stay.'}
+            ? 'Add Day 0 for pickup, then each trek day with timed activities.'
+            : 'Add Day 0 for pickup/departure, then each day of the tour — sightseeing, meals, and stay.'}
         </p>
       ) : (
-        days.map((day, index) => (
-          <div key={index} className="itinerary-day">
+        sortedDays.map((day) => {
+          const index = days.indexOf(day);
+          const isPickup = Number(day.day) === 0;
+          return (
+          <div key={`${day.day}-${index}`} className="itinerary-day">
             <div className="day-header">
               <GripVertical size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-              <span className="day-number">Day {day.day ?? index + 1}</span>
+              <span className="day-number">{dayHeading(day, index)}</span>
+              {isPickup && (
+                <span className="text-xs" style={{ color: 'var(--accent)', marginLeft: '0.25rem' }}>
+                  <Bus size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Pickup day
+                </span>
+              )}
               <button
                 type="button"
                 className="pdf-remove-btn"
                 onClick={() => removeDay(index)}
-                aria-label={`Remove day ${index + 1}`}
+                aria-label={`Remove ${dayHeading(day, index)}`}
               >
                 <Trash2 size={16} />
               </button>
@@ -98,7 +133,7 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
                   className="form-input"
                   value={day.title || ''}
                   onChange={(e) => updateDay(index, { title: e.target.value })}
-                  placeholder={isTrek ? 'e.g., Base village → summit' : 'e.g., Haridwar → Rishikesh'}
+                  placeholder={isPickup ? 'e.g., Mumbai pickup → base village' : isTrek ? 'e.g., Base village → summit' : 'e.g., Haridwar → Rishikesh'}
                 />
               </div>
               <div className="form-group full-width">
@@ -108,7 +143,7 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
                   rows={3}
                   value={day.description || ''}
                   onChange={(e) => updateDay(index, { description: e.target.value })}
-                  placeholder={isTrek ? 'Overview of the day — optional if you add timed activities.' : 'What happens this day — sightseeing, travel, free time…'}
+                  placeholder={isPickup ? 'Pickup points, assembly times, and travel to the destination.' : isTrek ? 'Overview of the day — optional if you add timed activities.' : 'What happens this day — sightseeing, travel, free time…'}
                 />
               </div>
 
@@ -123,15 +158,15 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
                         value={row.time || ''}
                         onChange={(e) => updateScheduleRow(index, rowIndex, { time: e.target.value })}
                         placeholder="05:30"
-                        aria-label={`Day ${index + 1} time ${rowIndex + 1}`}
+                        aria-label={`${dayHeading(day, index)} time ${rowIndex + 1}`}
                       />
                       <input
                         type="text"
                         className="form-input schedule-activity"
                         value={row.activity || ''}
                         onChange={(e) => updateScheduleRow(index, rowIndex, { activity: e.target.value })}
-                        placeholder="Assemble at Lonavala"
-                        aria-label={`Day ${index + 1} activity ${rowIndex + 1}`}
+                        placeholder={isPickup ? 'Pickup from Dadar' : 'Assemble at Lonavala'}
+                        aria-label={`${dayHeading(day, index)} activity ${rowIndex + 1}`}
                       />
                       <button
                         type="button"
@@ -178,12 +213,20 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
               </div>
             </div>
           </div>
-        ))
+          );
+        })
       )}
 
-      <button type="button" className="btn-secondary" onClick={addDay} style={{ alignSelf: 'flex-start' }}>
-        <Plus size={18} /> Add day
-      </button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+        {!hasPickupDay && (
+          <button type="button" className="btn-secondary" onClick={addPickupDay} style={{ alignSelf: 'flex-start' }}>
+            <Bus size={18} /> Add pickup day (Day 0)
+          </button>
+        )}
+        <button type="button" className="btn-secondary" onClick={addDay} style={{ alignSelf: 'flex-start' }}>
+          <Plus size={18} /> Add day
+        </button>
+      </div>
     </div>
   );
 };

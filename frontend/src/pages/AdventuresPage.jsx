@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import PageHero from '../components/ui/PageHero';
 import Seo from '../components/Seo';
 import WishlistButton from '../components/ui/WishlistButton';
+import ShareAdventureButton from '../components/ui/ShareAdventureButton';
 import { Reveal, StaggerContainer, StaggerItem, IconMotion } from '../components/ui/Motion';
 import { adventuresAPI, getImageUrl } from '../utils/api';
 import { DEPARTURE_CITIES, filterByDepartureCity } from '../utils/adventureFields';
@@ -219,8 +220,13 @@ const AdventuresPage = () => {
                           <div className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
                             {adv.difficulty || 'Moderate'}
                           </div>
-                          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition">
-                            <WishlistButton adventure={adv} size="sm" />
+                          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+                            <ShareAdventureButton adventure={adv} />
+                            <WishlistButton
+                              adventure={adv}
+                              size="sm"
+                              className="!bg-mist/95 !border-stone/15 !text-stone hover:!border-ember hover:!text-ember"
+                            />
                           </div>
                         </div>
 

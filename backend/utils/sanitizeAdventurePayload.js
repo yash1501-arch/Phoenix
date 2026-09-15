@@ -33,6 +33,8 @@ const ADVENTURE_FIELDS = new Set([
   'images',
   'available_dates',
   'start_time',
+  'event_day_offset',
+  'meal_options',
 ]);
 
 function asStringList(value) {
@@ -55,7 +57,7 @@ function normalizeItinerary(itinerary) {
   if (!Array.isArray(itinerary)) return itinerary;
   return itinerary.map((day, index) => {
     const parsed = typeof day?.day === 'string' ? parseInt(day.day, 10) : Number(day?.day);
-    const dayNum = Number.isFinite(parsed) && parsed > 0 ? parsed : index + 1;
+    const dayNum = Number.isFinite(parsed) && parsed >= 0 ? parsed : index + 1;
     const out = {
       day: dayNum,
       title: String(day?.title ?? ''),
@@ -83,6 +85,17 @@ function pickAdventureFields(data) {
   }
   if (out.itinerary !== undefined) {
     out.itinerary = normalizeItinerary(out.itinerary);
+  }
+  if (out.meal_options !== undefined) {
+    const allowed = new Set(['veg', 'non_veg', 'jain']);
+    const list = asStringList(out.meal_options)
+      .map((v) => v.toLowerCase())
+      .filter((v) => allowed.has(v));
+    out.meal_options = list.length ? list : undefined;
+  }
+  if (out.event_day_offset !== undefined) {
+    const n = Number(out.event_day_offset);
+    out.event_day_offset = Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
   }
   return out;
 }

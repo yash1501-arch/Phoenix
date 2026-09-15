@@ -2,6 +2,7 @@ const { getConvexClient } = require('../utils/convexClient');
 const { getSignedScreenshotUrl } = require('../utils/cloudinaryClient');
 const { enqueue, JOBS } = require('../utils/jobQueue');
 const logger = require('../utils/logger');
+const { buildBookingItineraryPackage } = require('../utils/adventureDates');
 
 function withSignedScreenshot(payment) {
   if (!payment) return payment;
@@ -193,8 +194,19 @@ exports.verify = async (req, res) => {
       .join('; ');
     const isTour = String(adv.category || '').toLowerCase() === 'tour';
 
+    const departureDate = details?.booking?.adventure_date;
+    const bookingPackage = buildBookingItineraryPackage(adv, departureDate);
+    const rawItinerary = parseList(adv.itinerary);
+
     const confirmationDetails = {
-      date: details?.booking?.adventure_date,
+      date: departureDate,
+      departureDate: bookingPackage.departureDate,
+      departureLabel: bookingPackage.departureLabel,
+      eventDate: bookingPackage.eventDate,
+      eventLabel: bookingPackage.eventLabel,
+      dateSummary: bookingPackage.dateSummary,
+      bookingHeadline: bookingPackage.bookingHeadline,
+      confirmationIntro: bookingPackage.confirmationIntro,
       participants: details?.booking?.number_of_seats,
       amountPaid: details?.booking?.amount,
       totalAmount: details?.booking?.total_amount,
@@ -206,7 +218,10 @@ exports.verify = async (req, res) => {
       difficulty: adv.difficulty,
       category: adv.category,
       meetingPoint: pickupSummary,
-      itinerary: parseList(adv.itinerary),
+      itinerary: bookingPackage.itinerary.length ? bookingPackage.itinerary : rawItinerary,
+      upcomingDates: bookingPackage.upcomingDates,
+      rewardDiscountCode: verifyResult?.reward_discount_code || details?.booking?.reward_discount_code,
+      rewardDiscountExpiresAt: verifyResult?.reward_discount_expires_at,
       included: parseList(adv.included),
       excluded: parseList(adv.excluded),
       confirmationPdfUrl: adv.confirmation_pdf_url || null,

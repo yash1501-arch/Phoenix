@@ -56,6 +56,10 @@ export default defineSchema({
     images: v.optional(v.array(v.string())),
     start_time: v.optional(v.string()), // HH:mm IST, e.g. "20:30"
     available_dates: v.optional(v.array(v.string())),
+    /** Days after departure when the main event happens (default 1 = event is next day) */
+    event_day_offset: v.optional(v.number()),
+    /** Meal preferences offered for this adventure: veg | non_veg | jain */
+    meal_options: v.optional(v.array(v.string())),
     created_at: v.string(), // ISO string
     updated_at: v.string(), // ISO string
   })
@@ -200,6 +204,11 @@ export default defineSchema({
     balance_reminder_sent_at: v.optional(v.string()),
     /** pending | submitted | paid — remaining tour balance after advance */
     balance_status: v.optional(v.string()),
+    /** 10% reward code issued after this booking is confirmed */
+    reward_discount_code: v.optional(v.string()),
+    /** Discount code applied when creating this booking */
+    applied_discount_code: v.optional(v.string()),
+    discount_percent: v.optional(v.number()),
   })
     .index("booking_code", ["booking_code"])
     .index("user_id", ["user_id"])
@@ -250,6 +259,19 @@ export default defineSchema({
     date: v.string(),
     visitor_id: v.string(),
   }).index("by_date_visitor", ["date", "visitor_id"]),
+
+  discount_codes: defineTable({
+    code: v.string(),
+    user_id: v.string(),
+    source_booking_id: v.string(),
+    percent_off: v.number(),
+    expires_at: v.string(),
+    used_at: v.optional(v.string()),
+    used_on_booking_id: v.optional(v.string()),
+    created_at: v.string(),
+  })
+    .index("code", ["code"])
+    .index("user_id", ["user_id"]),
 
   waitlist: defineTable({
     email: v.string(),

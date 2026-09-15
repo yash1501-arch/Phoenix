@@ -26,6 +26,7 @@ import { mergeExtractedPdfData } from '../utils/pdfExtract';
 import { downloadItineraryPdf, previewItineraryPdf } from '../utils/downloadItineraryPdf';
 import { cloneDefaultTourPricingOptions } from '../utils/tourPricingDefaults';
 import ItineraryEditor from '../components/ItineraryEditor';
+import MealOptionsField from '../components/MealOptionsField';
 import { normalizeDepartureCities, inferDepartureCities } from '../utils/departureCities';
 import './AddAdventure.css'; // Reusing the same styles
 
@@ -72,6 +73,8 @@ const EditAdventure = () => {
         excluded: [],
         itinerary: [],
         available_dates: [],
+        event_day_offset: 1,
+        meal_options: [],
         status: 'active',
         confirmation_pdf: null,
         confirmation_pdf_name: '',
@@ -151,6 +154,8 @@ const EditAdventure = () => {
                 excluded: Array.isArray(excluded) ? excluded : [],
                 itinerary: Array.isArray(itinerary) ? itinerary : [],
                 available_dates: availableDates,
+                event_day_offset: adventure.event_day_offset ?? 1,
+                meal_options: Array.isArray(adventure.meal_options) ? adventure.meal_options : [],
                 status: adventure.status || 'active',
                 confirmation_pdf: null,
                 confirmation_pdf_name: adventure.confirmation_pdf_url ? 'Current confirmation PDF' : '',
@@ -412,6 +417,8 @@ const EditAdventure = () => {
             submitData.append('trek_guidelines', JSON.stringify(formData.trek_guidelines || []));
             submitData.append('itinerary', JSON.stringify(formData.itinerary));
             submitData.append('available_dates', JSON.stringify(formData.available_dates));
+            submitData.append('event_day_offset', String(formData.event_day_offset ?? 1));
+            submitData.append('meal_options', JSON.stringify(formData.meal_options || []));
             if (formData.category === 'tour') {
                 submitData.append('pricing_options', JSON.stringify(formData.pricing_options || []));
             }
@@ -855,6 +862,14 @@ const EditAdventure = () => {
 
                 <BrochureFields formData={formData} setFormData={setFormData} />
 
+                <div className="form-section">
+                    <h2 className="section-title">Booking options</h2>
+                    <MealOptionsField
+                        value={formData.meal_options}
+                        onChange={(meal_options) => setFormData((prev) => ({ ...prev, meal_options }))}
+                    />
+                </div>
+
                 {/* Available Dates */}
                 <div className="form-section">
                     <h2 className="section-title">
@@ -862,8 +877,25 @@ const EditAdventure = () => {
                         Available Dates
                     </h2>
                     <p className="form-help" style={{ marginTop: '-0.75rem', marginBottom: '1rem' }}>
-                        Add or remove departure dates. Past dates are kept here for reference but won't be bookable by users.
+                        Add departure dates (pickup / travel start). Past dates are kept for reference but won&apos;t be bookable.
                     </p>
+
+                    <div className="form-group" style={{ maxWidth: 320, marginBottom: '1rem' }}>
+                        <label className="form-label">Event day offset</label>
+                        <input
+                            type="number"
+                            min="0"
+                            className="form-input"
+                            value={formData.event_day_offset ?? 1}
+                            onChange={(e) => setFormData((prev) => ({
+                                ...prev,
+                                event_day_offset: Math.max(0, parseInt(e.target.value, 10) || 0),
+                            }))}
+                        />
+                        <p className="form-help">
+                            Days after departure when the main event happens. Use 1 when departure is the day before the event.
+                        </p>
+                    </div>
 
                     <div className="form-group full-width">
                         <div className="input-with-button">

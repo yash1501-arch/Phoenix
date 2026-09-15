@@ -450,6 +450,28 @@ async function countHeldSeats(
 }
 
 const MEAL_PREFERENCES = new Set(["veg", "non_veg", "jain"]);
+const ALL_MEAL_OPTIONS = ["veg", "non_veg", "jain"];
+
+function resolveMealOptions(adventure: any) {
+  const raw = adventure?.meal_options;
+  let allowed: string[] = [];
+  if (Array.isArray(raw)) {
+    allowed = raw.map((v) => String(v).trim().toLowerCase()).filter(Boolean);
+  }
+  if (!allowed.length) return ALL_MEAL_OPTIONS;
+  const set = new Set(allowed);
+  const filtered = ALL_MEAL_OPTIONS.filter((v) => set.has(v));
+  return filtered.length ? filtered : ALL_MEAL_OPTIONS;
+}
+
+function generateRewardDiscountCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let suffix = "";
+  for (let i = 0; i < 6; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `PHOENIX10-${suffix}`;
+}
 
 function buildPickupOptions(adventure: {
   pickup_mumbai?: string[];
@@ -467,6 +489,34 @@ function buildPickupOptions(adventure: {
   }
   return options;
 }
+
+export const validateDiscountCode = internalQuery({
+  args: {
+    code: v.string(),
+    user_id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const normalized = String(args.code || "").trim().toUpperCase();
+    if (!normalized) return null;
+    const dc = await ctx.db
+      .query("discount_codes")
+      .withIndex("code", (q: any) => q.eq("code", normalized))
+      .first();
+    if (!dc) throw new Error("Invalid discount code");
+    if (dc.user_id !== args.user_id) {
+      throw new Error("This discount code does not belong to your account");
+    }
+    if (dc.used_at) throw new Error("This discount code has already been used");
+    if (Date.now() > Date.parse(dc.expires_at)) {
+      throw new Error("This discount code has expired");
+    }
+    return {
+      code: dc.code,
+      percent_off: Number(dc.percent_off) || 10,
+      expires_at: dc.expires_at,
+    };
+  },
+});
 
 export const createManual = internalMutation({
   args: {
@@ -499,6 +549,7 @@ export const createManual = internalMutation({
       meal_preference: v.string(),
       pickup_point: v.optional(v.string()),
     }))),
+    discount_code: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     if (args.number_of_seats < 1) throw new Error("At least 1 seat required");
@@ -559,8 +610,9 @@ export const createManual = internalMutation({
         throw new Error(`Participant ${i + 1}: valid contact number is required`);
       }
       const meal = (p.meal_preference || "").trim().toLowerCase();
-      if (!MEAL_PREFERENCES.has(meal)) {
-        throw new Error(`Participant ${i + 1}: invalid meal preference`);
+      const allowedMeals = new Set(resolveMealOptions(adventure));
+      if (!MEAL_PREFERENCES.has(meal) || !allowedMeals.has(meal)) {
+        throw new Error(`Participant ${i + 1}: select a valid meal preference for this adventure`);
       }
       const pickup = (p.pickup_point || "").trim();
       if (!pickup || !pickupOptions.includes(pickup)) {
@@ -602,7 +654,7 @@ export const createManual = internalMutation({
 
     const settingsAdvance = await getAdvancePerPerson(ctx);
     const advancePerPerson = resolveAdvancePerPerson(adventure, settingsAdvance);
-    const priced = computeTourAwareAmounts(
+    let priced = computeTourAwareAmounts(
       adventure,
       args.number_of_seats,
       args.selected_options,
@@ -612,6 +664,34 @@ export const createManual = internalMutation({
         ? participantTravelCoaches
         : undefined
     );
+
+    let appliedDiscountCode: string | undefined;
+    let discountPercent: number | undefined;
+    if (args.discount_code) {
+      const code = String(args.discount_code).trim().toUpperCase();
+      const dc = await ctx.db
+        .query("discount_codes")
+        .withIndex("code", (q: any) => q.eq("code", code))
+        .first();
+      if (!dc) throw new Error("Invalid discount code");
+      if (dc.user_id !== args.user_id) {
+        throw new Error("This discount code does not belong to your account");
+      }
+      if (dc.used_at) throw new Error("This discount code has already been used");
+      if (Date.now() > Date.parse(dc.expires_at)) {
+        throw new Error("This discount code has expired");
+      }
+      const factor = 1 - (Number(dc.percent_off) || 0) / 100;
+      priced = {
+        ...priced,
+        total_amount: money(priced.total_amount * factor),
+        amount: money(priced.amount * factor),
+        balance_due: money(priced.balance_due * factor),
+      };
+      appliedDiscountCode = code;
+      discountPercent = Number(dc.percent_off) || 10;
+    }
+
     if (priced.amount <= 0) {
       throw new Error("Adventure price is not set");
     }
@@ -657,6 +737,9 @@ export const createManual = internalMutation({
         meal_preference: t.meal_preference,
         pickup_point: t.pickup_point,
       })),
+      ...(appliedDiscountCode
+        ? { applied_discount_code: appliedDiscountCode, discount_percent: discountPercent }
+        : {}),
       created_at: ts,
       updated_at: ts,
     });
@@ -928,6 +1011,39 @@ export const verifyPayment = internalMutation({
     }
 
     const ts = nowIso();
+
+    let rewardCode = generateRewardDiscountCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const existing = await ctx.db
+        .query("discount_codes")
+        .withIndex("code", (q: any) => q.eq("code", rewardCode))
+        .first();
+      if (!existing) break;
+      rewardCode = generateRewardDiscountCode();
+    }
+    const rewardExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await ctx.db.insert("discount_codes", {
+      code: rewardCode,
+      user_id: refreshed.user_id,
+      source_booking_id: refreshed._id,
+      percent_off: 10,
+      expires_at: rewardExpiresAt,
+      created_at: ts,
+    });
+
+    if (refreshed.applied_discount_code) {
+      const applied = await ctx.db
+        .query("discount_codes")
+        .withIndex("code", (q: any) => q.eq("code", refreshed.applied_discount_code))
+        .first();
+      if (applied && !applied.used_at) {
+        await ctx.db.patch(applied._id, {
+          used_at: ts,
+          used_on_booking_id: refreshed._id,
+        });
+      }
+    }
+
     await ctx.db.patch(payment._id, {
       payment_status: "verified",
       verified_by: args.verified_by,
@@ -938,6 +1054,7 @@ export const verifyPayment = internalMutation({
       booking_status: "confirmed",
       balance_status:
         Number(refreshed.balance_due || 0) > 0 ? "pending" : "paid",
+      reward_discount_code: rewardCode,
       updated_at: ts,
     });
 
@@ -967,6 +1084,8 @@ export const verifyPayment = internalMutation({
       is_full: confirmedSeats >= maxParticipants,
       confirmed_bookings: confirmedList,
       adventure,
+      reward_discount_code: rewardCode,
+      reward_discount_expires_at: rewardExpiresAt,
       kind: "deposit",
     };
   },

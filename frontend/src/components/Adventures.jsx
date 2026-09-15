@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Star, Heart, MapPin, Clock } from 'lucide-react';
+import ShareAdventureButton from './ui/ShareAdventureButton';
 import toast from 'react-hot-toast';
 import { adventuresAPI, getImageUrl } from '../utils/api';
 import { IMG_FALLBACK } from '../data/indiaImages';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 
-const Adventures = () => {
+const Adventures = ({ limit = 8 }) => {
     const [adventures, setAdventures] = useState([]);
     const [loading, setLoading] = useState(true);
     const { isAuthenticated } = useAuth();
@@ -18,7 +19,7 @@ const Adventures = () => {
         let alive = true;
         const fetchAdventures = async () => {
             try {
-                const response = await adventuresAPI.getAll({ status: 'active', limit: 8 });
+                const response = await adventuresAPI.getAll({ status: 'active', limit });
                 if (alive) setAdventures(response.data.data || []);
             } catch (error) {
                 console.error('Error fetching adventures:', error);
@@ -28,7 +29,7 @@ const Adventures = () => {
         };
         fetchAdventures();
         return () => { alive = false; };
-    }, []);
+    }, [limit]);
 
     const handleWishlist = async (e, adv) => {
         e.preventDefault();
@@ -69,7 +70,7 @@ const Adventures = () => {
                     >
                         <p className="kicker mb-3">Open departures</p>
                         <h2 id="adventures-heading" className="font-display text-display-lg text-stone font-semibold">
-                            Upcoming expeditions
+                            Upcoming Adventures
                         </h2>
                         <p className="mt-4 text-base md:text-lg text-muted max-w-xl">
                             Small groups. Certified guides. Book seats on WhatsApp.
@@ -112,14 +113,17 @@ const Adventures = () => {
                                         <span className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
                                             {adv.difficulty || 'Moderate'}
                                         </span>
-                                        <button
-                                            onClick={(e) => handleWishlist(e, adv)}
-                                            aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
-                                            aria-pressed={wishlisted}
-                                            className="absolute top-3 right-3 w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke"
-                                        >
-                                            <Heart size={15} className={wishlisted ? 'fill-current text-ember' : ''} />
-                                        </button>
+                                        <div className="absolute top-3 right-3 flex flex-col gap-2">
+                                            <ShareAdventureButton adventure={adv} />
+                                            <button
+                                                onClick={(e) => handleWishlist(e, adv)}
+                                                aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+                                                aria-pressed={wishlisted}
+                                                className="w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke"
+                                            >
+                                                <Heart size={15} className={wishlisted ? 'fill-current text-ember' : ''} />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="flex flex-1 flex-col p-4">

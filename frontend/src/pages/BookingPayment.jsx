@@ -11,6 +11,7 @@ import Footer from '../components/Footer';
 import { bookingsAPI, publicSettingsAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { canUserCancelBooking } from '../utils/bookingCancel';
+import { formatDatePair } from '../utils/adventureDates';
 import {
     MERCHANT_PAYEE_NAME,
     MERCHANT_UPI_ID,
@@ -252,6 +253,7 @@ const BookingPayment = () => {
         ? Number(data.upi_amount ?? booking?.balance_due ?? 0)
         : Number(booking?.amount || 0);
     const isTour = String(adventure?.category || '').toLowerCase() === 'tour';
+    const datePair = booking?.adventure_date ? formatDatePair(booking.adventure_date, adventure) : null;
     const alreadySubmitted = payBalance
         ? booking?.balance_status === 'submitted' || Number(booking?.balance_due || 0) <= 0
         : status === 'payment_submitted' || (status === 'confirmed' && !payBalance);
@@ -399,11 +401,17 @@ const BookingPayment = () => {
                         </span>
                     </div>
 
-                    <div className="p-6 grid sm:grid-cols-3 gap-4 text-sm">
+                    <div className="p-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                         <div>
-                            <p className="text-muted mb-0.5">Date</p>
-                            <p className="font-semibold text-stone">{booking?.adventure_date}</p>
+                            <p className="text-muted mb-0.5">Departure</p>
+                            <p className="font-semibold text-stone">{datePair?.departureLabel || booking?.adventure_date}</p>
                         </div>
+                        {datePair?.eventLabel && (
+                            <div>
+                                <p className="text-muted mb-0.5">Event date</p>
+                                <p className="font-semibold text-stone">{datePair.eventLabel}</p>
+                            </div>
+                        )}
                         <div>
                             <p className="text-muted mb-0.5">Seats</p>
                             <p className="font-semibold text-stone">{booking?.number_of_seats}</p>
@@ -707,6 +715,13 @@ const BookingPayment = () => {
                     <div className="bg-moss/10 border border-moss/30 rounded-xl p-6 text-center">
                         <p className="font-semibold text-stone mb-1">Booking confirmed!</p>
                         <p className="text-sm text-muted">Your seats are locked. See you on the trail.</p>
+                        {booking?.reward_discount_code && (
+                            <div className="mt-4 rounded-lg border border-moss/30 bg-mist-subtle px-4 py-3 text-left">
+                                <p className="text-xs uppercase tracking-wide text-muted mb-1">Your 10% reward code</p>
+                                <p className="font-display text-xl font-semibold text-stone tracking-wide">{booking.reward_discount_code}</p>
+                                <p className="text-xs text-muted mt-1">Valid for 30 days on your next booking.</p>
+                            </div>
+                        )}
                         <Link to="/dashboard" className="btn btn-primary mt-4 inline-flex">My trips</Link>
                     </div>
                 )}

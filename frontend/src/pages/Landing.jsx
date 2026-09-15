@@ -199,6 +199,9 @@ const Landing = () => {
         </Marquee>
       </section>
 
+      {/* Upcoming departures — high on the page, right after trust strip */}
+      <Adventures limit={4} />
+
       {/* Stats from CONTEXT.md — verbatim trust metrics */}
       <section className="bg-panel py-16 md:py-20">
         <div className="container">
@@ -342,9 +345,6 @@ const Landing = () => {
           </div>
         </div>
       </section>
-
-      {/* Live expeditions */}
-      <Adventures />
 
       {/* Why Phoenix — asymmetric, not icon-card soup */}
       <section className="section bg-mist">

@@ -26,6 +26,7 @@ exports.createManual = async (req, res) => {
       participants,
       selected_options,
       payment_preference,
+      discount_code,
     } = req.body;
 
     // Validate payment_preference if supplied
@@ -96,6 +97,27 @@ exports.createManual = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Adventure price is not set' });
     }
 
+    let amountDue = priced.amount;
+    let totalAmount = priced.total_amount;
+    let balanceDue = priced.balance_due;
+    if (discount_code) {
+      try {
+        const discount = await getConvexClient().validateDiscountCode(
+          String(discount_code).trim(),
+          req.user.id,
+        );
+        const factor = 1 - (Number(discount?.percent_off) || 0) / 100;
+        amountDue = Math.round(amountDue * factor * 100) / 100;
+        totalAmount = Math.round(totalAmount * factor * 100) / 100;
+        balanceDue = Math.round(balanceDue * factor * 100) / 100;
+      } catch (discountErr) {
+        return res.status(400).json({
+          success: false,
+          message: discountErr.message || 'Invalid discount code',
+        });
+      }
+    }
+
     const phone = customer_phone || req.user.phone;
     if (!phone || String(phone).replace(/\D/g, '').length < 10) {
       return res.status(400).json({
@@ -109,8 +131,9 @@ exports.createManual = async (req, res) => {
       adventure_id,
       adventure_date,
       number_of_seats: seats,
-      amount: priced.amount,
+      amount: amountDue,
       payment_preference: priced.payment_type, // pass the resolved type, not the raw preference
+      ...(discount_code ? { discount_code: String(discount_code).trim() } : {}),
       selected_options: priced.selected_options.map((o) => ({
         group: o.group,
         choice_id: o.choice_id,
@@ -331,7 +354,13 @@ exports.downloadCustomerItinerary = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Adventure not found' });
     }
     const { buildItineraryPdf } = require('../utils/itineraryPdf');
-    const { buffer, filename } = await buildItineraryPdf(adventure, { audience: 'customer' });
+    const { buildBookingItineraryPackage } = require('../utils/adventureDates');
+    const bookingPackage = buildBookingItineraryPackage(adventure, booking.adventure_date);
+    const { buffer, filename } = await buildItineraryPdf(adventure, {
+      audience: 'customer',
+      departureDate: booking.adventure_date,
+      upcomingDates: bookingPackage.upcomingDates,
+    });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', buffer.length);

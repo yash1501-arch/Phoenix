@@ -10,6 +10,7 @@ import { normalizeDepartureCities } from '../utils/departureCities';
 import DepartureCitiesField from '../components/DepartureCitiesField';
 import TagListField from '../components/TagListField';
 import ItineraryEditor from '../components/ItineraryEditor';
+import MealOptionsField from '../components/MealOptionsField';
 import './AddAdventure.css';
 
 const AddTrekAdventure = () => {
@@ -45,6 +46,8 @@ const AddTrekAdventure = () => {
         trek_guidelines: [],
         itinerary: [],
         available_dates: [],
+        event_day_offset: 1,
+        meal_options: [],
         // Image
         image: null,
         imagePreview: null,
@@ -147,6 +150,8 @@ const AddTrekAdventure = () => {
             fd.append('trek_guidelines', JSON.stringify(form.trek_guidelines));
             fd.append('itinerary', JSON.stringify(form.itinerary));
             fd.append('available_dates', JSON.stringify(form.available_dates));
+            fd.append('event_day_offset', String(form.event_day_offset ?? 1));
+            fd.append('meal_options', JSON.stringify(form.meal_options || []));
             if (form.image) fd.append('image', form.image);
 
             const res = await adventuresAPI.create(fd);
@@ -268,6 +273,18 @@ const AddTrekAdventure = () => {
                 {/* ── Departure dates ── */}
                 <div className="form-section">
                     <h2 className="section-title">Departure Dates *</h2>
+                    <p className="form-help section-help">Pickup / travel start dates. Set event offset below if the main event is on a later day.</p>
+                    <div className="form-group" style={{ maxWidth: 320, marginBottom: '1rem' }}>
+                        <label className="form-label">Event day offset</label>
+                        <input
+                            type="number"
+                            min="0"
+                            className="form-input"
+                            value={form.event_day_offset ?? 1}
+                            onChange={(e) => set('event_day_offset', Math.max(0, parseInt(e.target.value, 10) || 0))}
+                        />
+                        <p className="form-help">Days after departure when the main event happens (1 = event is next day).</p>
+                    </div>
                     <div className="input-with-button" style={{ maxWidth: 320 }}>
                         <input type="date" value={dateInput}
                             min={new Date().toISOString().slice(0, 10)}
@@ -292,6 +309,14 @@ const AddTrekAdventure = () => {
                             ))
                         }
                     </div>
+                </div>
+
+                <div className="form-section">
+                    <h2 className="section-title">Booking options</h2>
+                    <MealOptionsField
+                        value={form.meal_options}
+                        onChange={(meal_options) => set('meal_options', meal_options)}
+                    />
                 </div>
 
                 {/* ── Pickup & departure cities ── */}

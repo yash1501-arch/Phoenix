@@ -15,6 +15,7 @@ import {
     defaultTrainCoach,
     findPricingGroup,
 } from '../utils/tourPricing';
+import { formatDatePair, resolveMealOptions, buildBookingItineraryPackage } from '../utils/adventureDates';
 
 const todayISO = () => {
     const d = new Date();
@@ -24,16 +25,10 @@ const todayISO = () => {
     return `${y}-${m}-${day}`;
 };
 
-const MEAL_OPTIONS = [
-    { value: 'veg', label: 'Vegetarian' },
-    { value: 'non_veg', label: 'Non-vegetarian' },
-    { value: 'jain', label: 'Jain' },
-];
-
-const emptyParticipant = (pickupDefault = '', travelCoach = 'sleeper') => ({
+const emptyParticipant = (pickupDefault = '', travelCoach = 'sleeper', mealDefault = 'veg') => ({
     name: '',
     phone: '',
-    meal_preference: 'veg',
+    meal_preference: mealDefault,
     pickup_point: pickupDefault,
     travel_coach: travelCoach,
 });
@@ -94,15 +89,18 @@ const BookingModal = ({ adventure, onClose }) => {
 
     const pickupOptions = useMemo(() => buildPickupOptions(adventure), [adventure]);
     const defaultPickup = pickupOptions[0] || '';
+    const mealOptions = useMemo(() => resolveMealOptions(adventure), [adventure]);
+    const defaultMeal = mealOptions[0]?.value || 'veg';
 
     const [form, setForm] = useState({
         adventure_date: dates[0] || todayISO(),
         number_of_seats: 1,
         customer_phone: user?.phone || '',
         emergency_contact: '',
+        discount_code: '',
     });
     const [participants, setParticipants] = useState([
-        emptyParticipant(defaultPickup, defaultCoach),
+        emptyParticipant(defaultPickup, defaultCoach, defaultMeal),
     ]);
     const [optionSelections] = useState(() => (tour ? defaultRoomSelection(adventure) : {}));
 
@@ -115,7 +113,7 @@ const BookingModal = ({ adventure, onClose }) => {
         setParticipants((prev) => {
             const next = [...prev];
             while (next.length < count) {
-                next.push(emptyParticipant(defaultPickup, defaultCoach));
+                next.push(emptyParticipant(defaultPickup, defaultCoach, defaultMeal));
             }
             const trimmed = next.slice(0, count);
             if (trimmed[0] && user) {
@@ -130,7 +128,7 @@ const BookingModal = ({ adventure, onClose }) => {
                 pickup_point: p.pickup_point || defaultPickup,
             }));
         });
-    }, [form.number_of_seats, defaultPickup, defaultCoach, user, form.customer_phone]);
+    }, [form.number_of_seats, defaultPickup, defaultCoach, defaultMeal, user, form.customer_phone]);
 
     const participantTravelCoaches = useMemo(
         () => participants.map((p) => p.travel_coach).filter(Boolean),
@@ -148,8 +146,19 @@ const BookingModal = ({ adventure, onClose }) => {
         }),
         [adventure, form.number_of_seats, optionSelections, participantTravelCoaches, advancePerPerson, paymentPreference],
     );
-    const totalAmount = priced.amount;
-    const tripTotal = priced.total_amount;
+    const discountPercent = form.discount_code.trim() ? 10 : 0;
+    const discountFactor = discountPercent > 0 ? 1 - discountPercent / 100 : 1;
+    const tripTotal = Math.round(priced.total_amount * discountFactor * 100) / 100;
+    const payAmount = Math.round(priced.amount * discountFactor * 100) / 100;
+    const balanceDue = Math.round((priced.balance_due || 0) * discountFactor * 100) / 100;
+    const selectedDatePair = useMemo(
+        () => formatDatePair(form.adventure_date, adventure),
+        [form.adventure_date, adventure],
+    );
+    const bookingPackage = useMemo(
+        () => buildBookingItineraryPackage(adventure, form.adventure_date),
+        [adventure, form.adventure_date],
+    );
     const maxSeats = adventure.max_participants || 10;
     // Whether advance option is available for this adventure + settings combo
     const advanceAvailable = tour && advancePerPerson > 0;
@@ -235,6 +244,9 @@ const BookingModal = ({ adventure, onClose }) => {
                 customer_phone: form.customer_phone.trim(),
                 emergency_contact: form.emergency_contact.trim(),
                 payment_preference: paymentPreference,
+                ...(form.discount_code.trim()
+                    ? { discount_code: form.discount_code.trim().toUpperCase() }
+                    : {}),
                 participants: participants.map((p) => ({
                     name: p.name.trim(),
                     phone: p.phone.trim(),
@@ -302,9 +314,15 @@ const BookingModal = ({ adventure, onClose }) => {
                                     value={form.adventure_date}
                                     onChange={(e) => setForm({ ...form, adventure_date: e.target.value })}
                                 >
-                                    {dates.map((d) => (
-                                        <option key={d} value={d}>{formatDate(d)}</option>
-                                    ))}
+                                    {dates.map((d) => {
+                                        const pair = formatDatePair(d, adventure);
+                                        const label = pair?.eventLabel
+                                            ? `${formatDate(d)} (event: ${pair.eventLabel})`
+                                            : formatDate(d);
+                                        return (
+                                            <option key={d} value={d}>{label}</option>
+                                        );
+                                    })}
                                 </select>
                             ) : (
                                 <input
@@ -315,6 +333,43 @@ const BookingModal = ({ adventure, onClose }) => {
                                     value={form.adventure_date}
                                     onChange={(e) => setForm({ ...form, adventure_date: e.target.value })}
                                 />
+                            )}
+                            {form.adventure_date && (
+                                <div className="text-sm text-stone bg-moss/10 border border-moss/20 rounded-lg px-3 py-3 mt-2 space-y-2">
+                                    <p className="font-semibold text-moss">You are booking for</p>
+                                    <p className="text-base font-bold">
+                                        {bookingPackage.bookingHeadline || selectedDatePair?.departureLabel || form.adventure_date}
+                                    </p>
+                                    <p className="text-xs text-muted">
+                                        Your confirmation, WhatsApp message, email, and itinerary PDF will use this date only.
+                                    </p>
+                                    {bookingPackage.itinerary?.length > 0 && (
+                                        <div className="pt-2 border-t border-moss/15">
+                                            <p className="text-xs font-semibold text-stone mb-1">Day plan preview</p>
+                                            <ul className="text-xs text-muted space-y-1">
+                                                {bookingPackage.itinerary.slice(0, 3).map((day) => (
+                                                    <li key={day.day}>
+                                                        {day.calendar_label ? `${day.calendar_label} — ` : ''}
+                                                        {day.title || `Day ${day.day}`}
+                                                    </li>
+                                                ))}
+                                                {bookingPackage.itinerary.length > 3 && (
+                                                    <li>+ {bookingPackage.itinerary.length - 3} more day(s) in your PDF</li>
+                                                )}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {bookingPackage.upcomingDates?.length > 0 && (
+                                        <div className="pt-2 border-t border-moss/15">
+                                            <p className="text-xs font-semibold text-stone mb-1">Same trip also runs on</p>
+                                            <ul className="text-xs text-muted space-y-1">
+                                                {bookingPackage.upcomingDates.map((row) => (
+                                                    <li key={row.date}>{row.summary || row.departureLabel}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                             <p className="text-xs text-muted mt-1.5">
                                 Starts {normalizeStartTime(adventure.start_time)} IST · bookings close{' '}
@@ -437,7 +492,7 @@ const BookingModal = ({ adventure, onClose }) => {
                                                 value={participant.meal_preference}
                                                 onChange={(e) => updateParticipant(index, 'meal_preference', e.target.value)}
                                             >
-                                                {MEAL_OPTIONS.map((opt) => (
+                                                {mealOptions.map((opt) => (
                                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                                                 ))}
                                             </select>
@@ -543,13 +598,24 @@ const BookingModal = ({ adventure, onClose }) => {
                                             Pay in full
                                         </span>
                                         <span className="text-xs text-muted pl-5">
-                                            ₹{priced.total_amount.toLocaleString('en-IN')} now
+                                            ₹{tripTotal.toLocaleString('en-IN')} now
                                             · nothing due later
                                         </span>
                                     </label>
                                 </div>
                             </div>
                         )}
+
+                        <div>
+                            <label className="meta mb-2 block">Discount code (optional)</label>
+                            <input
+                                className="input w-full uppercase"
+                                placeholder="PHOENIX10-XXXXXX"
+                                value={form.discount_code}
+                                onChange={(e) => setForm({ ...form, discount_code: e.target.value.toUpperCase() })}
+                            />
+                            <p className="text-xs text-muted mt-1.5">Use a reward code from a previous confirmed booking (10% off, valid 30 days).</p>
+                        </div>
 
                         {/* ── Pricing summary ── */}
                         <div className="bg-mist-subtle rounded-lg p-4 border border-stone/10">
@@ -567,6 +633,12 @@ const BookingModal = ({ adventure, onClose }) => {
                                 <span>× {form.number_of_seats} {form.number_of_seats === 1 ? 'person' : 'people'}</span>
                                 <span />
                             </div>
+                            {discountPercent > 0 && (
+                                <div className="flex justify-between text-sm text-moss mb-1">
+                                    <span>Discount ({discountPercent}%)</span>
+                                    <span>−₹{Math.round((priced.total_amount - tripTotal) * 100) / 100}</span>
+                                </div>
+                            )}
                             {priced.payment_type === 'advance' ? (
                                 <>
                                     <div className="flex justify-between text-sm text-muted mb-1 border-t border-stone/10 pt-2 mt-1">
@@ -575,7 +647,7 @@ const BookingModal = ({ adventure, onClose }) => {
                                     </div>
                                     <div className="flex justify-between text-sm text-muted mb-2">
                                         <span>Balance before departure</span>
-                                        <span>₹{priced.balance_due.toLocaleString('en-IN')}</span>
+                                        <span>₹{balanceDue.toLocaleString('en-IN')}</span>
                                     </div>
                                 </>
                             ) : null}
@@ -585,7 +657,7 @@ const BookingModal = ({ adventure, onClose }) => {
                                     {priced.payment_type === 'advance' ? 'Advance to pay now' : 'Total to pay'}
                                 </span>
                                 <span className="font-display text-2xl text-stone font-semibold">
-                                    ₹{totalAmount.toLocaleString('en-IN')}
+                                    ₹{payAmount.toLocaleString('en-IN')}
                                 </span>
                             </div>
                             <p className="text-xs text-muted mt-2">

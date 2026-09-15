@@ -1,4 +1,11 @@
 ﻿const PDFDocument = require('pdfkit');
+const {
+  dayLabel,
+  formatDatePair,
+  mapItineraryWithDates,
+  parseAvailableDates,
+  formatUpcomingDateEntry,
+} = require('./adventureDates');
 
 const COLORS = {
   stone: '#070b0a',
@@ -225,6 +232,44 @@ function drawMetaGrid(doc, adventure) {
   doc.moveDown(0.6);
 }
 
+function drawBookingDateBanner(doc, adventure, departureDate) {
+  if (!departureDate) return;
+  breakIfTight(doc, 52);
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  const width = right - left;
+  const top = doc.y;
+  const pair = formatDatePair(departureDate, adventure);
+
+  doc.save();
+  doc.roundedRect(left, top, width, pair?.eventLabel ? 54 : 42, 4).fill('#eef6f0');
+  doc.roundedRect(left, top, width, pair?.eventLabel ? 54 : 42, 4).strokeColor(COLORS.moss).lineWidth(1).stroke();
+  doc.restore();
+
+  doc.fillColor(COLORS.moss)
+    .font('Helvetica-Bold')
+    .fontSize(8)
+    .text('YOUR BOOKING DATE', left + 14, top + 10, { width: width - 28, characterSpacing: 0.8 });
+
+  doc.fillColor(COLORS.stone)
+    .font('Helvetica-Bold')
+    .fontSize(12)
+    .text(pair?.departureLabel || departureDate, left + 14, top + 22, { width: width - 28 });
+
+  if (pair?.eventLabel) {
+    doc.fillColor(COLORS.muted)
+      .font('Helvetica')
+      .fontSize(9)
+      .text(`Event day: ${pair.eventLabel}`, left + 14, top + 38, { width: width - 28 });
+  }
+
+  resetCursor(doc, top + (pair?.eventLabel ? 64 : 52));
+  paragraph(
+    doc,
+    'This itinerary is generated for the departure date above. Other upcoming dates are listed at the end of this document.'
+  );
+}
+
 function sectionTitle(doc, title) {
   breakIfTight(doc, 34);
   const left = doc.page.margins.left;
@@ -320,7 +365,7 @@ function stackedLists(doc, sectionLabel, leftTitle, leftItems, rightTitle, right
  * Full-width day block.
  * Layout: soft header strip â†’ body text â†’ activities / meals / stay.
  */
-function drawDayCard(doc, day, index, total) {
+function drawDayCard(doc, day, index, total, departureDate = null) {
   // Only need room for the header strip; body flows naturally onto next pages
   breakIfTight(doc, 44);
   const left = doc.page.margins.left;
@@ -332,19 +377,32 @@ function drawDayCard(doc, day, index, total) {
   doc.roundedRect(left, top, width, 28, 3).fill(COLORS.soft);
   doc.restore();
 
+  const dayNum = day.day ?? index + 1;
+  const heading = Number(dayNum) === 0 ? 'DAY 0' : `DAY ${dayNum}`;
   doc.fillColor(COLORS.ember)
     .font('Helvetica-Bold')
     .fontSize(9)
-    .text(`DAY ${day.day || index + 1}`, left + 12, top + 9, { width: 56, lineBreak: false });
+    .text(heading, left + 12, top + 9, { width: 56, lineBreak: false });
 
+  const titleText = day.title || dayLabel(day) || 'Schedule';
   doc.fillColor(COLORS.stone)
     .font('Helvetica-Bold')
     .fontSize(10)
-    .text(day.title || 'Schedule', left + 72, top + 9, {
+    .text(titleText, left + 72, top + 8, {
       width: width - 120,
       lineBreak: false,
       ellipsis: true,
     });
+  if (day.calendar_label) {
+    doc.fillColor(COLORS.muted)
+      .font('Helvetica')
+      .fontSize(8)
+      .text(day.calendar_label, left + 72, top + 20, {
+        width: width - 120,
+        lineBreak: false,
+        ellipsis: true,
+      });
+  }
 
   doc.fillColor(COLORS.muted)
     .font('Helvetica')
@@ -511,13 +569,32 @@ function buildItineraryPdf(adventure, options = {}) {
       drawHeaderBar(doc, adventure, audience);
       drawMetaGrid(doc, adventure);
 
+      const departureDate = options.departureDate || null;
+      if (departureDate && audience === 'customer') {
+        drawBookingDateBanner(doc, adventure, departureDate);
+      }
+
       if (adventure.description) {
         sectionTitle(doc, 'About this adventure');
         paragraph(doc, adventure.description);
       }
 
-      const itinerary = asItinerary(adventure.itinerary);
+      const rawItinerary = asItinerary(adventure.itinerary);
+      const itinerary = departureDate
+        ? mapItineraryWithDates(rawItinerary, departureDate)
+        : rawItinerary;
       sectionTitle(doc, 'Day-by-day itinerary');
+      if (departureDate) {
+        const pair = formatDatePair(departureDate, adventure);
+        if (pair?.departureLabel) {
+          paragraph(
+            doc,
+            `Day dates below are calculated from your booking departure on ${pair.departureLabel}${
+              pair.eventLabel ? ` (event ${pair.eventLabel})` : ''
+            }.`
+          );
+        }
+      }
       if (!itinerary.length) {
         doc.fillColor(COLORS.muted)
           .font('Helvetica-Oblique')
@@ -525,7 +602,7 @@ function buildItineraryPdf(adventure, options = {}) {
           .text('No day-by-day itinerary has been added for this adventure yet.');
         doc.moveDown(0.6);
       } else {
-        itinerary.forEach((day, i) => drawDayCard(doc, day, i, itinerary.length));
+        itinerary.forEach((day, i) => drawDayCard(doc, day, i, itinerary.length, departureDate));
       }
 
       stackedLists(doc, 'Inclusions & exclusions', 'Included', adventure.included, 'Not included', adventure.excluded);
@@ -570,25 +647,19 @@ function buildItineraryPdf(adventure, options = {}) {
         bulletList(doc, guidelines);
       }
 
-      const dates = asList(adventure.available_dates);
-      if (dates.length) {
-        sectionTitle(doc, 'Scheduled departures');
+      const upcomingDates = Array.isArray(options.upcomingDates)
+        ? options.upcomingDates
+        : parseAvailableDates(adventure)
+            .filter((d) => !departureDate || d !== departureDate)
+            .map((d) => formatUpcomingDateEntry(d, adventure));
+      if (upcomingDates.length) {
+        sectionTitle(doc, departureDate ? 'Other upcoming departures' : 'Scheduled departures');
+        if (departureDate) {
+          paragraph(doc, 'These are future dates for the same trip. Your confirmed booking date is shown at the top of this PDF.');
+        }
         bulletList(
           doc,
-          dates.map((d) => {
-            try {
-              const [y, m, day] = String(d).split('-').map(Number);
-              return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString('en-IN', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                timeZone: 'UTC',
-              });
-            } catch {
-              return String(d);
-            }
-          })
+          upcomingDates.map((row) => row.summary || row.departureLabel || row.date)
         );
       }
 

@@ -22,7 +22,11 @@ async function prepareItineraryPdf(confirmationDetails) {
   if (!adventure) return {};
 
   try {
-    const generated = await buildItineraryPdf(adventure, { audience: 'customer' });
+    const generated = await buildItineraryPdf(adventure, {
+      audience: 'customer',
+      departureDate: confirmationDetails?.departureDate || confirmationDetails?.date,
+      upcomingDates: confirmationDetails?.upcomingDates,
+    });
     const attachment = {
       filename: generated.filename,
       content: generated.buffer,

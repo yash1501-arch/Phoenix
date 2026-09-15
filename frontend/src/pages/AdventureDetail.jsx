@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     MapPin, Clock, Users, Star, Shield, CheckCircle, XCircle,
     ChevronDown, ChevronUp, ArrowLeft,
-    Activity, Phone, MessageCircle, CalendarCheck, Mountain, Bus, Backpack
+    Activity, Phone, MessageCircle, CalendarCheck, Mountain, Bus, Backpack, Heart
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -20,10 +20,20 @@ import BookingModal from '../components/BookingModal';
 import { Reveal, IconMotion, StaggerContainer } from '../components/ui/Motion';
 import { IMG_FALLBACK } from '../data/indiaImages';
 import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../context/WishlistContext';
 import toast from 'react-hot-toast';
 import Seo from '../components/Seo';
 import AdventureCard from '../components/ui/AdventureCard';
 import { absoluteAssetUrl, adventureJsonLd, adventureMetaDescription } from '../utils/seo';
+import {
+    dayLabel,
+    formatDateIN,
+    formatDatePair,
+    getEventDayOffset,
+    mapItineraryWithDates,
+    parseAvailableDates,
+    buildBookingItineraryPackage,
+} from '../utils/adventureDates';
 
 const asStringList = (value) => {
     if (!value) return [];
@@ -77,7 +87,7 @@ const openWhatsApp = (adventure, phone) => {
 };
 
 // ── Itinerary Accordion ──────────────────────────────────────────────────────
-const ItineraryItem = ({ day, defaultOpen = false }) => {
+const ItineraryItem = ({ day, defaultOpen = false, calendarLabel = null }) => {
     const [open, setOpen] = useState(defaultOpen);
     const schedule = Array.isArray(day.schedule)
         ? day.schedule.filter((row) => row?.time || row?.activity)
@@ -94,9 +104,14 @@ const ItineraryItem = ({ day, defaultOpen = false }) => {
             >
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <span className="min-w-10 h-10 px-2 rounded-md bg-panel text-ember font-bold text-xs sm:text-sm flex items-center justify-center shrink-0">
-                        Day {day.day}
+                        {Number(day.day) === 0 ? 'Day 0' : `Day ${day.day}`}
                     </span>
-                    <span className="font-semibold text-stone truncate">{day.title || `Day ${day.day}`}</span>
+                    <div className="min-w-0">
+                        <span className="font-semibold text-stone truncate block">{day.title || dayLabel(day)}</span>
+                        {calendarLabel && (
+                            <span className="text-xs text-muted block truncate">{calendarLabel}</span>
+                        )}
+                    </div>
                 </div>
                 {open ? <ChevronUp size={18} className="text-ember shrink-0" /> : <ChevronDown size={18} className="text-muted shrink-0" />}
             </button>
@@ -217,17 +232,17 @@ const WaitlistInline = ({ adventure }) => {
 };
 
 // ── Booking card (mobile: under About; desktop: sticky sidebar) ─────────────
-const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animated = false }) => {
+const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animated = false, onSave, isSaved = false }) => {
     const nextDeparture = (() => {
         try {
             const raw = typeof adventure.available_dates === 'string'
                 ? JSON.parse(adventure.available_dates || '[]')
                 : (adventure.available_dates || []);
             if (!Array.isArray(raw) || raw.length === 0) return null;
-            const [y, m, d] = raw[0].split('-').map(Number);
-            const dt = new Date(Date.UTC(y, m - 1, d));
+            const pair = formatDatePair(raw[0], adventure);
             return {
-                formatted: dt.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }),
+                departure: pair?.departureLabel,
+                event: pair?.eventLabel,
                 extra: raw.length > 1 ? raw.length - 1 : 0,
             };
         } catch {
@@ -271,10 +286,12 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animat
                 </dl>
 
                 {nextDeparture ? (
-                    <p className="text-xs text-center text-moss bg-moss/10 py-2.5 px-3 rounded border border-moss/20 font-medium">
-                        Next departure: <strong>{nextDeparture.formatted}</strong>
-                        {nextDeparture.extra > 0 ? ` (+${nextDeparture.extra} more)` : ''}
-                    </p>
+                    <div className="text-xs text-center text-moss bg-moss/10 py-2.5 px-3 rounded border border-moss/20 font-medium space-y-1">
+                        <p>Departure: <strong>{nextDeparture.departure}</strong>{nextDeparture.extra > 0 ? ` (+${nextDeparture.extra} more)` : ''}</p>
+                        {nextDeparture.event && (
+                            <p>Event: <strong>{nextDeparture.event}</strong></p>
+                        )}
+                    </div>
                 ) : (
                     <WaitlistInline adventure={adventure} />
                 )}
@@ -285,6 +302,20 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animat
                 </button>
                 <button type="button" onClick={() => openWhatsApp(adventure, whatsappNumber)} className="btn btn-outline w-full">
                     <MessageCircle size={18} /> Ask on WhatsApp
+                </button>
+                <button
+                    type="button"
+                    onClick={onSave}
+                    aria-label={isSaved ? 'Remove from saved adventures' : 'Save adventure'}
+                    aria-pressed={isSaved}
+                    className={`btn w-full !py-2.5 text-sm font-semibold border-2 transition-colors ${
+                        isSaved
+                            ? 'border-ember bg-ember/10 text-ember-deep hover:bg-ember/15'
+                            : 'border-stone/20 bg-mist-subtle text-stone hover:border-ember hover:text-ember-deep'
+                    }`}
+                >
+                    <Heart size={16} className={isSaved ? 'fill-current' : ''} />
+                    {isSaved ? 'Saved to wishlist' : 'Save adventure'}
                 </button>
                 <p className="text-center text-xs text-muted">
                     {canBook ? payHint : 'Browse freely — sign in when you are ready to reserve seats.'}
@@ -333,12 +364,14 @@ const AdventureDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
+    const { toggle, has } = useWishlist();
     const [adventure, setAdventure] = useState(null);
     const [loading, setLoading] = useState(true);
     const [whatsappNumber, setWhatsappNumber] = useState('919372506447');
     const [lightboxIndex, setLightboxIndex] = useState(null);
     const [showBooking, setShowBooking] = useState(false);
     const [related, setRelated] = useState([]);
+    const [selectedItineraryDate, setSelectedItineraryDate] = useState(null);
 
     const handleBook = () => {
         if (!isAuthenticated) {
@@ -347,6 +380,11 @@ const AdventureDetail = () => {
             return;
         }
         setShowBooking(true);
+    };
+
+    const handleSave = () => {
+        if (!adventure) return;
+        toggle(adventure);
     };
 
     useEffect(() => {
@@ -418,6 +456,16 @@ const AdventureDetail = () => {
     const guidelines = asStringList(adventure.trek_guidelines);
     const hasTrekMeta = adventure.base_village || adventure.elevation || adventure.region;
     const hasPickup = pickupMumbai.length > 0 || pickupPune.length > 0;
+    const availableDates = parseAvailableDates(adventure);
+    const previewDepartureDate = selectedItineraryDate || availableDates[0] || null;
+    const itineraryPackage = previewDepartureDate
+        ? buildBookingItineraryPackage(adventure, previewDepartureDate)
+        : { itinerary: mapItineraryWithDates(adventure.itinerary, null), upcomingDates: [] };
+    const itineraryWithDates = itineraryPackage.itinerary.length
+        ? itineraryPackage.itinerary
+        : mapItineraryWithDates(adventure.itinerary, previewDepartureDate);
+    const showItineraryDates = Boolean(previewDepartureDate && getEventDayOffset(adventure) >= 0);
+    const previewDatePair = previewDepartureDate ? formatDatePair(previewDepartureDate, adventure) : null;
 
     const difficultyColor = {
         Easy: 'bg-moss/15 text-moss',
@@ -427,6 +475,9 @@ const AdventureDetail = () => {
 
     const ogImage = absoluteAssetUrl(getImageUrl(adventure.image_url));
     const trekId = adventure._id || id;
+    const isSaved = has(trekId);
+    const galleryImages = (typeof adventure.images === 'string' ? JSON.parse(adventure.images || '[]') : (adventure.images || [])).filter(Boolean);
+    const hasGallery = galleryImages.length > 0;
 
     return (
         <div id="main-content" className="min-h-screen bg-mist">
@@ -466,9 +517,27 @@ const AdventureDetail = () => {
                     <ArrowLeft size={16} /> Back
                 </button>
 
-                {/* Wishlist heart */}
-                <div className="absolute top-[4.75rem] md:top-[5.25rem] right-6 z-10">
-                    <WishlistButton adventure={adventure} size="lg" />
+                {/* Save + share on hero */}
+                <div className="absolute top-[4.75rem] md:top-[5.25rem] right-6 z-20 flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        aria-label={isSaved ? 'Remove from saved adventures' : 'Save adventure'}
+                        aria-pressed={isSaved}
+                        className={`hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm backdrop-blur-md transition-all shadow-lg ${
+                            isSaved
+                                ? 'bg-ember text-cream border-2 border-ember'
+                                : 'bg-white/95 text-stone border-2 border-white hover:bg-white hover:text-ember-deep'
+                        }`}
+                    >
+                        <Heart size={16} className={isSaved ? 'fill-current' : ''} />
+                        {isSaved ? 'Saved' : 'Save adventure'}
+                    </button>
+                    <WishlistButton
+                        adventure={adventure}
+                        size="lg"
+                        className="sm:hidden !bg-white/95 !border-white !text-stone shadow-lg"
+                    />
                 </div>
 
                 {/* Hero Content — kept below nav so title never sits under the bar */}
@@ -542,17 +611,67 @@ const AdventureDetail = () => {
                             whatsappNumber={whatsappNumber}
                             onBook={handleBook}
                             canBook={isAuthenticated}
+                            onSave={handleSave}
+                            isSaved={isSaved}
                         />
                     </div>
 
                     {adventure.itinerary && adventure.itinerary.length > 0 && (
                         <Reveal variant="slideLeft" as="section">
                             <h2 className="font-display text-2xl font-semibold text-stone mb-4">Day-by-day itinerary</h2>
+                            {availableDates.length > 1 && (
+                                <div className="mb-4">
+                                    <label className="text-sm font-semibold text-stone block mb-2">Preview dates for departure</label>
+                                    <select
+                                        className="input w-full max-w-md"
+                                        value={previewDepartureDate || ''}
+                                        onChange={(e) => setSelectedItineraryDate(e.target.value)}
+                                    >
+                                        {availableDates.map((d) => {
+                                            const pair = formatDatePair(d, adventure);
+                                            const label = pair?.eventLabel
+                                                ? `${formatDateIN(d, { weekday: true, year: true })} · Event ${pair.eventLabel}`
+                                                : formatDateIN(d, { weekday: true, year: true });
+                                            return <option key={d} value={d}>{label}</option>;
+                                        })}
+                                    </select>
+                                </div>
+                            )}
+                            {showItineraryDates && previewDepartureDate && (
+                                <div className="text-sm text-stone mb-4 bg-moss/10 border border-moss/20 rounded-lg px-4 py-3">
+                                    <p className="font-semibold text-moss mb-1">Departure you are viewing</p>
+                                    <p>
+                                        <strong>{previewDatePair?.departureLabel || formatDateIN(previewDepartureDate, { weekday: true, year: true })}</strong>
+                                        {previewDatePair?.eventLabel && (
+                                            <> · Event <strong>{previewDatePair.eventLabel}</strong></>
+                                        )}
+                                    </p>
+                                    <p className="text-muted text-xs mt-2">When you book, your confirmation and itinerary will use only the date you select — not other departures.</p>
+                                </div>
+                            )}
                             <div className="space-y-3">
-                                {adventure.itinerary.map((day, index) => (
-                                    <ItineraryItem key={`${day.day}-${index}`} day={day} defaultOpen={index === 0} />
+                                {itineraryWithDates.map((day, index) => (
+                                    <ItineraryItem
+                                        key={`${day.day}-${index}`}
+                                        day={day}
+                                        defaultOpen={index === 0}
+                                        calendarLabel={showItineraryDates ? day.calendar_label : null}
+                                    />
                                 ))}
                             </div>
+                            {itineraryPackage.upcomingDates?.length > 0 && (
+                                <div className="mt-6 rounded-lg border border-stone/10 bg-mist-subtle p-4">
+                                    <h3 className="font-display text-lg font-semibold text-stone mb-2">This trip runs again on</h3>
+                                    <ul className="space-y-2 text-sm text-muted">
+                                        {itineraryPackage.upcomingDates.map((row) => (
+                                            <li key={row.date} className="flex items-start gap-2">
+                                                <CalendarCheck size={14} className="text-ember mt-0.5 shrink-0" />
+                                                <span>{row.summary || row.departureLabel}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </Reveal>
                     )}
 
@@ -682,14 +801,43 @@ const AdventureDetail = () => {
                         </Reveal>
                     )}
 
-                    {related.length > 0 && (
-                        <Reveal variant="rise" as="section">
-                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Related treks</h2>
-                            <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-                                {related.map((a, i) => (
-                                    <AdventureCard key={a._id || a.id || i} adventure={a} index={i} />
-                                ))}
-                            </StaggerContainer>
+                    {(hasGallery || related.length > 0) && (
+                        <Reveal variant="clip" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Experience gallery</h2>
+                            {hasGallery ? (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-10">
+                                    {galleryImages.map((imgUrl, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="relative aspect-square overflow-hidden rounded-lg group border border-stone/10 cursor-zoom-in"
+                                            onClick={() => setLightboxIndex((adventure.image_url ? 1 : 0) + idx)}
+                                        >
+                                            <img
+                                                src={getImageUrl(imgUrl)}
+                                                alt={`${adventure.title} - Gallery ${idx + 1}`}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                onError={(e) => { e.currentTarget.style.opacity = '0.35'; }}
+                                            />
+                                            <div className="absolute inset-0 bg-panel/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted mb-8">
+                                    Trail photos from past departures — ask us on WhatsApp for the full album from your trek.
+                                </p>
+                            )}
+
+                            {related.length > 0 && (
+                                <div className="pt-2 border-t border-stone/10">
+                                    <h3 className="font-display text-xl font-semibold text-stone mb-4">Related treks</h3>
+                                    <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                                        {related.map((a, i) => (
+                                            <AdventureCard key={a._id || a.id || i} adventure={a} index={i} />
+                                        ))}
+                                    </StaggerContainer>
+                                </div>
+                            )}
                         </Reveal>
                     )}
 
@@ -697,9 +845,14 @@ const AdventureDetail = () => {
                         <Reviews adventureId={adventure._id || id} />
                     </section>
 
-                    <section className="flex items-center gap-2">
-                        <span className="text-sm text-muted">Share this adventure:</span>
-                        <ShareButtons url={`/adventure/${adventure._id || id}`} title={adventure.title} description={`Join us on ${adventure.title} — ${adventure.location || ''}`} />
+                    <section className="rounded-lg border border-stone/10 bg-mist-subtle p-5">
+                        <span className="text-sm font-semibold text-stone block mb-3">Share this adventure</span>
+                        <ShareButtons
+                            theme="light"
+                            url={`/adventure/${adventure._id || id}`}
+                            title={adventure.title}
+                            description={`Join us on ${adventure.title} — ${adventure.location || ''}`}
+                        />
                     </section>
 
                     <Reveal variant="scale" as="section">
@@ -716,28 +869,6 @@ const AdventureDetail = () => {
                         </div>
                     </Reveal>
 
-                    {adventure.images && (typeof adventure.images === 'string' ? JSON.parse(adventure.images) : adventure.images).length > 0 && (
-                        <Reveal variant="clip" as="section">
-                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Experience gallery</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                                {(typeof adventure.images === 'string' ? JSON.parse(adventure.images) : adventure.images).map((imgUrl, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="relative aspect-square overflow-hidden rounded-lg group border border-stone/10 cursor-zoom-in"
-                                        onClick={() => setLightboxIndex((adventure.image_url ? 1 : 0) + idx)}
-                                    >
-                                        <img
-                                            src={getImageUrl(imgUrl)}
-                                            alt={`${adventure.title} - Gallery ${idx + 1}`}
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                            onError={(e) => { e.currentTarget.style.opacity = '0.35'; }}
-                                        />
-                                        <div className="absolute inset-0 bg-panel/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                    </div>
-                                ))}
-                            </div>
-                        </Reveal>
-                    )}
                 </div>
 
                 {/* RIGHT: Sticky Booking Card (desktop) */}
@@ -748,6 +879,8 @@ const AdventureDetail = () => {
                             whatsappNumber={whatsappNumber}
                             onBook={handleBook}
                             canBook={isAuthenticated}
+                            onSave={handleSave}
+                            isSaved={isSaved}
                             animated
                         />
                     </div>

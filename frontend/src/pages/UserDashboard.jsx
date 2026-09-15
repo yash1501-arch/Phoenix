@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import UserAvatar from '../components/ui/UserAvatar';
 import './UserDashboard.css';
 import { IMG_FALLBACK } from '../data/indiaImages';
+import { formatDatePair } from '../utils/adventureDates';
 
 const UserDashboard = () => {
     const { user, logout, updateUserContext } = useAuth();
@@ -271,6 +272,9 @@ const UserDashboard = () => {
                                     {bookings.map((booking) => {
                                         const badge = STATUS_BADGE[booking.booking_status] || STATUS_BADGE.pending_payment;
                                         const adv = booking.adventure || {};
+                                        const datePair = booking.adventure_date
+                                            ? formatDatePair(booking.adventure_date, adv)
+                                            : null;
                                         const bookingId = booking._id || booking.id;
                                         return (
                                             <div key={bookingId} className="booking-card bg-mist-subtle rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all">
@@ -287,7 +291,11 @@ const UserDashboard = () => {
                                                         </div>
                                                         <p className="text-xs text-gray-500 font-mono mb-2">{booking.booking_code}</p>
                                                         <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-                                                            <span className="flex items-center gap-1"><Calendar size={12} /> {booking.adventure_date}</span>
+                                                            <span className="flex items-center gap-1">
+                                                                <Calendar size={12} />
+                                                                {datePair?.departureLabel || booking.adventure_date}
+                                                                {datePair?.eventLabel ? ` · Event ${datePair.eventLabel}` : ''}
+                                                            </span>
                                                             {adv.location && (
                                                                 <span className="flex items-center gap-1"><MapPin size={12} /> {adv.location}</span>
                                                             )}
