@@ -220,8 +220,7 @@ const AdventuresPage = () => {
                           <div className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
                             {adv.difficulty || 'Moderate'}
                           </div>
-                          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
-                            <ShareAdventureButton adventure={adv} />
+                          <div className="absolute top-3 right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
                             <WishlistButton
                               adventure={adv}
                               size="sm"
@@ -231,9 +230,12 @@ const AdventuresPage = () => {
                         </div>
 
                         <div className="space-y-2.5">
-                          <h3 className="font-display text-xl md:text-2xl leading-snug text-stone group-hover:text-ember transition-colors font-semibold">
-                            {adv.title}
-                          </h3>
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-display text-xl md:text-2xl leading-snug text-stone group-hover:text-ember transition-colors font-semibold flex-1 min-w-0">
+                              {adv.title}
+                            </h3>
+                            <ShareAdventureButton adventure={adv} variant="inline" />
+                          </div>
 
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                             <span className="inline-flex items-center gap-1.5">

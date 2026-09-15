@@ -113,30 +113,30 @@ const Adventures = ({ limit = 8 }) => {
                                         <span className="absolute top-3 left-3 bg-panel/90 text-cream text-[10px] font-bold px-2.5 py-1.5 uppercase tracking-wider rounded-md">
                                             {adv.difficulty || 'Moderate'}
                                         </span>
-                                        <div className="absolute top-3 right-3 flex flex-col gap-2">
-                                            <ShareAdventureButton adventure={adv} />
-                                            <button
-                                                onClick={(e) => handleWishlist(e, adv)}
-                                                aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
-                                                aria-pressed={wishlisted}
-                                                className="w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke"
-                                            >
-                                                <Heart size={15} className={wishlisted ? 'fill-current text-ember' : ''} />
-                                            </button>
-                                        </div>
+                                        <button
+                                            onClick={(e) => handleWishlist(e, adv)}
+                                            aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+                                            aria-pressed={wishlisted}
+                                            className="absolute top-3 right-3 w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke"
+                                        >
+                                            <Heart size={15} className={wishlisted ? 'fill-current text-ember' : ''} />
+                                        </button>
                                     </div>
 
                                     <div className="flex flex-1 flex-col p-4">
                                         <div className="flex items-start justify-between gap-2 min-h-[3.25rem]">
-                                            <h3 className="font-display text-lg leading-snug text-stone group-hover:text-ember transition-colors font-semibold line-clamp-2">
+                                            <h3 className="font-display text-lg leading-snug text-stone group-hover:text-ember transition-colors font-semibold line-clamp-2 flex-1 min-w-0">
                                                 {adv.title}
                                             </h3>
-                                            {adv.rating > 0 && (
-                                                <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                                                    <Star size={12} className="text-ember fill-current" />
-                                                    <span className="text-sm font-bold text-stone">{adv.rating}</span>
-                                                </div>
-                                            )}
+                                            <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                                                <ShareAdventureButton adventure={adv} variant="inline" />
+                                                {adv.rating > 0 && (
+                                                    <div className="flex items-center gap-1">
+                                                        <Star size={12} className="text-ember fill-current" />
+                                                        <span className="text-sm font-bold text-stone">{adv.rating}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="mt-3 flex items-center gap-3 text-sm text-muted min-h-[1.25rem]">

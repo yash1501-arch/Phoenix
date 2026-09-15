@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Share2, MessageCircle, Link2, Check, Facebook } from 'lucide-react';
+import { Share2, MessageCircle, Link2, Check, Facebook, Instagram } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const buildShareMeta = (adventure) => {
@@ -12,12 +12,22 @@ const buildShareMeta = (adventure) => {
     return { advId, title, location, url, fullUrl, text };
 };
 
+const VARIANT_STYLES = {
+    overlay:
+        'w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke',
+    inline:
+        'w-9 h-9 rounded-full border border-stone/15 bg-mist flex items-center justify-center text-stone hover:border-ember hover:text-ember hover:bg-ember/5 transition-colors shrink-0',
+};
+
 export default function ShareAdventureButton({
     adventure,
     className = '',
-    iconSize = 15,
-    buttonClassName = 'w-10 h-10 bg-mist/95 backdrop-blur-sm rounded-md flex items-center justify-center text-stone hover:bg-ember hover:text-cream transition-colors shadow-smoke',
+    iconSize,
+    variant = 'overlay',
+    buttonClassName,
 }) {
+    const resolvedIconSize = iconSize ?? (variant === 'inline' ? 16 : 15);
+    const resolvedButtonClass = buttonClassName || VARIANT_STYLES[variant] || VARIANT_STYLES.overlay;
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState(false);
     const ref = useRef(null);
@@ -78,9 +88,9 @@ export default function ShareAdventureButton({
                 }}
                 aria-label={`Share ${title}`}
                 aria-expanded={open}
-                className={buttonClassName}
+                className={resolvedButtonClass}
             >
-                <Share2 size={iconSize} />
+                <Share2 size={resolvedIconSize} />
             </button>
             {open && (
                 <div
@@ -114,6 +124,24 @@ export default function ShareAdventureButton({
                         <Facebook size={15} className="text-sky-600 shrink-0" />
                         Facebook
                     </a>
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={menuItemClass}
+                        onClick={async (e) => {
+                            stop(e);
+                            try {
+                                await navigator.clipboard.writeText(fullUrl);
+                                toast.success('Link copied — paste in your Instagram story or DM');
+                            } catch {
+                                toast.error('Could not copy link');
+                            }
+                            setOpen(false);
+                        }}
+                    >
+                        <Instagram size={15} className="text-pink-600 shrink-0" />
+                        Instagram
+                    </button>
                     <button
                         type="button"
                         role="menuitem"
