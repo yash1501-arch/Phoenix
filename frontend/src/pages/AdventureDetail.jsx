@@ -33,6 +33,8 @@ import {
     mapItineraryWithDates,
     parseAvailableDates,
     buildBookingItineraryPackage,
+    parseJsonList,
+    parseItineraryList,
 } from '../utils/adventureDates';
 
 const asStringList = (value) => {
@@ -457,13 +459,15 @@ const AdventureDetail = () => {
     const hasTrekMeta = adventure.base_village || adventure.elevation || adventure.region;
     const hasPickup = pickupMumbai.length > 0 || pickupPune.length > 0;
     const availableDates = parseAvailableDates(adventure);
+    const parsedItinerary = parseItineraryList(adventure);
+    const galleryImages = parseJsonList(adventure.images);
     const previewDepartureDate = selectedItineraryDate || availableDates[0] || null;
     const itineraryPackage = previewDepartureDate
         ? buildBookingItineraryPackage(adventure, previewDepartureDate)
-        : { itinerary: mapItineraryWithDates(adventure.itinerary, null), upcomingDates: [] };
+        : { itinerary: mapItineraryWithDates(parsedItinerary, null), upcomingDates: [] };
     const itineraryWithDates = itineraryPackage.itinerary.length
         ? itineraryPackage.itinerary
-        : mapItineraryWithDates(adventure.itinerary, previewDepartureDate);
+        : mapItineraryWithDates(parsedItinerary, previewDepartureDate);
     const showItineraryDates = Boolean(previewDepartureDate && getEventDayOffset(adventure) >= 0);
     const previewDatePair = previewDepartureDate ? formatDatePair(previewDepartureDate, adventure) : null;
 
@@ -476,7 +480,6 @@ const AdventureDetail = () => {
     const ogImage = absoluteAssetUrl(getImageUrl(adventure.image_url));
     const trekId = adventure._id || id;
     const isSaved = has(trekId);
-    const galleryImages = (typeof adventure.images === 'string' ? JSON.parse(adventure.images || '[]') : (adventure.images || [])).filter(Boolean);
     const hasGallery = galleryImages.length > 0;
 
     return (
@@ -616,7 +619,7 @@ const AdventureDetail = () => {
                         />
                     </div>
 
-                    {adventure.itinerary && adventure.itinerary.length > 0 && (
+                    {parsedItinerary.length > 0 && (
                         <Reveal variant="slideLeft" as="section">
                             <h2 className="font-display text-2xl font-semibold text-stone mb-4">Day-by-day itinerary</h2>
                             {availableDates.length > 1 && (
@@ -891,8 +894,7 @@ const AdventureDetail = () => {
 
             {/* Lightbox */}
             {lightboxIndex !== null && (() => {
-                const gallery = (typeof adventure.images === 'string' ? JSON.parse(adventure.images || '[]') : (adventure.images || []));
-                const all = [getImageUrl(adventure.image_url), ...gallery.map(getImageUrl)].filter(Boolean);
+                const all = [getImageUrl(adventure.image_url), ...galleryImages.map(getImageUrl)].filter(Boolean);
                 return (
                     <Lightbox
                         images={all}

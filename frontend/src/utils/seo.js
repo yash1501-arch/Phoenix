@@ -68,10 +68,11 @@ export function adventureMetaDescription(adventure) {
 }
 
 function nextBatchDate(dates) {
-    if (!Array.isArray(dates) || !dates.length) return null;
+    const list = asStringList(dates);
+    if (!list.length) return null;
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const future = dates
+    const future = list
         .map((d) => new Date(d))
         .filter((d) => !Number.isNaN(d.getTime()) && d >= start)
         .sort((a, b) => a - b);

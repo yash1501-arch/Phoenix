@@ -10,7 +10,6 @@ import { normalizeDepartureCities } from '../utils/departureCities';
 import DepartureCitiesField from '../components/DepartureCitiesField';
 import TagListField from '../components/TagListField';
 import ItineraryEditor from '../components/ItineraryEditor';
-import MealOptionsField from '../components/MealOptionsField';
 import './AddAdventure.css';
 
 const AddTrekAdventure = () => {
@@ -47,7 +46,6 @@ const AddTrekAdventure = () => {
         itinerary: [],
         available_dates: [],
         event_day_offset: 1,
-        meal_options: [],
         // Image
         image: null,
         imagePreview: null,
@@ -151,7 +149,6 @@ const AddTrekAdventure = () => {
             fd.append('itinerary', JSON.stringify(form.itinerary));
             fd.append('available_dates', JSON.stringify(form.available_dates));
             fd.append('event_day_offset', String(form.event_day_offset ?? 1));
-            fd.append('meal_options', JSON.stringify(form.meal_options || []));
             if (form.image) fd.append('image', form.image);
 
             const res = await adventuresAPI.create(fd);
@@ -309,14 +306,6 @@ const AddTrekAdventure = () => {
                             ))
                         }
                     </div>
-                </div>
-
-                <div className="form-section">
-                    <h2 className="section-title">Booking options</h2>
-                    <MealOptionsField
-                        value={form.meal_options}
-                        onChange={(meal_options) => set('meal_options', meal_options)}
-                    />
                 </div>
 
                 {/* ── Pickup & departure cities ── */}

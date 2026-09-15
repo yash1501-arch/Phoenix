@@ -93,6 +93,30 @@ function mapItineraryWithDates(itinerary, departureDate) {
     });
 }
 
+function parseJsonList(value, fallback = []) {
+  if (!value) return fallback;
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : fallback;
+    } catch {
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return [trimmed];
+      }
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+function parseItineraryList(adventure) {
+  if (!adventure || typeof adventure !== 'object') return [];
+  return parseJsonList(adventure.itinerary, []);
+}
+
 function parseAvailableDates(adventure) {
   const raw = adventure?.available_dates;
   let list = [];
@@ -127,10 +151,7 @@ function buildBookingItineraryPackage(adventure, bookingDate) {
   const departureDate = String(bookingDate || '').trim() || null;
   const datePair = departureDate ? formatDatePair(departureDate, adventure) : null;
   const itinerary = departureDate
-    ? mapItineraryWithDates(
-        Array.isArray(adventure?.itinerary) ? adventure.itinerary : [],
-        departureDate,
-      )
+    ? mapItineraryWithDates(parseItineraryList(adventure), departureDate)
     : [];
 
   const allDates = parseAvailableDates(adventure);

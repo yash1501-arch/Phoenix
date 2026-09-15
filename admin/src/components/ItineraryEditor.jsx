@@ -8,17 +8,8 @@ const emptyDay = (dayNum) => ({
   title: '',
   description: '',
   schedule: [emptyScheduleRow()],
-  activities: [],
-  meals: [],
   accommodation: '',
 });
-
-function parseCommaList(str) {
-  return String(str || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
 
 function daySchedule(day) {
   const rows = Array.isArray(day?.schedule) ? day.schedule : [];
@@ -99,8 +90,8 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
       {days.length === 0 ? (
         <p className="empty-hint">
           {isTrek
-            ? 'Add Day 0 for pickup, then each trek day with timed activities.'
-            : 'Add Day 0 for pickup/departure, then each day of the tour — sightseeing, meals, and stay.'}
+            ? 'Add Day 0 for pickup, then each trek day with a timed schedule.'
+            : 'Add Day 0 for pickup/departure, then each day of the tour with timed schedule and stay.'}
         </p>
       ) : (
         sortedDays.map((day) => {
@@ -184,24 +175,6 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Activities (comma-separated)</label>
-                <input
-                  className="form-input"
-                  value={(day.activities || []).join(', ')}
-                  onChange={(e) => updateDay(index, { activities: parseCommaList(e.target.value) })}
-                  placeholder="Temple visit, Ganga aarti"
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Meals (comma-separated)</label>
-                <input
-                  className="form-input"
-                  value={(day.meals || []).join(', ')}
-                  onChange={(e) => updateDay(index, { meals: parseCommaList(e.target.value) })}
-                  placeholder="Breakfast, Lunch, Dinner"
-                />
-              </div>
               <div className="form-group full-width">
                 <label className="form-label">Stay / accommodation</label>
                 <input

@@ -10,7 +10,6 @@ import { normalizeDepartureCities } from '../utils/departureCities';
 import DepartureCitiesField from '../components/DepartureCitiesField';
 import TourPricingOptionsEditor from '../components/TourPricingOptionsEditor';
 import ItineraryEditor from '../components/ItineraryEditor';
-import MealOptionsField from '../components/MealOptionsField';
 import TagListField from '../components/TagListField';
 import { cloneDefaultTourPricingOptions } from '../utils/tourPricingDefaults';
 import './AddAdventure.css';
@@ -44,7 +43,6 @@ const AddTourAdventure = () => {
         itinerary: [],
         available_dates: [],
         event_day_offset: 1,
-        meal_options: [],
         // Image & PDF
         image: null,
         imagePreview: null,
@@ -168,7 +166,6 @@ const AddTourAdventure = () => {
             fd.append('itinerary', JSON.stringify(form.itinerary));
             fd.append('available_dates', JSON.stringify(form.available_dates));
             fd.append('event_day_offset', String(form.event_day_offset ?? 1));
-            fd.append('meal_options', JSON.stringify(form.meal_options || []));
             fd.append('pricing_options', JSON.stringify(form.pricing_options || []));
             // Tour forms don't use things_to_carry / dos / donts — send empty
             fd.append('things_to_carry', JSON.stringify([]));
@@ -336,14 +333,6 @@ const AddTourAdventure = () => {
                             ))
                         }
                     </div>
-                </div>
-
-                <div className="form-section">
-                    <h2 className="section-title">Booking options</h2>
-                    <MealOptionsField
-                        value={form.meal_options}
-                        onChange={(meal_options) => set('meal_options', meal_options)}
-                    />
                 </div>
 
                 {/* ── Pickup points ── */}

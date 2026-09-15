@@ -8,6 +8,31 @@ const ALL_MEAL_OPTIONS = [
 
 export { ALL_MEAL_OPTIONS };
 
+/** Safely parse JSON array fields (images, itinerary, dates) from API responses. */
+export function parseJsonList(value, fallback = []) {
+    if (!value) return fallback;
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return fallback;
+        try {
+            const parsed = JSON.parse(trimmed);
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : fallback;
+        } catch {
+            if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                return [trimmed];
+            }
+            return fallback;
+        }
+    }
+    return fallback;
+}
+
+export function parseItineraryList(adventure) {
+    if (!adventure || typeof adventure !== 'object') return [];
+    return parseJsonList(adventure.itinerary, []);
+}
+
 export function parseISODate(iso) {
     if (!iso || typeof iso !== 'string') return null;
     const [y, m, d] = iso.split('-').map(Number);
@@ -136,7 +161,7 @@ export function buildBookingItineraryPackage(adventure, bookingDate) {
     const departureDate = String(bookingDate || '').trim() || null;
     const datePair = departureDate ? formatDatePair(departureDate, adventure) : null;
     const itinerary = departureDate
-        ? mapItineraryWithDates(Array.isArray(adventure?.itinerary) ? adventure.itinerary : [], departureDate)
+        ? mapItineraryWithDates(parseItineraryList(adventure), departureDate)
         : [];
 
     const allDates = parseAvailableDates(adventure);

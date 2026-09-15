@@ -65,10 +65,6 @@ function normalizeItinerary(itinerary) {
     };
     const schedule = normalizeSchedule(day?.schedule);
     if (schedule) out.schedule = schedule;
-    const activities = asStringList(day?.activities);
-    if (activities) out.activities = activities;
-    const meals = asStringList(day?.meals);
-    if (meals) out.meals = meals;
     if (day?.accommodation != null && String(day.accommodation).trim() !== '') {
       out.accommodation = String(day.accommodation).trim();
     }
