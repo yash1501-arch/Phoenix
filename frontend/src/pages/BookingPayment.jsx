@@ -20,7 +20,7 @@ import {
 } from '../utils/merchantUpi';
 
 /** Full-screen QR viewer with zoom — easier to scan from a desktop monitor */
-const QrZoomModal = ({ src, payeeName = 'PHEONIX ADVENTURES LLP', onClose }) => {
+const QrZoomModal = ({ src, onClose }) => {
     const [zoom, setZoom] = useState(1.4);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [dragging, setDragging] = useState(false);
@@ -133,7 +133,7 @@ const QrZoomModal = ({ src, payeeName = 'PHEONIX ADVENTURES LLP', onClose }) => 
                 >
                     <motion.img
                         src={src}
-                        alt={`${payeeName} UPI QR — enlarge to scan`}
+                        alt={`${MERCHANT_PAYEE_NAME} UPI QR — enlarge to scan`}
                         draggable={false}
                         style={{
                             transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
@@ -347,6 +347,15 @@ const BookingPayment = () => {
         return (
             <div className="min-h-screen bg-mist flex items-center justify-center">
                 <div className="w-12 h-12 border-4 border-ember border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!data?.booking) {
+        return (
+            <div className="min-h-screen bg-mist flex flex-col items-center justify-center gap-4 px-4">
+                <p className="text-stone font-semibold">Could not load payment details for this booking.</p>
+                <Link to="/dashboard" className="btn btn-primary">Go to dashboard</Link>
             </div>
         );
     }
@@ -715,9 +724,9 @@ const BookingPayment = () => {
                 )}
             </div>
             {qrOpen && qrTrusted === true && (
-                <QrZoomModal src={UPI_QR_SRC} payeeName={payeeName} onClose={() => setQrOpen(false)} />
+                <QrZoomModal src={UPI_QR_SRC} onClose={() => setQrOpen(false)} />
             )}
-                        <Footer />
+            <Footer />
         </div>
     );
 };
