@@ -26,6 +26,7 @@ import { mergeExtractedPdfData } from '../utils/pdfExtract';
 import { downloadItineraryPdf, previewItineraryPdf } from '../utils/downloadItineraryPdf';
 import { cloneDefaultTourPricingOptions } from '../utils/tourPricingDefaults';
 import ItineraryEditor from '../components/ItineraryEditor';
+import MealOptionsField from '../components/MealOptionsField';
 import { normalizeDepartureCities, inferDepartureCities } from '../utils/departureCities';
 import './AddAdventure.css'; // Reusing the same styles
 
@@ -73,6 +74,7 @@ const EditAdventure = () => {
         itinerary: [],
         available_dates: [],
         event_day_offset: 1,
+        meal_options: [],
         status: 'active',
         confirmation_pdf: null,
         confirmation_pdf_name: '',
@@ -166,6 +168,7 @@ const EditAdventure = () => {
                 itinerary: Array.isArray(itinerary) ? itinerary : [],
                 available_dates: availableDates,
                 event_day_offset: adventure.event_day_offset ?? 1,
+                meal_options: Array.isArray(adventure.meal_options) ? adventure.meal_options : [],
                 status: adventure.status || 'active',
                 confirmation_pdf: null,
                 confirmation_pdf_name: adventure.confirmation_pdf_url ? 'Current confirmation PDF' : '',
@@ -432,6 +435,7 @@ const EditAdventure = () => {
             submitData.append('itinerary', JSON.stringify(formData.itinerary));
             submitData.append('available_dates', JSON.stringify(formData.available_dates));
             submitData.append('event_day_offset', String(formData.event_day_offset ?? 1));
+            submitData.append('meal_options', JSON.stringify(formData.meal_options || []));
             if (formData.category === 'tour') {
                 submitData.append('pricing_options', JSON.stringify(formData.pricing_options || []));
             }
@@ -874,6 +878,14 @@ const EditAdventure = () => {
                 </div>
 
                 <BrochureFields formData={formData} setFormData={setFormData} />
+
+                <div className="form-section">
+                    <h2 className="section-title">Booking options</h2>
+                    <MealOptionsField
+                        value={formData.meal_options}
+                        onChange={(meal_options) => setFormData((prev) => ({ ...prev, meal_options }))}
+                    />
+                </div>
 
                 {/* Available Dates */}
                 <div className="form-section">
