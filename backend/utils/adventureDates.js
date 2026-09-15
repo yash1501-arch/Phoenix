@@ -22,14 +22,14 @@ function addDaysISO(iso, days) {
 function formatDateIN(iso, options = {}) {
   const dt = parseISODate(iso);
   if (!dt) return iso || '—';
-  return dt.toLocaleDateString('en-IN', {
-    weekday: options.weekday ? 'short' : undefined,
+  const localeOptions = {
     day: 'numeric',
     month: 'short',
-    year: options.year ? 'numeric' : undefined,
     timeZone: 'UTC',
-    ...options,
-  });
+  };
+  if (options.weekday) localeOptions.weekday = 'short';
+  if (options.year) localeOptions.year = 'numeric';
+  return dt.toLocaleDateString('en-IN', localeOptions);
 }
 
 function getEventDayOffset(adventure) {
