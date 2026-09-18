@@ -8,6 +8,8 @@ const {
   filterUpcomingDepartures,
   normalizeDepartureDate,
 } = require('./adventureDates');
+const { resolveAdventureBannerUrl } = require('./assetUrl');
+const { fetchImageBuffer } = require('./fetchImageBuffer');
 
 const COLORS = {
   stone: '#070b0a',
@@ -130,13 +132,15 @@ function resetCursor(doc, y = null) {
   if (y != null) doc.y = y;
 }
 
-function drawHeaderBar(doc, adventure, audience = 'ops') {
+function drawHeaderBar(doc, adventure, audience = 'ops', dateContext = null) {
   const { left, right } = { left: doc.page.margins.left, right: doc.page.width - doc.page.margins.right };
   const width = right - left;
+  const hasDates = Boolean(dateContext?.departureLabel);
+  const barHeight = hasDates ? (dateContext?.eventLabel ? 124 : 112) : 92;
 
   doc.save();
-  doc.rect(0, 0, doc.page.width, 92).fill(COLORS.moss);
-  doc.rect(0, 92, doc.page.width, 4).fill(COLORS.ember);
+  doc.rect(0, 0, doc.page.width, barHeight).fill(COLORS.moss);
+  doc.rect(0, barHeight, doc.page.width, 4).fill(COLORS.ember);
   doc.restore();
 
   doc.fillColor(COLORS.white)
@@ -162,10 +166,32 @@ function drawHeaderBar(doc, adventure, audience = 'ops') {
   doc.fillColor(COLORS.white)
     .font('Helvetica-Bold')
     .fontSize(18)
-    .text(adventure.title || 'Adventure itinerary', left, 54, {
+    .text(adventure.title || 'Adventure itinerary', left, 52, {
       width: width * 0.72,
       ellipsis: true,
     });
+
+  if (hasDates) {
+    doc.fillColor('#e8f0eb')
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('DEPARTURE DATE', left, 74, { characterSpacing: 0.6 });
+    doc.fillColor(COLORS.white)
+      .font('Helvetica-Bold')
+      .fontSize(10)
+      .text(dateContext.departureLabel, left, 84, { width: width * 0.48 });
+
+    if (dateContext.eventLabel) {
+      doc.fillColor('#e8f0eb')
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .text('EVENT DATE', left + width * 0.52, 74, { characterSpacing: 0.6 });
+      doc.fillColor(COLORS.white)
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(dateContext.eventLabel, left + width * 0.52, 84, { width: width * 0.48 });
+    }
+  }
 
   doc.fillColor('#c5d4cc')
     .font('Helvetica')
@@ -173,12 +199,33 @@ function drawHeaderBar(doc, adventure, audience = 'ops') {
     .text(
       `Generated ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`,
       left + width * 0.72,
-      58,
+      hasDates ? 52 : 58,
       { width: width * 0.28, align: 'right' }
     );
 
-  doc.y = 112;
+  doc.y = barHeight + 16;
   doc.x = left;
+}
+
+function drawBannerImage(doc, imageBuffer) {
+  if (!imageBuffer || !imageBuffer.length) return;
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  const width = right - left;
+  const maxHeight = 140;
+  breakIfTight(doc, maxHeight + 12);
+  const top = doc.y;
+  try {
+    doc.image(imageBuffer, left, top, {
+      fit: [width, maxHeight],
+      align: 'center',
+      valign: 'center',
+    });
+    const imgBottom = doc.y;
+    resetCursor(doc, Math.max(imgBottom, top + maxHeight) + 10);
+  } catch {
+    resetCursor(doc, top);
+  }
 }
 
 function drawMetaGrid(doc, adventure) {
@@ -552,8 +599,17 @@ function drawFooter(doc, pageNumber, pageCount, audience = 'ops') {
  * @param {{ audience?: 'ops' | 'customer' }} [options]
  * @returns {Promise<{ buffer: Buffer, filename: string }>}
  */
-function buildItineraryPdf(adventure, options = {}) {
+async function buildItineraryPdf(adventure, options = {}) {
   const audience = options.audience === 'customer' ? 'customer' : 'ops';
+  const departureDate = normalizeDepartureDate(options.departureDate) || null;
+  const datePair = departureDate ? formatDatePair(departureDate, adventure) : null;
+  const dateContext = datePair?.departureLabel
+    ? { departureLabel: datePair.departureLabel, eventLabel: datePair.eventLabel || null }
+    : null;
+
+  const bannerUrl = resolveAdventureBannerUrl(adventure);
+  const bannerBuffer = await fetchImageBuffer(bannerUrl);
+
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
@@ -579,13 +635,15 @@ function buildItineraryPdf(adventure, options = {}) {
       });
 
       // Page numbers stamped after layout is complete.
-      drawHeaderBar(doc, adventure, audience);
-      drawMetaGrid(doc, adventure);
-
-      const departureDate = normalizeDepartureDate(options.departureDate) || null;
-      if (departureDate && audience === 'customer') {
-        drawBookingDateBanner(doc, adventure, departureDate);
+      drawHeaderBar(doc, adventure, audience, dateContext);
+      drawBannerImage(doc, bannerBuffer);
+      if (departureDate && dateContext) {
+        paragraph(
+          doc,
+          'Your confirmed departure and event dates are shown at the top of this PDF. Day-by-day timings below use your departure date.'
+        );
       }
+      drawMetaGrid(doc, adventure);
 
       if (adventure.description) {
         sectionTitle(doc, 'About this adventure');

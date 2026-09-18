@@ -1,5 +1,5 @@
 const BOT_UA =
-  /facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|Slackbot|Discordbot|TelegramBot|Pinterest|Googlebot/i;
+  /facebookexternalhit|facebot|whatsapp|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|pinterest|googlebot/i;
 
 const API_BASE = process.env.VITE_API_URL || 'https://api.phoenixadventures.in/api';
 
@@ -19,10 +19,13 @@ export default async function middleware(request) {
     return;
   }
 
-  const shareUrl = `${API_BASE.replace(/\/$/, '')}/share/adventure/${match[1]}`;
+  const shareUrl = `${API_BASE.replace(/\/$/, '')}/share/adventure/${encodeURIComponent(match[1])}`;
   try {
     const upstream = await fetch(shareUrl, {
-      headers: { 'User-Agent': ua },
+      headers: {
+        'User-Agent': ua,
+        Accept: 'text/html,application/xhtml+xml',
+      },
     });
     if (!upstream.ok) {
       return;

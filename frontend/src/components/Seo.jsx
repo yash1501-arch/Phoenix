@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
-import { SITE_URL, absoluteAssetUrl, canonicalUrl } from '../utils/seo';
+import { SITE_URL, absoluteAssetUrl, canonicalUrl, socialOgImageUrl } from '../utils/seo';
 
 const SEO_DEFAULTS = {
     title: 'Phoenix Adventures — Discover the great outdoors with our adventure tribe',
@@ -25,7 +25,7 @@ const Seo = ({
     const pathname = path || location.pathname || '/';
     const url = canonicalUrl(pathname);
     const desc = description || SEO_DEFAULTS.description;
-    const img = absoluteAssetUrl(image || SEO_DEFAULTS.image);
+    const img = socialOgImageUrl(absoluteAssetUrl(image || SEO_DEFAULTS.image));
 
     let fullTitle = SEO_DEFAULTS.title;
     if (title) {
@@ -65,7 +65,11 @@ const Seo = ({
             <meta property="og:title" content={fullTitle} />
             <meta property="og:description" content={desc} />
             <meta property="og:type" content={type} />
+            <meta property="og:site_name" content="Phoenix Adventures" />
             <meta property="og:image" content={img} />
+            <meta property="og:image:secure_url" content={img} />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
             <meta property="og:url" content={url} />
             <meta name="twitter:card" content="summary_large_image" />
             <meta name="twitter:title" content={fullTitle} />

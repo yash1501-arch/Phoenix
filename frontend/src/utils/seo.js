@@ -10,12 +10,48 @@ export function canonicalUrl(pathname = '/') {
     return clean === '/' ? `${SITE_URL}/` : `${SITE_URL}${clean}`;
 }
 
+function parseImageList(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch {
+            if (raw.startsWith('http://') || raw.startsWith('https://')) return [raw];
+            return [];
+        }
+    }
+    return [];
+}
+
 export function absoluteAssetUrl(url) {
     if (!url) return `${SITE_URL}/logo-mark.png`;
     if (/^https?:\/\//i.test(url)) return url;
     if (url.startsWith('//')) return `https:${url}`;
+    if (url.includes('res.cloudinary.com')) {
+        const full = url.startsWith('http') ? url : `https://${url.replace(/^\/+/, '')}`;
+        return full;
+    }
     const path = url.startsWith('/') ? url : `/${url}`;
     return `${SITE_URL}${path}`;
+}
+
+/** Trek banner: image_url, else first gallery photo. */
+export function resolveAdventureBannerPath(adventure) {
+    if (!adventure) return null;
+    if (adventure.image_url) return adventure.image_url;
+    if (adventure.image) return adventure.image;
+    const gallery = parseImageList(adventure.images);
+    return gallery[0] || null;
+}
+
+/** Optimized for WhatsApp / Facebook link previews (Cloudinary). */
+export function socialOgImageUrl(url) {
+    const abs = absoluteAssetUrl(url);
+    if (!abs.includes('res.cloudinary.com')) return abs;
+    if (abs.includes('/upload/w_') || abs.includes('/upload/c_limit')) return abs;
+    return abs.replace('/upload/', '/upload/w_1200,h_630,c_fill,q_auto,f_jpg/');
 }
 
 export function truncateMeta(text, max = 160) {

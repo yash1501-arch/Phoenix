@@ -24,7 +24,13 @@ import { useWishlist } from '../context/WishlistContext';
 import toast from 'react-hot-toast';
 import Seo from '../components/Seo';
 import AdventureCard from '../components/ui/AdventureCard';
-import { absoluteAssetUrl, adventureJsonLd, adventureMetaDescription } from '../utils/seo';
+import {
+    absoluteAssetUrl,
+    adventureJsonLd,
+    adventureMetaDescription,
+    resolveAdventureBannerPath,
+    socialOgImageUrl,
+} from '../utils/seo';
 import {
     dayLabel,
     formatDateIN,
@@ -477,7 +483,8 @@ const AdventureDetail = () => {
         Challenging: 'bg-red-100 text-red-700',
     }[adventure.difficulty] || 'bg-mist-muted text-stone';
 
-    const ogImage = absoluteAssetUrl(getImageUrl(adventure.image_url));
+    const bannerPath = resolveAdventureBannerPath(adventure);
+    const ogImage = socialOgImageUrl(absoluteAssetUrl(getImageUrl(bannerPath)));
     const trekId = adventure._id || id;
     const isSaved = has(trekId);
     const hasGallery = galleryImages.length > 0;

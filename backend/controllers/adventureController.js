@@ -629,7 +629,17 @@ const downloadItineraryPdf = async (req, res) => {
         }
 
         const { buildItineraryPdf } = require('../utils/itineraryPdf');
-        const { buffer, filename } = await buildItineraryPdf(adventure);
+        const { parseAvailableDates, filterUpcomingDepartures, normalizeDepartureDate } = require('../utils/adventureDates');
+        let previewDeparture =
+          normalizeDepartureDate(req.query.departure_date || req.query.departure) || null;
+        if (!previewDeparture) {
+          const upcoming = filterUpcomingDepartures(parseAvailableDates(adventure));
+          previewDeparture = upcoming[0] || null;
+        }
+        const { buffer, filename } = await buildItineraryPdf(adventure, {
+          audience: previewDeparture ? 'customer' : 'ops',
+          departureDate: previewDeparture,
+        });
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

@@ -34,24 +34,37 @@ exports.getAdventureSharePage = async (req, res) => {
     const pageUrl = `${SITE_URL}/adventure/${id}`;
 
     const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}" />
+  <link rel="canonical" href="${escapeHtml(pageUrl)}" />
+  <meta property="og:site_name" content="Phoenix Adventures" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${escapeHtml(pageUrl)}" />
   <meta property="og:title" content="${escapeHtml(title)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
   <meta property="og:image" content="${escapeHtml(image)}" />
+  <meta property="og:image:secure_url" content="${escapeHtml(image)}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="${escapeHtml(title)}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${escapeHtml(title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   <meta name="twitter:image" content="${escapeHtml(image)}" />
-  <meta http-equiv="refresh" content="0;url=${escapeHtml(pageUrl)}" />
+  <script>
+    (function () {
+      var ua = navigator.userAgent || '';
+      if (!/facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|Slackbot|Discordbot|TelegramBot|Pinterest|Googlebot/i.test(ua)) {
+        window.location.replace(${JSON.stringify(pageUrl)});
+      }
+    })();
+  </script>
 </head>
 <body>
-  <p><a href="${escapeHtml(pageUrl)}">${escapeHtml(title)}</a></p>
+  <p><a href="${escapeHtml(pageUrl)}">View ${escapeHtml(title)} on Phoenix Adventures</a></p>
 </body>
 </html>`;
 
