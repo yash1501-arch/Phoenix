@@ -198,6 +198,7 @@ export const auditAdminAPI = {
 export const usersAdminAPI = {
     getAll: (params) => api.get('/users', { params }),
     setRole: (id, role) => api.put(`/users/${id}/role`, { role }),
+    createStaff: (data) => api.post('/users/staff', data),
 };
 
 export default api;

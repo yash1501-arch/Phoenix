@@ -486,6 +486,7 @@ const AdventureDetail = () => {
         <div id="main-content" className="min-h-screen bg-mist">
             <Seo
                 title={adventure.title}
+                titleSuffix={false}
                 description={adventureMetaDescription(adventure)}
                 image={ogImage}
                 jsonLd={adventureJsonLd(adventure, { id: trekId, image: ogImage })}
@@ -642,13 +643,17 @@ const AdventureDetail = () => {
                             )}
                             {showItineraryDates && previewDepartureDate && (
                                 <div className="text-sm text-stone mb-4 bg-moss/10 border border-moss/20 rounded-lg px-4 py-3">
-                                    <p className="font-semibold text-moss mb-1">Departure you are viewing</p>
-                                    <p>
+                                    <p className="font-semibold text-moss mb-2">Dates you are viewing</p>
+                                    <p className="mb-1">
+                                        <span className="text-muted text-xs uppercase tracking-wide block">Departure date</span>
                                         <strong>{previewDatePair?.departureLabel || formatDateIN(previewDepartureDate, { weekday: true, year: true })}</strong>
-                                        {previewDatePair?.eventLabel && (
-                                            <> · Event <strong>{previewDatePair.eventLabel}</strong></>
-                                        )}
                                     </p>
+                                    {previewDatePair?.eventLabel && (
+                                        <p>
+                                            <span className="text-muted text-xs uppercase tracking-wide block">Event date</span>
+                                            <strong>{previewDatePair.eventLabel}</strong>
+                                        </p>
+                                    )}
                                     <p className="text-muted text-xs mt-2">When you book, your confirmation and itinerary will use only the date you select — not other departures.</p>
                                 </div>
                             )}
@@ -685,6 +690,42 @@ const AdventureDetail = () => {
                             locationName={adventure.location}
                         />
                     </section>
+
+                    {hasPickup && (
+                        <Reveal variant="slideLeft" as="section">
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4 flex items-center gap-2">
+                                <Bus size={22} className="text-ember" /> Pickup points
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {pickupMumbai.length > 0 && (
+                                    <div>
+                                        <h3 className="font-bold text-stone mb-3">Mumbai</h3>
+                                        <ul className="space-y-2">
+                                            {pickupMumbai.map((point, i) => (
+                                                <li key={i} className="text-sm text-muted flex items-start gap-2">
+                                                    <MapPin size={14} className="text-ember mt-0.5 shrink-0" />
+                                                    {point}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {pickupPune.length > 0 && (
+                                    <div>
+                                        <h3 className="font-bold text-stone mb-3">Pune</h3>
+                                        <ul className="space-y-2">
+                                            {pickupPune.map((point, i) => (
+                                                <li key={i} className="text-sm text-muted flex items-start gap-2">
+                                                    <MapPin size={14} className="text-ember mt-0.5 shrink-0" />
+                                                    {point}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </Reveal>
+                    )}
 
                     {/* Included / Excluded */}
                     {(adventure.included?.length > 0 || adventure.excluded?.length > 0) && (
@@ -725,45 +766,9 @@ const AdventureDetail = () => {
                         </Reveal>
                     )}
 
-                    {hasPickup && (
-                        <Reveal variant="slideLeft" as="section">
-                            <h2 className="font-display text-2xl font-semibold text-stone mb-4 flex items-center gap-2">
-                                <Bus size={22} className="text-ember" /> Pickup points
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {pickupMumbai.length > 0 && (
-                                    <div>
-                                        <h3 className="font-bold text-stone mb-3">Mumbai</h3>
-                                        <ul className="space-y-2">
-                                            {pickupMumbai.map((point, i) => (
-                                                <li key={i} className="text-sm text-muted flex items-start gap-2">
-                                                    <MapPin size={14} className="text-ember mt-0.5 shrink-0" />
-                                                    {point}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                {pickupPune.length > 0 && (
-                                    <div>
-                                        <h3 className="font-bold text-stone mb-3">Pune</h3>
-                                        <ul className="space-y-2">
-                                            {pickupPune.map((point, i) => (
-                                                <li key={i} className="text-sm text-muted flex items-start gap-2">
-                                                    <MapPin size={14} className="text-ember mt-0.5 shrink-0" />
-                                                    {point}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        </Reveal>
-                    )}
-
                     <Reveal variant="slideRight" as="section">
                         <h2 className="font-display text-2xl md:text-3xl text-stone font-semibold mb-5 flex items-center gap-2">
-                            <Backpack size={22} className="text-ember" /> What to pack
+                            <Backpack size={22} className="text-ember" /> Things to carry
                         </h2>
                         <p className="text-muted text-sm mb-6 max-w-xl">
                             {thingsToCarry.length > 0

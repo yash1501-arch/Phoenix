@@ -8,7 +8,9 @@ const buildShareMeta = (adventure) => {
     const location = adventure?.location || '';
     const url = advId ? `/adventure/${advId}` : '/adventures';
     const fullUrl = typeof window !== 'undefined' ? new URL(url, window.location.origin).toString() : url;
-    const text = `Check out ${title}${location ? ` — ${location}` : ''} with Phoenix Adventures`;
+    const text = location
+        ? `${title} — ${location} · Phoenix Adventures`
+        : `${title} · Phoenix Adventures`;
     return { advId, title, location, url, fullUrl, text };
 };
 
@@ -112,7 +114,7 @@ export default function ShareAdventureButton({
                     </button>
                     <a
                         role="menuitem"
-                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl)}`}
+                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl)}&quote=${encodeURIComponent(title)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={menuItemClass}

@@ -224,6 +224,7 @@ if (process.env.NODE_ENV !== 'production') {
 // ── Routes ─────────────────────────────────────────────────────────────────────
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/share', require('./routes/share'));
 app.use('/api/adventures', require('./routes/adventures'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/reviews', require('./routes/reviews'));

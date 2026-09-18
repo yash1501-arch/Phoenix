@@ -2,6 +2,31 @@
 
 const ALL_MEAL_OPTIONS = ['veg', 'non_veg', 'jain'];
 
+function normalizeDepartureDate(value) {
+  if (value == null || value === '') return null;
+  const s = String(value).trim();
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : s;
+}
+
+function todayIsoUtc() {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Future departures only (UTC), optionally excluding the booked departure. */
+function filterUpcomingDepartures(dates, excludeDate = null) {
+  const today = todayIsoUtc();
+  const exclude = excludeDate ? normalizeDepartureDate(excludeDate) : null;
+  return [...dates]
+    .map((d) => normalizeDepartureDate(d))
+    .filter(Boolean)
+    .filter((d) => d >= today && (!exclude || d !== exclude));
+}
+
 function parseISODate(iso) {
   if (!iso || typeof iso !== 'string') return null;
   const [y, m, d] = iso.split('-').map(Number);
@@ -148,21 +173,23 @@ function formatUpcomingDateEntry(departureDate, adventure) {
  * Booking date is always primary; other departures are listed separately at the end.
  */
 function buildBookingItineraryPackage(adventure, bookingDate) {
-  const departureDate = String(bookingDate || '').trim() || null;
+  const departureDate = normalizeDepartureDate(bookingDate);
   const datePair = departureDate ? formatDatePair(departureDate, adventure) : null;
   const itinerary = departureDate
     ? mapItineraryWithDates(parseItineraryList(adventure), departureDate)
     : [];
 
   const allDates = parseAvailableDates(adventure);
-  const upcomingDates = departureDate
-    ? allDates.filter((d) => d !== departureDate).map((d) => formatUpcomingDateEntry(d, adventure))
-    : allDates.map((d) => formatUpcomingDateEntry(d, adventure));
+  const futureDates = filterUpcomingDepartures(allDates, departureDate);
+  const upcomingDates = futureDates.map((d) => formatUpcomingDateEntry(d, adventure));
 
   const bookingHeadline = departureDate
-    ? `Your booking: ${datePair?.departureLabel || departureDate}${
-        datePair?.eventLabel ? ` · Event ${datePair.eventLabel}` : ''
-      }`
+    ? [
+        `Departure: ${datePair?.departureLabel || departureDate}`,
+        datePair?.eventLabel ? `Event: ${datePair.eventLabel}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : null;
 
   const confirmationLines = [
@@ -273,6 +300,8 @@ function resolveMealOptions(adventure) {
 
 module.exports = {
   ALL_MEAL_OPTIONS,
+  normalizeDepartureDate,
+  filterUpcomingDepartures,
   addDaysISO,
   formatDateIN,
   formatDatePair,

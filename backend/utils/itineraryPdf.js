@@ -5,6 +5,8 @@ const {
   mapItineraryWithDates,
   parseAvailableDates,
   formatUpcomingDateEntry,
+  filterUpcomingDepartures,
+  normalizeDepartureDate,
 } = require('./adventureDates');
 
 const COLORS = {
@@ -233,37 +235,48 @@ function drawMetaGrid(doc, adventure) {
 }
 
 function drawBookingDateBanner(doc, adventure, departureDate) {
-  if (!departureDate) return;
+  const normalized = normalizeDepartureDate(departureDate);
+  if (!normalized) return;
   breakIfTight(doc, 52);
   const left = doc.page.margins.left;
   const right = doc.page.width - doc.page.margins.right;
   const width = right - left;
   const top = doc.y;
-  const pair = formatDatePair(departureDate, adventure);
+  const pair = formatDatePair(normalized, adventure);
+  const boxHeight = pair?.eventLabel ? 68 : 52;
 
   doc.save();
-  doc.roundedRect(left, top, width, pair?.eventLabel ? 54 : 42, 4).fill('#eef6f0');
-  doc.roundedRect(left, top, width, pair?.eventLabel ? 54 : 42, 4).strokeColor(COLORS.moss).lineWidth(1).stroke();
+  doc.roundedRect(left, top, width, boxHeight, 4).fill('#eef6f0');
+  doc.roundedRect(left, top, width, boxHeight, 4).strokeColor(COLORS.moss).lineWidth(1).stroke();
   doc.restore();
 
   doc.fillColor(COLORS.moss)
     .font('Helvetica-Bold')
     .fontSize(8)
-    .text('YOUR BOOKING DATE', left + 14, top + 10, { width: width - 28, characterSpacing: 0.8 });
+    .text('YOUR CONFIRMED DATES', left + 14, top + 10, { width: width - 28, characterSpacing: 0.8 });
+
+  doc.fillColor(COLORS.muted)
+    .font('Helvetica-Bold')
+    .fontSize(8)
+    .text('Departure date', left + 14, top + 24, { width: width - 28, characterSpacing: 0.4 });
 
   doc.fillColor(COLORS.stone)
     .font('Helvetica-Bold')
-    .fontSize(12)
-    .text(pair?.departureLabel || departureDate, left + 14, top + 22, { width: width - 28 });
+    .fontSize(11)
+    .text(pair?.departureLabel || normalized, left + 14, top + 34, { width: width - 28 });
 
   if (pair?.eventLabel) {
     doc.fillColor(COLORS.muted)
-      .font('Helvetica')
-      .fontSize(9)
-      .text(`Event day: ${pair.eventLabel}`, left + 14, top + 38, { width: width - 28 });
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('Event date', left + 14, top + 48, { width: width - 28, characterSpacing: 0.4 });
+    doc.fillColor(COLORS.stone)
+      .font('Helvetica-Bold')
+      .fontSize(11)
+      .text(pair.eventLabel, left + 14, top + 58, { width: width - 28 });
   }
 
-  resetCursor(doc, top + (pair?.eventLabel ? 64 : 52));
+  resetCursor(doc, top + boxHeight + 10);
   paragraph(
     doc,
     'This itinerary is generated for the departure date above. Other upcoming dates are listed at the end of this document.'
@@ -569,7 +582,7 @@ function buildItineraryPdf(adventure, options = {}) {
       drawHeaderBar(doc, adventure, audience);
       drawMetaGrid(doc, adventure);
 
-      const departureDate = options.departureDate || null;
+      const departureDate = normalizeDepartureDate(options.departureDate) || null;
       if (departureDate && audience === 'customer') {
         drawBookingDateBanner(doc, adventure, departureDate);
       }
@@ -605,14 +618,6 @@ function buildItineraryPdf(adventure, options = {}) {
         itinerary.forEach((day, i) => drawDayCard(doc, day, i, itinerary.length, departureDate));
       }
 
-      stackedLists(doc, 'Inclusions & exclusions', 'Included', adventure.included, 'Not included', adventure.excluded);
-
-      const pricingNotes = isTour(adventure) ? tourPricingNotes(adventure) : [];
-      if (pricingNotes.length) {
-        sectionTitle(doc, 'Travel & stay');
-        bulletList(doc, pricingNotes);
-      }
-
       const mumbai = asList(adventure.pickup_mumbai);
       const pune = asList(adventure.pickup_pune);
       if (mumbai.length || pune.length) {
@@ -629,9 +634,17 @@ function buildItineraryPdf(adventure, options = {}) {
         }
       }
 
+      stackedLists(doc, 'Inclusions & exclusions', 'Included', adventure.included, 'Not included', adventure.excluded);
+
+      const pricingNotes = isTour(adventure) ? tourPricingNotes(adventure) : [];
+      if (pricingNotes.length) {
+        sectionTitle(doc, 'Travel & stay');
+        bulletList(doc, pricingNotes);
+      }
+
       const packing = asList(adventure.things_to_carry);
       if (packing.length) {
-        sectionTitle(doc, 'What to pack');
+        sectionTitle(doc, 'Things to carry');
         bulletList(doc, packing);
       }
 
@@ -649,13 +662,16 @@ function buildItineraryPdf(adventure, options = {}) {
 
       const upcomingDates = Array.isArray(options.upcomingDates)
         ? options.upcomingDates
-        : parseAvailableDates(adventure)
-            .filter((d) => !departureDate || d !== departureDate)
-            .map((d) => formatUpcomingDateEntry(d, adventure));
+        : filterUpcomingDepartures(parseAvailableDates(adventure), departureDate).map((d) =>
+            formatUpcomingDateEntry(d, adventure)
+          );
       if (upcomingDates.length) {
-        sectionTitle(doc, departureDate ? 'Other upcoming departures' : 'Scheduled departures');
+        sectionTitle(doc, 'Scheduled departures');
         if (departureDate) {
-          paragraph(doc, 'These are future dates for the same trip. Your confirmed booking date is shown at the top of this PDF.');
+          paragraph(
+            doc,
+            'Upcoming dates for this same trip (your confirmed departure and event dates are at the top of this PDF).'
+          );
         }
         bulletList(
           doc,

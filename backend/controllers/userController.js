@@ -1,3 +1,5 @@
+const bcrypt = require('bcryptjs');
+const { validationResult } = require('express-validator');
 const { getConvexClient } = require('../utils/convexClient');
 const { sanitizeUser } = require('../utils/sanitizeUser');
 const { isDbAdmin } = require('../middleware/auth');
@@ -134,6 +136,52 @@ const uploadAvatar = async (req, res) => {
     }
 };
 
+const createStaff = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { name, email, password, role } = req.body;
+    const normalizedEmail = String(email).toLowerCase();
+
+    try {
+        const existing = await getConvexClient().getUserByEmail(normalizedEmail);
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'A user with this email already exists' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newUser = await getConvexClient().createUser({
+            name: String(name).trim(),
+            email: normalizedEmail,
+            password: hashedPassword,
+            role,
+            created_at: new Date().toISOString(),
+        });
+
+        getConvexClient().logAudit({
+            actor_id: req.user.id,
+            actor_email: req.user.email,
+            action: 'user.create_staff',
+            target_type: 'user',
+            target_id: newUser._id,
+            metadata: { email: normalizedEmail, role },
+        }).catch((err) => logger.error('Audit log failed:', err.message));
+
+        return res.status(201).json({
+            success: true,
+            message: `${role === 'admin' ? 'Admin' : 'Clerk'} account created`,
+            data: sanitizeUser(newUser),
+        });
+    } catch (error) {
+        logger.error('createStaff error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to create staff account' });
+    }
+};
+
 const setRole = async (req, res) => {
     try {
         const { id } = req.params;
@@ -170,5 +218,6 @@ module.exports = {
     getUserById,
     updateUser,
     uploadAvatar,
+    createStaff,
     setRole,
 };

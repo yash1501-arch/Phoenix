@@ -10,6 +10,7 @@ const BYPASS_PREFIXES = [
   '/api/auth/',
   '/api/settings/public',
   '/api/sitemap.xml',
+  '/api/share/',
 ];
 
 let cache = { on: false, checkedAt: 0 };
