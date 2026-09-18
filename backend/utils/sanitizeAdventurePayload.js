@@ -35,6 +35,7 @@ const ADVENTURE_FIELDS = new Set([
   'start_time',
   'event_day_offset',
   'meal_options',
+  'contact_phones',
 ]);
 
 function asStringList(value) {

@@ -18,6 +18,7 @@ const STRING_ARRAY_FIELDS = [
   'dos',
   'donts',
   'trek_guidelines',
+  'contact_phones',
 ];
 
 const STRING_FIELDS = ['base_village', 'elevation', 'region', 'price_note', 'endurance_level'];

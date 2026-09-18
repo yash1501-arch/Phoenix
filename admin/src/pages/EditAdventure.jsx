@@ -27,6 +27,7 @@ import { downloadItineraryPdf, previewItineraryPdf } from '../utils/downloadItin
 import { cloneDefaultTourPricingOptions } from '../utils/tourPricingDefaults';
 import ItineraryEditor from '../components/ItineraryEditor';
 import MealOptionsField from '../components/MealOptionsField';
+import ContactPhonesField from '../components/ContactPhonesField';
 import { normalizeDepartureCities, inferDepartureCities } from '../utils/departureCities';
 import { normalizeItineraryDays } from '../utils/normalizeItinerary';
 import './AddAdventure.css'; // Reusing the same styles
@@ -76,6 +77,7 @@ const EditAdventure = () => {
         available_dates: [],
         event_day_offset: 1,
         meal_options: [],
+        contact_phones: [],
         status: 'active',
         confirmation_pdf: null,
         confirmation_pdf_name: '',
@@ -171,6 +173,7 @@ const EditAdventure = () => {
                 available_dates: availableDates,
                 event_day_offset: adventure.event_day_offset ?? 1,
                 meal_options: Array.isArray(adventure.meal_options) ? adventure.meal_options : [],
+                contact_phones: asStringList(adventure.contact_phones),
                 status: adventure.status || 'active',
                 confirmation_pdf: null,
                 confirmation_pdf_name: adventure.confirmation_pdf_url ? 'Current confirmation PDF' : '',
@@ -438,6 +441,7 @@ const EditAdventure = () => {
             submitData.append('available_dates', JSON.stringify(formData.available_dates));
             submitData.append('event_day_offset', String(formData.event_day_offset ?? 1));
             submitData.append('meal_options', JSON.stringify(formData.meal_options || []));
+            submitData.append('contact_phones', JSON.stringify(formData.contact_phones || []));
             if (formData.category === 'tour') {
                 submitData.append('pricing_options', JSON.stringify(formData.pricing_options || []));
             }
@@ -545,15 +549,18 @@ const EditAdventure = () => {
                         </div>
 
                         <div className="form-group full-width">
-                            <label className="form-label">Description</label>
+                            <label className="form-label">Description (About this adventure)</label>
                             <textarea
                                 name="description"
                                 value={formData.description}
                                 onChange={handleChange}
                                 className="form-textarea"
-                                rows="4"
+                                rows="8"
                                 placeholder="Describe the adventure experience..."
                             />
+                            <p className="form-help" style={{ marginTop: '0.35rem' }}>
+                                Line breaks and paragraphs are shown on the website exactly as you type them.
+                            </p>
                         </div>
 
                         <div className="form-group">
@@ -892,6 +899,11 @@ const EditAdventure = () => {
                         onChange={(meal_options) => setFormData((prev) => ({ ...prev, meal_options }))}
                     />
                 </div>
+
+                <ContactPhonesField
+                    items={formData.contact_phones}
+                    onChange={(contact_phones) => setFormData((prev) => ({ ...prev, contact_phones }))}
+                />
 
                 {/* Available Dates */}
                 <div className="form-section">

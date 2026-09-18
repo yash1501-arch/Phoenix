@@ -318,6 +318,9 @@ const createAdventure = async (req, res) => {
         if (adventureData.meal_options !== undefined) {
             adventureData.meal_options = safeJsonParse(adventureData.meal_options, []);
         }
+        if (adventureData.contact_phones !== undefined) {
+            adventureData.contact_phones = safeJsonParse(adventureData.contact_phones, []);
+        }
 
         applyBrochureFields(adventureData);
 
@@ -431,6 +434,9 @@ const updateAdventure = async (req, res) => {
         }
         if (adventureData.meal_options !== undefined) {
             adventureData.meal_options = safeJsonParse(adventureData.meal_options, []);
+        }
+        if (adventureData.contact_phones !== undefined) {
+            adventureData.contact_phones = safeJsonParse(adventureData.contact_phones, []);
         }
 
         applyBrochureFields(adventureData);

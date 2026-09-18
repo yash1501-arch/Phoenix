@@ -31,6 +31,7 @@ import {
     resolveAdventureBannerPath,
     socialOgImageUrl,
 } from '../utils/seo';
+import { parseContactPhones, telHref, displayPhone } from '../utils/contactPhones';
 import {
     dayLabel,
     formatDateIN,
@@ -152,7 +153,7 @@ const ItineraryItem = ({ day, defaultOpen = false, calendarLabel = null }) => {
                             ) : (
                                 <>
                                     {day.description ? (
-                                        <p className="text-muted text-sm leading-relaxed">{day.description}</p>
+                                        <p className="text-muted text-sm leading-relaxed whitespace-pre-wrap">{day.description}</p>
                                     ) : null}
                                     {activities.length > 0 ? (
                                         <ul className="list-disc pl-5 space-y-1 text-sm text-stone">
@@ -240,7 +241,7 @@ const WaitlistInline = ({ adventure }) => {
 };
 
 // ── Booking card (mobile: under About; desktop: sticky sidebar) ─────────────
-const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animated = false, onSave, isSaved = false }) => {
+const BookingCard = ({ adventure, whatsappNumber, contactPhones = [], onBook, canBook = true, animated = false, onSave, isSaved = false }) => {
     const nextDeparture = (() => {
         try {
             const raw = typeof adventure.available_dates === 'string'
@@ -311,6 +312,24 @@ const BookingCard = ({ adventure, whatsappNumber, onBook, canBook = true, animat
                 <button type="button" onClick={() => openWhatsApp(adventure, whatsappNumber)} className="btn btn-outline w-full">
                     <MessageCircle size={18} /> Ask on WhatsApp
                 </button>
+                {contactPhones.length > 0 && (
+                    <div className="space-y-2 pt-1">
+                        <p className="text-xs font-semibold text-muted text-center">Call us (try any number)</p>
+                        {contactPhones.map((phone, i) => {
+                            const href = telHref(phone);
+                            if (!href) return null;
+                            return (
+                                <a
+                                    key={`${phone}-${i}`}
+                                    href={href}
+                                    className="btn btn-outline w-full !py-2.5 text-sm"
+                                >
+                                    <Phone size={16} /> {displayPhone(phone)}
+                                </a>
+                            );
+                        })}
+                    </div>
+                )}
                 <button
                     type="button"
                     onClick={onSave}
@@ -467,6 +486,7 @@ const AdventureDetail = () => {
     const availableDates = parseAvailableDates(adventure);
     const parsedItinerary = parseItineraryList(adventure);
     const galleryImages = parseJsonList(adventure.images);
+    const contactPhones = parseContactPhones(adventure);
     const previewDepartureDate = selectedItineraryDate || availableDates[0] || null;
     const itineraryPackage = previewDepartureDate
         ? buildBookingItineraryPackage(adventure, previewDepartureDate)
@@ -586,7 +606,37 @@ const AdventureDetail = () => {
 
                     <Reveal variant="rise" as="section">
                         <h2 className="font-display text-2xl font-semibold text-stone mb-4">About this adventure</h2>
-                        <p className="text-muted leading-relaxed text-base">{adventure.description}</p>
+                        {adventure.description ? (
+                            <div className="text-muted leading-relaxed text-base whitespace-pre-wrap">
+                                {adventure.description}
+                            </div>
+                        ) : null}
+                        {contactPhones.length > 0 && (
+                            <div className="mt-5 rounded-lg border border-stone/10 bg-mist-subtle p-4">
+                                <h3 className="font-semibold text-stone text-sm mb-2 flex items-center gap-2">
+                                    <Phone size={16} className="text-ember shrink-0" />
+                                    Contact numbers
+                                </h3>
+                                <p className="text-xs text-muted mb-3">If one line is busy, please try the next number.</p>
+                                <ul className="space-y-2">
+                                    {contactPhones.map((phone, i) => {
+                                        const href = telHref(phone);
+                                        if (!href) return null;
+                                        return (
+                                            <li key={`${phone}-${i}`}>
+                                                <a
+                                                    href={href}
+                                                    className="text-sm font-semibold text-moss hover:text-ember transition-colors inline-flex items-center gap-2"
+                                                >
+                                                    <Phone size={14} className="shrink-0" />
+                                                    {displayPhone(phone)}
+                                                </a>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        )}
                     </Reveal>
 
                     {hasTrekMeta && (
@@ -620,6 +670,7 @@ const AdventureDetail = () => {
                         <BookingCard
                             adventure={adventure}
                             whatsappNumber={whatsappNumber}
+                            contactPhones={contactPhones}
                             onBook={handleBook}
                             canBook={isAuthenticated}
                             onSave={handleSave}
@@ -892,6 +943,7 @@ const AdventureDetail = () => {
                         <BookingCard
                             adventure={adventure}
                             whatsappNumber={whatsappNumber}
+                            contactPhones={contactPhones}
                             onBook={handleBook}
                             canBook={isAuthenticated}
                             onSave={handleSave}

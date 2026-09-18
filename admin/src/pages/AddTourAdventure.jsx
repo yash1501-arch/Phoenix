@@ -11,6 +11,7 @@ import DepartureCitiesField from '../components/DepartureCitiesField';
 import TourPricingOptionsEditor from '../components/TourPricingOptionsEditor';
 import ItineraryEditor from '../components/ItineraryEditor';
 import MealOptionsField from '../components/MealOptionsField';
+import ContactPhonesField from '../components/ContactPhonesField';
 import TagListField from '../components/TagListField';
 import { cloneDefaultTourPricingOptions } from '../utils/tourPricingDefaults';
 import './AddAdventure.css';
@@ -45,6 +46,7 @@ const AddTourAdventure = () => {
         available_dates: [],
         event_day_offset: 1,
         meal_options: [],
+        contact_phones: [],
         // Image & PDF
         image: null,
         imagePreview: null,
@@ -169,6 +171,7 @@ const AddTourAdventure = () => {
             fd.append('available_dates', JSON.stringify(form.available_dates));
             fd.append('event_day_offset', String(form.event_day_offset ?? 1));
             fd.append('meal_options', JSON.stringify(form.meal_options || []));
+            fd.append('contact_phones', JSON.stringify(form.contact_phones || []));
             fd.append('pricing_options', JSON.stringify(form.pricing_options || []));
             // Tour forms don't use things_to_carry / dos / donts — send empty
             fd.append('things_to_carry', JSON.stringify([]));
@@ -231,9 +234,12 @@ const AddTourAdventure = () => {
                         </div>
 
                         <div className="form-group full-width">
-                            <label className="form-label">Description</label>
+                            <label className="form-label">Description (About this adventure)</label>
                             <textarea name="description" value={form.description} onChange={handleChange}
-                                className="form-textarea" rows="3" placeholder="Short tour description..." />
+                                className="form-textarea" rows="8" placeholder="Describe the tour — use new lines for paragraphs..." />
+                            <p className="form-help" style={{ marginTop: '0.35rem' }}>
+                                Line breaks and paragraphs are shown on the website exactly as you type them.
+                            </p>
                         </div>
 
                         <div className="form-group">
@@ -345,6 +351,11 @@ const AddTourAdventure = () => {
                         onChange={(meal_options) => set('meal_options', meal_options)}
                     />
                 </div>
+
+                <ContactPhonesField
+                    items={form.contact_phones}
+                    onChange={(contact_phones) => set('contact_phones', contact_phones)}
+                />
 
                 {/* ── Pickup points ── */}
                 <div className="form-section">

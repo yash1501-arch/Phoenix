@@ -60,6 +60,8 @@ export default defineSchema({
     event_day_offset: v.optional(v.number()),
     /** Meal preferences offered for this adventure: veg | non_veg | jain */
     meal_options: v.optional(v.array(v.string())),
+    /** Admin / trip-leader numbers shown on the trek page (call if one line is busy) */
+    contact_phones: v.optional(v.array(v.string())),
     created_at: v.string(), // ISO string
     updated_at: v.string(), // ISO string
   })

@@ -11,6 +11,7 @@ import DepartureCitiesField from '../components/DepartureCitiesField';
 import TagListField from '../components/TagListField';
 import ItineraryEditor from '../components/ItineraryEditor';
 import MealOptionsField from '../components/MealOptionsField';
+import ContactPhonesField from '../components/ContactPhonesField';
 import './AddAdventure.css';
 
 const AddTrekAdventure = () => {
@@ -48,6 +49,7 @@ const AddTrekAdventure = () => {
         available_dates: [],
         event_day_offset: 1,
         meal_options: [],
+        contact_phones: [],
         // Image
         image: null,
         imagePreview: null,
@@ -152,6 +154,7 @@ const AddTrekAdventure = () => {
             fd.append('available_dates', JSON.stringify(form.available_dates));
             fd.append('event_day_offset', String(form.event_day_offset ?? 1));
             fd.append('meal_options', JSON.stringify(form.meal_options || []));
+            fd.append('contact_phones', JSON.stringify(form.contact_phones || []));
             if (form.image) fd.append('image', form.image);
 
             const res = await adventuresAPI.create(fd);
@@ -205,9 +208,12 @@ const AddTrekAdventure = () => {
                         </div>
 
                         <div className="form-group full-width">
-                            <label className="form-label">Description</label>
+                            <label className="form-label">Description (About this adventure)</label>
                             <textarea name="description" value={form.description} onChange={handleChange}
-                                className="form-textarea" rows="3" placeholder="Short trip description..." />
+                                className="form-textarea" rows="8" placeholder="Describe the trek — use new lines for paragraphs..." />
+                            <p className="form-help" style={{ marginTop: '0.35rem' }}>
+                                Line breaks and paragraphs are shown on the website exactly as you type them.
+                            </p>
                         </div>
 
                         <div className="form-group">
@@ -318,6 +324,11 @@ const AddTrekAdventure = () => {
                         onChange={(meal_options) => set('meal_options', meal_options)}
                     />
                 </div>
+
+                <ContactPhonesField
+                    items={form.contact_phones}
+                    onChange={(contact_phones) => set('contact_phones', contact_phones)}
+                />
 
                 {/* ── Pickup & departure cities ── */}
                 <div className="form-section">

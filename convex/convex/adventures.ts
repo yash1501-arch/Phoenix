@@ -137,6 +137,7 @@ export const create = internalMutation({
     start_time: v.optional(v.string()),
     event_day_offset: v.optional(v.number()),
     meal_options: v.optional(v.array(v.string())),
+    contact_phones: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString();
@@ -206,6 +207,7 @@ export const update = internalMutation({
     start_time: v.optional(v.string()),
     event_day_offset: v.optional(v.number()),
     meal_options: v.optional(v.array(v.string())),
+    contact_phones: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const { id, ...updateFields } = args;
