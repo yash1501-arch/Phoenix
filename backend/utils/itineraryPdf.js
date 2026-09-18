@@ -207,33 +207,8 @@ function drawHeaderBar(doc, adventure, audience = 'ops', dateContext = null) {
   doc.x = left;
 }
 
-function drawBannerImage(doc, imageBuffer) {
-  if (!imageBuffer || !imageBuffer.length) return;
-  const left = doc.page.margins.left;
-  const right = doc.page.width - doc.page.margins.right;
-  const width = right - left;
-  const maxHeight = 140;
-  breakIfTight(doc, maxHeight + 12);
-  const top = doc.y;
-  try {
-    doc.image(imageBuffer, left, top, {
-      fit: [width, maxHeight],
-      align: 'center',
-      valign: 'center',
-    });
-    const imgBottom = doc.y;
-    resetCursor(doc, Math.max(imgBottom, top + maxHeight) + 10);
-  } catch {
-    resetCursor(doc, top);
-  }
-}
-
-function drawMetaGrid(doc, adventure) {
-  const left = doc.page.margins.left;
-  const right = doc.page.width - doc.page.margins.right;
-  const width = right - left;
-  const col = width / 3;
-  const cells = [
+function collectMetaCells(adventure) {
+  return [
     ['Location', adventure.location],
     ['Duration', adventure.duration],
     ['Category', adventure.category],
@@ -247,36 +222,65 @@ function drawMetaGrid(doc, adventure) {
     ['Status', adventure.status],
     ['Price note', adventure.price_note],
   ].filter(([, value]) => value != null && String(value).trim() !== '' && String(value) !== '—');
+}
 
-  while (cells.length % 3 !== 0) {
-    cells.push(['', '']);
+/**
+ * Trip details on the left; larger trek banner right-aligned on the right.
+ */
+function drawMetaWithBanner(doc, adventure, imageBuffer) {
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  const fullWidth = right - left;
+  const hasBanner = Boolean(imageBuffer && imageBuffer.length);
+  const gap = hasBanner ? 18 : 0;
+  const bannerWidth = hasBanner ? fullWidth * 0.46 : 0;
+  const bannerHeight = hasBanner ? 200 : 0;
+  const metaWidth = hasBanner ? fullWidth - bannerWidth - gap : fullWidth;
+  const cells = collectMetaCells(adventure);
+
+  const rowHeight = 36;
+  const metaCols = hasBanner ? 2 : 3;
+  const colW = metaWidth / metaCols;
+  const metaRows = Math.ceil(cells.length / metaCols) || 0;
+  const metaHeight = metaRows * rowHeight;
+  const blockHeight = Math.max(metaHeight, bannerHeight);
+
+  breakIfTight(doc, blockHeight + 16);
+  const blockTop = doc.y;
+
+  if (hasBanner) {
+    const imgX = left + metaWidth + gap;
+    try {
+      doc.image(imageBuffer, imgX, blockTop, {
+        fit: [bannerWidth, bannerHeight],
+        align: 'right',
+        valign: 'top',
+      });
+    } catch {
+      /* skip invalid image bytes */
+    }
   }
 
-  const rows = [];
-  for (let i = 0; i < cells.length; i += 3) {
-    rows.push(cells.slice(i, i + 3));
-  }
-
-  rows.forEach((row) => {
-    breakIfTight(doc, 34);
-    const y = doc.y;
-    row.forEach((cell, i) => {
-      if (!cell[0]) return;
-      const x = left + i * col;
+  for (let i = 0; i < cells.length; i += metaCols) {
+    const y = blockTop + Math.floor(i / metaCols) * rowHeight;
+    for (let c = 0; c < metaCols; c += 1) {
+      const cell = cells[i + c];
+      if (!cell) continue;
+      const x = left + c * colW;
       doc.fillColor(COLORS.muted).font('Helvetica').fontSize(7).text(String(cell[0]).toUpperCase(), x, y, {
-        width: col - 10,
+        width: colW - 12,
         characterSpacing: 0.6,
         lineBreak: false,
       });
       doc.fillColor(COLORS.stone).font('Helvetica-Bold').fontSize(9).text(String(cell[1]), x, y + 11, {
-        width: col - 10,
+        width: colW - 12,
         lineBreak: false,
         ellipsis: true,
       });
-    });
-    resetCursor(doc, y + 34);
-  });
+    }
+  }
 
+  resetCursor(doc, blockTop + blockHeight + 10);
   doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor(COLORS.line).lineWidth(0.8).stroke();
   doc.moveDown(0.6);
 }
@@ -648,14 +652,13 @@ async function buildItineraryPdf(adventure, options = {}) {
 
       // Page numbers stamped after layout is complete.
       drawHeaderBar(doc, adventure, audience, dateContext);
-      drawBannerImage(doc, bannerBuffer);
       if (departureDate && dateContext) {
         paragraph(
           doc,
           'Your confirmed departure and event dates are shown at the top of this PDF. Day-by-day timings below use your departure date.'
         );
       }
-      drawMetaGrid(doc, adventure);
+      drawMetaWithBanner(doc, adventure, bannerBuffer);
 
       if (adventure.description) {
         sectionTitle(doc, 'About this adventure');
