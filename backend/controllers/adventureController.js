@@ -315,6 +315,9 @@ const createAdventure = async (req, res) => {
             }
             adventureData.available_dates = normalized;
         }
+        if (adventureData.meal_options !== undefined) {
+            adventureData.meal_options = safeJsonParse(adventureData.meal_options, []);
+        }
 
         applyBrochureFields(adventureData);
 
@@ -426,6 +429,9 @@ const updateAdventure = async (req, res) => {
                 adventureData.available_dates = normalizeAvailableDates(parsed);
             }
         }
+        if (adventureData.meal_options !== undefined) {
+            adventureData.meal_options = safeJsonParse(adventureData.meal_options, []);
+        }
 
         applyBrochureFields(adventureData);
 
@@ -494,7 +500,12 @@ const updateAdventure = async (req, res) => {
         });
     } catch (error) {
         logger.error('Error updating adventure:', error);
-        const message = error?.message || 'Failed to update adventure';
+        let message = error?.message || 'Failed to update adventure';
+        if (/ArgumentValidationError|does not match validator/i.test(message)) {
+            message =
+                'Could not save adventure — one or more fields have an invalid format (often itinerary or meal options). '
+                + 'Please review the day-by-day itinerary and try again.';
+        }
         res.status(500).json({ success: false, message });
     }
 };

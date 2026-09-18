@@ -46,22 +46,22 @@ function normalizeSchedule(schedule) {
   if (!Array.isArray(schedule)) return undefined;
   const rows = schedule
     .map((row) => ({
-      time: String(row?.time ?? '').trim(),
-      activity: String(row?.activity ?? '').trim(),
+      time: String(row?.time ?? row?.Time ?? '').trim(),
+      activity: String(row?.activity ?? row?.Activity ?? '').trim(),
     }))
     .filter((row) => row.time || row.activity);
   return rows.length ? rows : undefined;
 }
 
 function normalizeItinerary(itinerary) {
-  if (!Array.isArray(itinerary)) return itinerary;
+  if (!Array.isArray(itinerary)) return [];
   return itinerary.map((day, index) => {
-    const parsed = typeof day?.day === 'string' ? parseInt(day.day, 10) : Number(day?.day);
+    const parsed = typeof day?.day === 'string' ? parseInt(day.day, 10) : Number(day?.day ?? day?.Day);
     const dayNum = Number.isFinite(parsed) && parsed >= 0 ? parsed : index + 1;
     const out = {
       day: dayNum,
-      title: String(day?.title ?? ''),
-      description: String(day?.description ?? ''),
+      title: String(day?.title ?? day?.Title ?? ''),
+      description: String(day?.description ?? day?.Description ?? ''),
     };
     const schedule = normalizeSchedule(day?.schedule);
     if (schedule) out.schedule = schedule;

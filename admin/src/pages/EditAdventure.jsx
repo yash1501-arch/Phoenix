@@ -28,6 +28,7 @@ import { cloneDefaultTourPricingOptions } from '../utils/tourPricingDefaults';
 import ItineraryEditor from '../components/ItineraryEditor';
 import MealOptionsField from '../components/MealOptionsField';
 import { normalizeDepartureCities, inferDepartureCities } from '../utils/departureCities';
+import { normalizeItineraryDays } from '../utils/normalizeItinerary';
 import './AddAdventure.css'; // Reusing the same styles
 
 const EditAdventure = () => {
@@ -99,7 +100,8 @@ const EditAdventure = () => {
             // Ensure JSON fields are parsed if they come as strings
             const included = typeof adventure.included === 'string' ? JSON.parse(adventure.included) : adventure.included;
             const excluded = typeof adventure.excluded === 'string' ? JSON.parse(adventure.excluded) : adventure.excluded;
-            const itinerary = typeof adventure.itinerary === 'string' ? JSON.parse(adventure.itinerary) : adventure.itinerary;
+            let itinerary = typeof adventure.itinerary === 'string' ? JSON.parse(adventure.itinerary) : adventure.itinerary;
+            itinerary = normalizeItineraryDays(itinerary);
 
             let imagePreview = getImageUrl(adventure.image_url);
 
@@ -432,7 +434,7 @@ const EditAdventure = () => {
             submitData.append('dos', JSON.stringify(formData.dos || []));
             submitData.append('donts', JSON.stringify(formData.donts || []));
             submitData.append('trek_guidelines', JSON.stringify(formData.trek_guidelines || []));
-            submitData.append('itinerary', JSON.stringify(formData.itinerary));
+            submitData.append('itinerary', JSON.stringify(normalizeItineraryDays(formData.itinerary)));
             submitData.append('available_dates', JSON.stringify(formData.available_dates));
             submitData.append('event_day_offset', String(formData.event_day_offset ?? 1));
             submitData.append('meal_options', JSON.stringify(formData.meal_options || []));
@@ -715,9 +717,13 @@ const EditAdventure = () => {
                     />
                 )}
 
-                {/* Image Upload */}
+                {/* Banner image — hero, cards, social share */}
                 <div className="form-section">
-                    <h2 className="section-title">Main Adventure Image</h2>
+                    <h2 className="section-title">Banner image</h2>
+                    <p className="form-help section-help">
+                        This is the main hero image on the website and the picture shown when you share the trek link on WhatsApp or social media.
+                        Keep it open while you enter the itinerary below as a visual reference.
+                    </p>
 
                     <div className="image-upload-area">
                         {formData.imagePreview ? (
@@ -737,7 +743,7 @@ const EditAdventure = () => {
                                 onClick={() => imageInputRef.current?.click()}
                             >
                                 <ImageIcon size={48} />
-                                <p>Click to upload main image</p>
+                                <p>Click to upload banner image</p>
                                 <span>All image formats supported up to 15MB</span>
                             </div>
                         )}
@@ -973,7 +979,7 @@ const EditAdventure = () => {
                         <div>
                             <h2 className="section-title" style={{ marginBottom: '0.35rem' }}>Itinerary</h2>
                             <p className="form-help section-help" style={{ marginBottom: 0 }}>
-                                Add or edit each day below (PDF import may only fill basics). Download a customer itinerary PDF anytime.
+                                Enter the day-by-day plan here. Use your brochure PDF import or the banner image above as reference while you type.
                             </p>
                         </div>
                         <button
@@ -998,11 +1004,49 @@ const EditAdventure = () => {
                         </button>
                     </div>
 
-                    <div style={{ marginTop: '1rem' }}>
+                    <div
+                        className="itinerary-with-reference"
+                        style={{
+                            marginTop: '1rem',
+                            display: 'grid',
+                            gridTemplateColumns: formData.imagePreview ? 'minmax(0, 1fr) 220px' : '1fr',
+                            gap: '1.25rem',
+                            alignItems: 'start',
+                        }}
+                    >
                         <ItineraryEditor
                             value={formData.itinerary}
                             onChange={(itinerary) => setFormData((prev) => ({ ...prev, itinerary }))}
+                            variant={
+                                formData.category === 'camping'
+                                    ? 'camping'
+                                    : formData.category === 'tour'
+                                      ? 'tour'
+                                      : 'trek'
+                            }
                         />
+                        {formData.imagePreview && (
+                            <aside
+                                className="itinerary-banner-reference"
+                                style={{
+                                    position: 'sticky',
+                                    top: '1rem',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    border: '1px solid var(--border, #e5e7eb)',
+                                    background: 'var(--surface-muted, #f8faf9)',
+                                }}
+                            >
+                                <img
+                                    src={formData.imagePreview}
+                                    alt="Banner reference"
+                                    style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '280px', objectFit: 'cover' }}
+                                />
+                                <p style={{ padding: '0.65rem 0.75rem', margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    Banner reference — same image customers see on the trek page and share previews.
+                                </p>
+                            </aside>
+                        )}
                     </div>
                 </div>
 

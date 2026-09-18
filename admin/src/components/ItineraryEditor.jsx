@@ -83,7 +83,9 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
     updateDay(dayIndex, { schedule: schedule.length ? schedule : [emptyScheduleRow()] });
   };
 
-  const sortedDays = [...days].sort((a, b) => Number(a.day) - Number(b.day));
+  const sortedDays = days
+    .map((day, index) => ({ day, index }))
+    .sort((a, b) => Number(a.day.day) - Number(b.day.day));
 
   return (
     <div className="itinerary-input-section">
@@ -94,8 +96,7 @@ const ItineraryEditor = ({ value = [], onChange, variant }) => {
             : 'Add Day 0 for pickup/departure, then each day of the tour with timed schedule and stay.'}
         </p>
       ) : (
-        sortedDays.map((day) => {
-          const index = days.indexOf(day);
+        sortedDays.map(({ day, index }) => {
           const isPickup = Number(day.day) === 0;
           return (
           <div key={`${day.day}-${index}`} className="itinerary-day">
