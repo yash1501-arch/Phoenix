@@ -69,7 +69,7 @@ const Adventures = () => {
             toast.success('Itinerary PDF downloaded', { id: tid });
         } catch (error) {
             console.error(error);
-            toast.error(error.response?.data?.message || 'Could not download itinerary PDF', { id: tid });
+            toast.error(error.message || error.response?.data?.message || 'Could not download itinerary PDF', { id: tid });
         }
     };
 

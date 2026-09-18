@@ -647,12 +647,19 @@ const downloadItineraryPdf = async (req, res) => {
           departureDate: previewDeparture,
         });
 
+        if (!buffer || !Buffer.isBuffer(buffer) || buffer.length < 100) {
+            return res.status(500).json({
+                success: false,
+                message: 'PDF generation produced an empty file',
+            });
+        }
+
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Length', buffer.length);
         return res.send(buffer);
     } catch (error) {
-        logger.error('Error generating itinerary PDF:', error);
+        logger.error('Error generating itinerary PDF:', error?.stack || error);
         return res.status(500).json({
             success: false,
             message: error.message || 'Failed to generate itinerary PDF',

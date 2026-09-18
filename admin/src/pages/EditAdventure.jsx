@@ -1005,7 +1005,7 @@ const EditAdventure = () => {
                                     await downloadItineraryPdf(id, formData.title);
                                     toast.success('Itinerary PDF downloaded', { id: tid });
                                 } catch (err) {
-                                    toast.error(err.response?.data?.message || 'Could not download itinerary PDF', { id: tid });
+                                    toast.error(err.message || err.response?.data?.message || 'Could not download itinerary PDF', { id: tid });
                                 } finally {
                                     setPdfDownloading(false);
                                 }

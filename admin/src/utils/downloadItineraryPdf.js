@@ -5,13 +5,19 @@ async function messageFromBlobError(error) {
   if (data instanceof Blob) {
     try {
       const text = await data.text();
-      const parsed = JSON.parse(text);
-      return parsed.message || text;
+      try {
+        const parsed = JSON.parse(text);
+        return parsed.message || text;
+      } catch {
+        return text.trim().slice(0, 300) || 'Could not download itinerary PDF';
+      }
     } catch {
       return 'Could not download itinerary PDF';
     }
   }
-  return error?.response?.data?.message || error?.message || 'Could not download itinerary PDF';
+  if (error?.response?.data?.message) return error.response.data.message;
+  if (error?.message) return error.message;
+  return 'Could not download itinerary PDF';
 }
 
 async function fetchItineraryPdfBlob(adventureId) {
@@ -27,7 +33,20 @@ async function fetchItineraryPdfBlob(adventureId) {
     try {
       message = JSON.parse(text).message || message;
     } catch {
-      /* ignore */
+      if (text.trim()) message = text.trim().slice(0, 300);
+    }
+    throw new Error(message);
+  }
+
+  const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  const isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
+  if (!isPdf) {
+    const text = await blob.text();
+    let message = 'Server did not return a valid PDF';
+    try {
+      message = JSON.parse(text).message || message;
+    } catch {
+      if (text.trim()) message = text.trim().slice(0, 300);
     }
     throw new Error(message);
   }

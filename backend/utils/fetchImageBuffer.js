@@ -14,7 +14,7 @@ function fetchImageBuffer(url) {
     const lib = abs.startsWith('https') ? https : http;
     const req = lib.get(
       abs,
-      { timeout: 12000, headers: { 'User-Agent': 'Phoenix-Adventures-PDF/1.0' } },
+      { timeout: 5000, headers: { 'User-Agent': 'Phoenix-Adventures-PDF/1.0' } },
       (res) => {
         const follow = (location) => {
           if (!location) return resolve(null);

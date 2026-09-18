@@ -488,13 +488,17 @@ function drawDayCard(doc, day, index, total, departureDate = null) {
     doc.moveDown(0.45);
   }
 
-  if (day.schedule.length) {
+  const schedule = Array.isArray(day.schedule) ? day.schedule : [];
+  const activities = Array.isArray(day.activities) ? day.activities : [];
+  const meals = Array.isArray(day.meals) ? day.meals : [];
+
+  if (schedule.length) {
     breakIfTight(doc, 20);
     resetCursor(doc);
     doc.fillColor(COLORS.moss).font('Helvetica-Bold').fontSize(8.5).text('SCHEDULE', left, doc.y, { width });
     resetCursor(doc);
     doc.moveDown(0.25);
-    day.schedule.forEach((row) => {
+    schedule.forEach((row) => {
       breakIfTight(doc, 14);
       const y = doc.y;
       const timeLabel = row.time || '—';
@@ -512,22 +516,22 @@ function drawDayCard(doc, day, index, total, departureDate = null) {
     doc.moveDown(0.3);
   }
 
-  if (day.activities.length) {
+  if (activities.length) {
     breakIfTight(doc, 20);
     resetCursor(doc);
     doc.fillColor(COLORS.moss).font('Helvetica-Bold').fontSize(8.5).text('ACTIVITIES', left, doc.y, { width });
     resetCursor(doc);
     doc.moveDown(0.2);
-    bulletList(doc, day.activities);
+    bulletList(doc, activities);
   }
 
-  if (day.meals.length) {
+  if (meals.length) {
     breakIfTight(doc, 18);
     resetCursor(doc);
     doc.fillColor(COLORS.moss).font('Helvetica-Bold').fontSize(8.5).text('MEALS', left, doc.y, { width });
     resetCursor(doc);
     doc.moveDown(0.15);
-    doc.fillColor(COLORS.stone).font('Helvetica').fontSize(9).text(day.meals.join('  ·  '), left, doc.y, { width });
+    doc.fillColor(COLORS.stone).font('Helvetica').fontSize(9).text(meals.join('  ·  '), left, doc.y, { width });
     resetCursor(doc);
     doc.moveDown(0.45);
   }
@@ -608,7 +612,15 @@ async function buildItineraryPdf(adventure, options = {}) {
     : null;
 
   const bannerUrl = resolveAdventureBannerUrl(adventure);
-  const bannerBuffer = await fetchImageBuffer(bannerUrl);
+  let bannerBuffer = null;
+  try {
+    bannerBuffer = await Promise.race([
+      fetchImageBuffer(bannerUrl),
+      new Promise((resolve) => setTimeout(() => resolve(null), 4500)),
+    ]);
+  } catch {
+    bannerBuffer = null;
+  }
 
   return new Promise((resolve, reject) => {
     try {
