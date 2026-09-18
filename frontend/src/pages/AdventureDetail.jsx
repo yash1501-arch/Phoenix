@@ -629,7 +629,7 @@ const AdventureDetail = () => {
 
                     {parsedItinerary.length > 0 && (
                         <Reveal variant="slideLeft" as="section">
-                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Day-by-day itinerary</h2>
+                            <h2 className="font-display text-2xl font-semibold text-stone mb-4">Itinerary only</h2>
                             {availableDates.length > 1 && (
                                 <div className="mb-4">
                                     <label className="text-sm font-semibold text-stone block mb-2">Preview dates for departure</label>
