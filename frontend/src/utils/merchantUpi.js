@@ -28,13 +28,39 @@ export async function verifyMerchantQr(url = UPI_QR_SRC) {
     return toHex(digest) === UPI_QR_SHA256;
 }
 
-export function merchantUpiLink({ amount, note }) {
-    const params = new URLSearchParams({
+/** Encoded upi:// query string shared by all app schemes. */
+function buildUpiQuery({ amount, note }) {
+    const params = {
         pa: MERCHANT_UPI_ID,
         pn: MERCHANT_PAYEE_NAME,
         am: Number(amount).toFixed(2),
         cu: 'INR',
         tn: String(note || ''),
-    });
-    return `upi://pay?${params.toString()}`;
+    };
+    // encodeURIComponent, not URLSearchParams: form-encoding turns spaces into
+    // '+' and several UPI apps (notably Google Pay) mis-parse pn/tn with '+'.
+    return Object.entries(params)
+        .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+        .join('&');
+}
+
+export function merchantUpiLink(options) {
+    return `upi://pay?${buildUpiQuery(options)}`;
+}
+
+/**
+ * Per-app UPI intent links.
+ * Google Pay frequently refuses generic `upi://` intents opened from a browser
+ * ("Unable to make the payment at this moment") as an anti-fraud measure,
+ * especially to person VPAs. Each app's own scheme is far more reliable;
+ * `upi://pay` stays as the generic fallback for other UPI apps.
+ */
+export function upiAppLinks(options) {
+    const qs = buildUpiQuery(options);
+    return [
+        { label: 'Google Pay', href: `tez://upi/pay?${qs}` },
+        { label: 'PhonePe', href: `phonepe://pay?${qs}` },
+        { label: 'Paytm', href: `paytmmp://pay?${qs}` },
+        { label: 'Other UPI app', href: `upi://pay?${qs}` },
+    ];
 }

@@ -16,7 +16,7 @@ import {
     MERCHANT_PAYEE_NAME,
     MERCHANT_UPI_ID,
     UPI_QR_SRC,
-    merchantUpiLink,
+    upiAppLinks,
     verifyMerchantQr,
 } from '../utils/merchantUpi';
 
@@ -240,7 +240,7 @@ const BookingPayment = () => {
     const upiId = MERCHANT_UPI_ID;
     const payeeName = MERCHANT_PAYEE_NAME;
     const holdMinutes = upi.hold_minutes || 15;
-    const upiAppLink = merchantUpiLink({
+    const upiLinks = upiAppLinks({
         amount: data?.pay_balance
             ? Number(data.upi_amount ?? data?.booking?.balance_due ?? 0)
             : Number(data?.booking?.amount || 0),
@@ -583,9 +583,23 @@ const BookingPayment = () => {
                                         <p className="text-xs text-muted mt-1.5">UPI — {payeeName}{upiId ? ` · ${upiId}` : ''}</p>
                                     </div>
 
-                                    <a href={upiAppLink} className="btn btn-primary w-full inline-flex items-center justify-center gap-2">
-                                        <ExternalLink size={16} /> Open UPI App
-                                    </a>
+                                    <div className="space-y-2">
+                                        <p className="meta mb-0.5">Open your UPI app</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {upiLinks.map((app) => (
+                                                <a
+                                                    key={app.href}
+                                                    href={app.href}
+                                                    className="btn btn-outline !px-3 !py-2 text-sm inline-flex items-center justify-center gap-1.5"
+                                                >
+                                                    <ExternalLink size={14} /> {app.label}
+                                                </a>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-muted mt-1">
+                                            Pick the app you pay with. If it doesn&apos;t open, install it or use the QR / Copy UPI ID.
+                                        </p>
+                                    </div>
 
                                     <div className="text-xs text-muted space-y-1 bg-mist-subtle rounded-lg p-3 border border-stone/10">
                                         <p className="font-semibold text-stone mb-1">Payment instructions</p>

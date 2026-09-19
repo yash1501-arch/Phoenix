@@ -175,7 +175,6 @@ const AddTourAdventure = () => {
             fd.append('pricing_options', JSON.stringify(form.pricing_options || []));
             // Tour forms don't use things_to_carry / dos / donts — send empty
             fd.append('things_to_carry', JSON.stringify([]));
-            fd.append('pickup_mumbai', JSON.stringify(form.pickup_mumbai));
             fd.append('dos', JSON.stringify([]));
             fd.append('donts', JSON.stringify([]));
             fd.append('trek_guidelines', JSON.stringify([]));

@@ -58,7 +58,8 @@ function asItinerary(value) {
 function money(n) {
   const v = Number(n);
   if (!Number.isFinite(v)) return '—';
-  return `\u20B9${v.toLocaleString('en-IN')}`;
+  // PDFKit's standard Helvetica fonts (WinAnsi) have no ₹ glyph — it renders as '¹'.
+  return `Rs. ${v.toLocaleString('en-IN')}`;
 }
 
 function isTour(adventure) {
@@ -68,7 +69,7 @@ function isTour(adventure) {
 function coachChoiceLabel(choice) {
   const extra = Math.max(0, Number(choice?.extra_per_person) || 0);
   const label = choice?.label || choice?.id || 'Option';
-  return extra > 0 ? `${label} (+\u20B9${extra.toLocaleString('en-IN')} / person)` : `${label} (included)`;
+  return extra > 0 ? `${label} (+Rs. ${extra.toLocaleString('en-IN')} / person)` : `${label} (included)`;
 }
 
 function tourPricingNotes(adventure) {
