@@ -597,7 +597,7 @@ const BookingPayment = () => {
                                             ))}
                                         </div>
                                         <p className="text-xs text-muted mt-1">
-                                            Pick the app you pay with. If it doesn&apos;t open, install it or use the QR / Copy UPI ID.
+                                            Pick the app you pay with. Your UPI app will show the account holder&apos;s registered name for this UPI ID — that is normal. Verify the UPI ID, pay, and we confirm from our bank statement.
                                         </p>
                                     </div>
 

@@ -32,13 +32,19 @@ export async function verifyMerchantQr(url = UPI_QR_SRC) {
 function buildUpiQuery({ amount, note }) {
     const params = {
         pa: MERCHANT_UPI_ID,
-        pn: MERCHANT_PAYEE_NAME,
+        // NOTE: `pn` is deliberately omitted. It is optional per the NPCI UPI
+        // Link spec; when sent, the receiver's bank cross-checks it against the
+        // name actually registered on the VPA. Our business name does not match
+        // the personal name registered on this SBI VPA, and SBI declines such
+        // payments with "Transactions to this account not permitted by the
+        // receiver's bank". Omitting pn makes the payer's app resolve and show
+        // the true registered name instead.
         am: Number(amount).toFixed(2),
         cu: 'INR',
         tn: String(note || ''),
     };
     // encodeURIComponent, not URLSearchParams: form-encoding turns spaces into
-    // '+' and several UPI apps (notably Google Pay) mis-parse pn/tn with '+'.
+    // '+' and several UPI apps (notably Google Pay) mis-parse values with '+'.
     return Object.entries(params)
         .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
         .join('&');
