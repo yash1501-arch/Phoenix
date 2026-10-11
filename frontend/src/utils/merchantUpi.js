@@ -6,6 +6,12 @@
  */
 export const MERCHANT_UPI_ID = '9372506447@sbi';
 export const MERCHANT_PAYEE_NAME = 'PHEONIX ADVENTURES LLP';
+/**
+ * Merchant category from the signed SBI QR (4722 = travel agencies).
+ * SBI declines intent payments that omit it, after the UPI PIN, with
+ * "not permitted by the receiver's bank".
+ */
+export const MERCHANT_CATEGORY_CODE = '4722';
 export const UPI_QR_SRC = '/upi-merchant-qr.png';
 
 /** SHA-256 of frontend/public/upi-merchant-qr.png (bytes as deployed). */
@@ -28,20 +34,29 @@ export async function verifyMerchantQr(url = UPI_QR_SRC) {
     return toHex(digest) === UPI_QR_SHA256;
 }
 
-/** Encoded upi:// query string shared by all app schemes. */
+/** Merchant txn ref: alphanumeric plus hyphen, 35 chars (NPCI `tr`). */
+function merchantRef(note) {
+    const ref = String(note || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 35);
+    return ref || 'PHX';
+}
+
+/**
+ * Encoded upi:// query string shared by all app schemes.
+ * Must match the signed SBI merchant QR: pa, pn, and mc=4722.
+ * Do not copy mode=02 / orgid / sign from that QR — the signature is bound
+ * to an empty amount, and reusing it with a real amount is rejected.
+ */
 function buildUpiQuery({ amount, note }) {
+    const ref = merchantRef(note);
     const params = {
         pa: MERCHANT_UPI_ID,
-        // NOTE: `pn` is deliberately omitted. It is optional per the NPCI UPI
-        // Link spec; when sent, the receiver's bank cross-checks it against the
-        // name actually registered on the VPA. Our business name does not match
-        // the personal name registered on this SBI VPA, and SBI declines such
-        // payments with "Transactions to this account not permitted by the
-        // receiver's bank". Omitting pn makes the payer's app resolve and show
-        // the true registered name instead.
+        pn: MERCHANT_PAYEE_NAME,
+        mc: MERCHANT_CATEGORY_CODE,
+        tr: ref,
+        tn: ref,
         am: Number(amount).toFixed(2),
         cu: 'INR',
-        tn: String(note || ''),
+        purpose: '00',
     };
     // encodeURIComponent, not URLSearchParams: form-encoding turns spaces into
     // '+' and several UPI apps (notably Google Pay) mis-parse values with '+'.

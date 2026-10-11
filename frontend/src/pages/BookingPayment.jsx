@@ -597,7 +597,7 @@ const BookingPayment = () => {
                                             ))}
                                         </div>
                                         <p className="text-xs text-muted mt-1">
-                                            Pick the app you pay with. Your UPI app will show the account holder&apos;s registered name for this UPI ID — that is normal. Verify the UPI ID, pay, and we confirm from our bank statement.
+                                            Pick the app you pay with. The payee must be <strong className="text-stone">{payeeName}</strong> and the UPI ID <strong className="font-mono text-stone">{upiId}</strong>. Cancel the payment if either is different.
                                         </p>
                                     </div>
 
