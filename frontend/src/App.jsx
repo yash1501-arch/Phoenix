@@ -41,6 +41,7 @@ import Wishlist from './pages/Wishlist';
 import SearchResults from './pages/SearchResults';
 import BookingPayment from './pages/BookingPayment';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import MaintenanceGate from './components/MaintenanceGate';
 import VisitTracker from './components/VisitTracker';
 
@@ -52,6 +53,7 @@ function App() {
         <ScrollProgress />
         <VisitTracker />
         <Analytics />
+        <SpeedInsights />
         <Toaster
           position="top-center"
           toastOptions={{
