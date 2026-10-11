@@ -194,8 +194,9 @@ const BookingModal = ({ adventure, onClose }) => {
             toast.error(openCheck.reason || 'Bookings are closed for this departure');
             return;
         }
-        if (!form.customer_phone || String(form.customer_phone).replace(/\D/g, '').length < 10) {
-            toast.error('WhatsApp number is required for booking confirmation');
+        const primaryPhone = String(participants[0]?.phone || '').trim();
+        if (!primaryPhone || primaryPhone.replace(/\D/g, '').length < 10) {
+            toast.error('Your contact number is required for booking confirmation');
             return;
         }
         if (!form.emergency_contact || String(form.emergency_contact).replace(/\D/g, '').length < 10) {
@@ -241,7 +242,7 @@ const BookingModal = ({ adventure, onClose }) => {
                 adventure_id: adventure._id || adventure.id,
                 adventure_date: form.adventure_date,
                 number_of_seats: form.number_of_seats,
-                customer_phone: form.customer_phone.trim(),
+                customer_phone: primaryPhone,
                 emergency_contact: form.emergency_contact.trim(),
                 payment_preference: paymentPreference,
                 ...(form.discount_code.trim()
@@ -282,14 +283,14 @@ const BookingModal = ({ adventure, onClose }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-panel/60 backdrop-blur-sm"
+                className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-panel/60 backdrop-blur-sm"
                 onClick={onClose}
             >
                 <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 40 }}
-                    className="bg-mist w-full max-w-md rounded-lg shadow-lift overflow-hidden max-h-[92vh] flex flex-col"
+                    className="bg-mist w-full max-w-md rounded-t-lg sm:rounded-lg shadow-lift overflow-hidden max-h-[100dvh] sm:max-h-[92vh] flex flex-col"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="bg-panel text-cream px-6 py-5 flex items-start justify-between shrink-0">
@@ -302,7 +303,8 @@ const BookingModal = ({ adventure, onClose }) => {
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
+                    <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+                    <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
                         <div>
                             <label className="meta flex items-center gap-1.5 mb-2">
                                 <Calendar size={14} /> Departure Date
@@ -399,27 +401,6 @@ const BookingModal = ({ adventure, onClose }) => {
 
                         <div>
                             <label className="meta flex items-center gap-1.5 mb-2">
-                                <Phone size={14} /> WhatsApp number (primary contact)
-                            </label>
-                            <input
-                                type="tel"
-                                required
-                                className="input w-full"
-                                placeholder="+91 98765 43210"
-                                value={form.customer_phone}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setForm({ ...form, customer_phone: value });
-                                    updateParticipant(0, 'phone', value);
-                                }}
-                            />
-                            <p className="text-xs text-muted mt-1.5">
-                                We&apos;ll send your booking confirmation on WhatsApp.
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="meta flex items-center gap-1.5 mb-2">
                                 <Phone size={14} /> Emergency contact number *
                             </label>
                             <input
@@ -466,6 +447,11 @@ const BookingModal = ({ adventure, onClose }) => {
                                                 onChange={(e) => updateParticipant(index, 'phone', e.target.value)}
                                                 placeholder="+91 98765 43210"
                                             />
+                                            {index === 0 && (
+                                                <p className="text-xs text-muted mt-1.5">
+                                                    Booking confirmation goes to this number.
+                                                </p>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="meta flex items-center gap-1.5 mb-1.5">
@@ -669,13 +655,19 @@ const BookingModal = ({ adventure, onClose }) => {
                             </p>
                         </div>
 
+                    </div>
+                        <div
+                            className="shrink-0 border-t border-stone/10 bg-mist px-6 pt-4"
+                            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+                        >
                         <button
                             type="submit"
                             disabled={loading || !form.adventure_date || tripPrice <= 0 || pickupOptions.length === 0 || !windowStatus.open}
                             className="btn btn-primary w-full"
                         >
-                            {loading ? 'Loading...' : !windowStatus.open ? 'Bookings closed' : 'Proceed to Payment'}
+                            {loading ? 'Loading...' : !windowStatus.open ? 'Bookings closed' : 'Reserve seats'}
                         </button>
+                        </div>
                     </form>
                 </motion.div>
             </motion.div>

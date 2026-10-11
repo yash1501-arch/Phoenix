@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -399,6 +400,11 @@ const AdventureDetail = () => {
     const [showBooking, setShowBooking] = useState(false);
     const [related, setRelated] = useState([]);
     const [selectedItineraryDate, setSelectedItineraryDate] = useState(null);
+
+    useEffect(() => {
+        document.body.classList.add('has-mobile-book');
+        return () => document.body.classList.remove('has-mobile-book');
+    }, []);
 
     const handleBook = () => {
         if (!isAuthenticated) {
@@ -954,6 +960,22 @@ const AdventureDetail = () => {
                 </div>
             </div>
             </motion.div>
+        <div className="h-20 lg:hidden" aria-hidden="true" />
+        {!showBooking && createPortal(
+            <div className="mobile-book-bar lg:hidden flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-cream/50">Per person</p>
+                    <p className="font-display text-xl text-cream font-semibold leading-none">
+                        ₹{Number(adventure.price || 0).toLocaleString('en-IN')}
+                    </p>
+                </div>
+                <button type="button" onClick={handleBook} className="btn btn-primary shrink-0 !px-5 !py-3">
+                    <CalendarCheck size={18} />
+                    Reserve seats
+                </button>
+            </div>,
+            document.body,
+        )}
         <Footer />
 
             {/* Lightbox */}
