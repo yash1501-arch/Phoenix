@@ -1,37 +1,20 @@
 /** Canonical checkout destination. Ignore admin settings for pa / payee. */
 const MERCHANT_UPI_ID = '9372506447@sbi';
 const MERCHANT_PAYEE_NAME = 'PHEONIX ADVENTURES LLP';
-/** MCC on the signed SBI merchant QR. Required or SBI declines after UPI PIN. */
-const MERCHANT_CATEGORY_CODE = '4722';
 
-function merchantRef(note) {
-  const ref = String(note || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 35);
-  return ref || 'PHX';
-}
+/** Signed SBI static QR payload. Amount is intentionally empty. */
+const SIGNED_UPI_QUERY_PREFIX =
+  'pa=9372506447@sbi&pn=PHEONIX%20ADVENTURES%20LLP&mc=4722&tr=&tn=&am=&cu=INR&url=&mode=02&purpose=00&orgid=159002';
+const SIGNED_UPI_SIGN =
+  'MEUCIQDJuD9woLyf7xFhQNLxBF1lpuk2r0QCWGqJV/h7s9z/BwIgMsp+5Ot1HtK4Kz65LdkeW7J3ry+2YtpPUG3JEDGGMfw=';
 
 /**
- * Generate a UPI deep link for manual payments.
- * pa / pn / mc match the signed SBI merchant QR — not caller-supplied IDs.
- * The QR signature itself is not copied; it only covers an empty amount.
- * @param {{ amount: number, note: string }} params
+ * UPI link for the signed SBI merchant QR.
+ * Do not append an amount: SBI declines those credits after the UPI PIN.
+ * Amount and note stay on the website; this link cannot carry them.
  */
-function generateUpiLink({ amount, note }) {
-  const ref = merchantRef(note);
-  const params = {
-    pa: MERCHANT_UPI_ID,
-    pn: MERCHANT_PAYEE_NAME,
-    mc: MERCHANT_CATEGORY_CODE,
-    tr: ref,
-    tn: ref,
-    am: Number(amount).toFixed(2),
-    cu: 'INR',
-    purpose: '00',
-  };
-  // encodeURIComponent, not URLSearchParams: form-encoding turns spaces into
-  // '+' and several UPI apps (notably Google Pay) mis-parse values with '+'.
-  const qs = Object.entries(params)
-    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
-    .join('&');
+function generateUpiLink() {
+  const qs = `${SIGNED_UPI_QUERY_PREFIX}&sign=${encodeURIComponent(SIGNED_UPI_SIGN)}`;
   return `upi://pay?${qs}`;
 }
 

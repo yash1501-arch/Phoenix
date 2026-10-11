@@ -6,13 +6,21 @@
  */
 export const MERCHANT_UPI_ID = '9372506447@sbi';
 export const MERCHANT_PAYEE_NAME = 'PHEONIX ADVENTURES LLP';
-/**
- * Merchant category from the signed SBI QR (4722 = travel agencies).
- * SBI declines intent payments that omit it, after the UPI PIN, with
- * "not permitted by the receiver's bank".
- */
+/** MCC on the signed SBI QR (4722 = travel agencies). */
 export const MERCHANT_CATEGORY_CODE = '4722';
 export const UPI_QR_SRC = '/upi-merchant-qr.png';
+
+/**
+ * Query string inside the signed SBI static QR (mode=02), excluding `sign`.
+ * SBI rejects website links that put an amount on this VPA
+ * ("Receiver's bank does not allow payments to this bank account").
+ * The signature covers this exact string, including the empty amount.
+ */
+const SIGNED_UPI_QUERY_PREFIX =
+    'pa=9372506447@sbi&pn=PHEONIX%20ADVENTURES%20LLP&mc=4722&tr=&tn=&am=&cu=INR&url=&mode=02&purpose=00&orgid=159002';
+/** Base64 signature from that QR. Do not alter the prefix above. */
+const SIGNED_UPI_SIGN =
+    'MEUCIQDJuD9woLyf7xFhQNLxBF1lpuk2r0QCWGqJV/h7s9z/BwIgMsp+5Ot1HtK4Kz65LdkeW7J3ry+2YtpPUG3JEDGGMfw=';
 
 /** SHA-256 of frontend/public/upi-merchant-qr.png (bytes as deployed). */
 export const UPI_QR_SHA256 =
@@ -34,39 +42,15 @@ export async function verifyMerchantQr(url = UPI_QR_SRC) {
     return toHex(digest) === UPI_QR_SHA256;
 }
 
-/** Merchant txn ref: alphanumeric plus hyphen, 35 chars (NPCI `tr`). */
-function merchantRef(note) {
-    const ref = String(note || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 35);
-    return ref || 'PHX';
+/** Exact signed-QR query. Amount stays blank so the UPI app asks the payer to type it. */
+function buildUpiQuery() {
+    // Encode only the signature. `+` in base64 becomes a space in some UPI apps
+    // and then SBI rejects the payment. The prefix must stay byte-for-byte.
+    return `${SIGNED_UPI_QUERY_PREFIX}&sign=${encodeURIComponent(SIGNED_UPI_SIGN)}`;
 }
 
-/**
- * Encoded upi:// query string shared by all app schemes.
- * Must match the signed SBI merchant QR: pa, pn, and mc=4722.
- * Do not copy mode=02 / orgid / sign from that QR — the signature is bound
- * to an empty amount, and reusing it with a real amount is rejected.
- */
-function buildUpiQuery({ amount, note }) {
-    const ref = merchantRef(note);
-    const params = {
-        pa: MERCHANT_UPI_ID,
-        pn: MERCHANT_PAYEE_NAME,
-        mc: MERCHANT_CATEGORY_CODE,
-        tr: ref,
-        tn: ref,
-        am: Number(amount).toFixed(2),
-        cu: 'INR',
-        purpose: '00',
-    };
-    // encodeURIComponent, not URLSearchParams: form-encoding turns spaces into
-    // '+' and several UPI apps (notably Google Pay) mis-parse values with '+'.
-    return Object.entries(params)
-        .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
-        .join('&');
-}
-
-export function merchantUpiLink(options) {
-    return `upi://pay?${buildUpiQuery(options)}`;
+export function merchantUpiLink() {
+    return `upi://pay?${buildUpiQuery()}`;
 }
 
 /**
@@ -76,8 +60,8 @@ export function merchantUpiLink(options) {
  * especially to person VPAs. Each app's own scheme is far more reliable;
  * `upi://pay` stays as the generic fallback for other UPI apps.
  */
-export function upiAppLinks(options) {
-    const qs = buildUpiQuery(options);
+export function upiAppLinks() {
+    const qs = buildUpiQuery();
     return [
         { label: 'Google Pay', href: `tez://upi/pay?${qs}` },
         { label: 'PhonePe', href: `phonepe://pay?${qs}` },

@@ -240,14 +240,7 @@ const BookingPayment = () => {
     const upiId = MERCHANT_UPI_ID;
     const payeeName = MERCHANT_PAYEE_NAME;
     const holdMinutes = upi.hold_minutes || 15;
-    const upiLinks = upiAppLinks({
-        amount: data?.pay_balance
-            ? Number(data.upi_amount ?? data?.booking?.balance_due ?? 0)
-            : Number(data?.booking?.amount || 0),
-        note: data?.pay_balance
-            ? `${data?.booking?.booking_code}-BAL`
-            : (data?.booking?.booking_code || ''),
-    });
+    const upiLinks = upiAppLinks();
     const status = booking?.booking_status;
     const payAmount = data?.pay_balance
         ? Number(data.upi_amount ?? booking?.balance_due ?? 0)
@@ -597,14 +590,14 @@ const BookingPayment = () => {
                                             ))}
                                         </div>
                                         <p className="text-xs text-muted mt-1">
-                                            Pick the app you pay with. The payee must be <strong className="text-stone">{payeeName}</strong> and the UPI ID <strong className="font-mono text-stone">{upiId}</strong>. Cancel the payment if either is different.
+                                            SBI blocks website links that already fill in the amount, and Google Pay then says the receiver&apos;s bank will refund it. These buttons open the signed merchant QR instead. Type <strong className="text-stone">₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong> yourself, and put <strong className="text-stone">{booking?.booking_code}</strong> in the note. Pay only if the name is <strong className="text-stone">{payeeName}</strong>.
                                         </p>
                                     </div>
 
                                     <div className="text-xs text-muted space-y-1 bg-mist-subtle rounded-lg p-3 border border-stone/10">
                                         <p className="font-semibold text-stone mb-1">Payment instructions</p>
-                                        <p>1. Pay exactly <strong>₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong>{payBalance ? ' remaining balance' : booking?.payment_type === 'advance' ? ' advance' : ''} to <strong>{upiId || payeeName}</strong></p>
-                                        <p>2. Put <strong>{booking?.booking_code}</strong> in the remark / note</p>
+                                        <p>1. Scan the QR, or open your UPI app above. Type exactly <strong>₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong>{payBalance ? ' remaining balance' : booking?.payment_type === 'advance' ? ' advance' : ''} — the app will not fill this in</p>
+                                        <p>2. Put <strong>{booking?.booking_code}</strong> in the remark / note. Payee must be <strong>{payeeName}</strong> ({upiId})</p>
                                         <p>3. Screenshot the success screen</p>
                                         <p>4. Submit details below for manual verification (no Razorpay fees)</p>
                                     </div>
