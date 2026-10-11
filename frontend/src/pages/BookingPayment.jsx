@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
-    Copy, Check, Upload, Clock, IndianRupee, QrCode, ExternalLink, ArrowLeft,
+    Copy, Check, Upload, Clock, IndianRupee, QrCode, ArrowLeft,
     X, ZoomIn, ZoomOut, Maximize2,
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
@@ -16,7 +16,6 @@ import {
     MERCHANT_PAYEE_NAME,
     MERCHANT_UPI_ID,
     UPI_QR_SRC,
-    upiAppLinks,
     verifyMerchantQr,
 } from '../utils/merchantUpi';
 
@@ -240,7 +239,6 @@ const BookingPayment = () => {
     const upiId = MERCHANT_UPI_ID;
     const payeeName = MERCHANT_PAYEE_NAME;
     const holdMinutes = upi.hold_minutes || 15;
-    const upiLinks = upiAppLinks();
     const status = booking?.booking_status;
     const payAmount = data?.pay_balance
         ? Number(data.upi_amount ?? booking?.balance_due ?? 0)
@@ -552,7 +550,7 @@ const BookingPayment = () => {
                                         </button>
                                     ) : (
                                         <div className="w-full max-w-[260px] rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                                            QR image could not be verified. Pay only to <strong className="font-mono">{upiId}</strong> using Copy or Open UPI App. Do not scan a QR from a screenshot or chat.
+                                            QR image could not be verified. Pay only by scanning the official QR for <strong className="font-mono">{upiId}</strong>. Do not pay a link or a QR from a chat.
                                         </div>
                                     )}
                                     <p className="text-xs text-muted mt-2 text-center">
@@ -576,31 +574,22 @@ const BookingPayment = () => {
                                         <p className="text-xs text-muted mt-1.5">UPI — {payeeName}{upiId ? ` · ${upiId}` : ''}</p>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <p className="meta mb-0.5">Open your UPI app</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {upiLinks.map((app) => (
-                                                <a
-                                                    key={app.href}
-                                                    href={app.href}
-                                                    className="btn btn-outline !px-3 !py-2 text-sm inline-flex items-center justify-center gap-1.5"
-                                                >
-                                                    <ExternalLink size={14} /> {app.label}
-                                                </a>
-                                            ))}
-                                        </div>
-                                        <p className="text-xs text-muted mt-1">
-                                            SBI blocks website links that already fill in the amount, and Google Pay then says the receiver&apos;s bank will refund it. These buttons open the signed merchant QR instead. Type <strong className="text-stone">₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong> yourself, and put <strong className="text-stone">{booking?.booking_code}</strong> in the note. Pay only if the name is <strong className="text-stone">{payeeName}</strong>.
-                                        </p>
-                                    </div>
-
                                     <div className="text-xs text-muted space-y-1 bg-mist-subtle rounded-lg p-3 border border-stone/10">
                                         <p className="font-semibold text-stone mb-1">Payment instructions</p>
-                                        <p>1. Scan the QR, or open your UPI app above. Type exactly <strong>₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong>{payBalance ? ' remaining balance' : booking?.payment_type === 'advance' ? ' advance' : ''} — the app will not fill this in</p>
-                                        <p>2. Put <strong>{booking?.booking_code}</strong> in the remark / note. Payee must be <strong>{payeeName}</strong> ({upiId})</p>
-                                        <p>3. Screenshot the success screen</p>
-                                        <p>4. Submit details below for manual verification (no Razorpay fees)</p>
+                                        <p>1. Scan the QR with Google Pay, PhonePe, or Paytm. SBI accepts this QR and declines Pay buttons that open the UPI app from the website.</p>
+                                        <p>2. On this same phone: tap Save QR, then in Google Pay choose Scan and pick that image from your gallery.</p>
+                                        <p>3. Type exactly <strong>₹{Number(payAmount || 0).toLocaleString('en-IN')}</strong>{payBalance ? ' remaining balance' : booking?.payment_type === 'advance' ? ' advance' : ''}. Put <strong>{booking?.booking_code}</strong> in the remark. Payee must be <strong>{payeeName}</strong>.</p>
+                                        <p>4. Screenshot the success screen and submit it below.</p>
                                     </div>
+                                    {qrTrusted && (
+                                        <a
+                                            href={UPI_QR_SRC}
+                                            download="phoenix-upi-qr.png"
+                                            className="btn btn-outline !px-3 !py-2 text-sm inline-flex items-center justify-center"
+                                        >
+                                            Save QR
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>
