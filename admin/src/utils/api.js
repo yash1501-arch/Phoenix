@@ -171,6 +171,14 @@ export const paymentsAdminAPI = {
 export const bookingsAdminAPI = {
     getAll: (params) => api.get('/bookings/admin/all', { params }),
     release: (bookingId, reason) => api.post(`/bookings/admin/${bookingId}/release`, { reason }),
+    getRoster: (adventureId, date) => api.get('/bookings/admin/roster', {
+        params: { adventure_id: adventureId, ...(date ? { date } : {}) },
+    }),
+    downloadRoster: (adventureId, date) => api.get('/bookings/admin/roster.xlsx', {
+        params: { adventure_id: adventureId, date },
+        responseType: 'blob',
+        timeout: 60000,
+    }),
 };
 
 export const twoFactorAPI = {

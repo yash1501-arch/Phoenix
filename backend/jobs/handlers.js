@@ -66,18 +66,25 @@ async function bookingConfirmation(payload) {
 
   const pdfExtras = await prepareItineraryPdf(confirmationDetails);
   const details = { ...confirmationDetails, ...pdfExtras };
+  const result = { email: null, whatsapp: null };
 
   if (customerEmail) {
     try {
-      await sendBookingConfirmation(
+      result.email = await sendBookingConfirmation(
         customerEmail,
         customerName,
         adventureTitle,
         details
       );
+      if (result.email?.skipped) {
+        logger.error(`Booking confirmation email skipped for ${customerEmail}: ${result.email.reason || 'unknown'}`);
+      }
     } catch (err) {
       logger.error('Job email confirmation failed:', err.message);
+      result.email = { ok: false, error: err.message };
     }
+  } else {
+    result.email = { skipped: true, reason: 'no_email' };
   }
 
   if (customerPhone) {
@@ -88,6 +95,7 @@ async function bookingConfirmation(payload) {
         adventureTitle,
         details
       );
+      result.whatsapp = waResult;
       if (waResult?.skipped) {
         logger.warn(`WhatsApp skipped: ${waResult.reason || 'unknown'}`);
       } else if (waResult && waResult.ok === false) {
@@ -95,8 +103,13 @@ async function bookingConfirmation(payload) {
       }
     } catch (err) {
       logger.error('Job WhatsApp confirmation failed:', err.message);
+      result.whatsapp = { ok: false, error: err.message };
     }
+  } else {
+    result.whatsapp = { skipped: true, reason: 'no_phone' };
   }
+
+  return result;
 }
 
 async function paymentRejected(payload) {

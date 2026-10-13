@@ -1,6 +1,6 @@
 const { getConvexClient } = require('../utils/convexClient');
 const { getSignedScreenshotUrl } = require('../utils/cloudinaryClient');
-const { enqueue, JOBS } = require('../utils/jobQueue');
+const { enqueue, runJobNow, JOBS } = require('../utils/jobQueue');
 const logger = require('../utils/logger');
 const { buildBookingItineraryPackage } = require('../utils/adventureDates');
 
@@ -178,8 +178,22 @@ exports.verify = async (req, res) => {
     };
 
     const participants = details?.booking?.participants || [];
-    const pickupSummary = participants.length
-      ? [...new Set(participants.map((p) => p.pickup_point).filter(Boolean))].join('; ')
+    const guests = (participants.length
+      ? participants
+      : [{
+          name: details?.booking?.customer_name || details?.user?.name || 'Guest',
+          phone: details?.booking?.customer_phone || details?.user?.phone || '',
+          meal_preference: '',
+          pickup_point: details?.booking?.pickup_point || '',
+        }]
+    ).map((p) => ({
+      name: p.name || 'Guest',
+      phone: p.phone || details?.booking?.customer_phone || '',
+      meal: String(p.meal_preference || '').replace(/_/g, '-'),
+      pickup: p.pickup_point || details?.booking?.pickup_point || '',
+    }));
+    const pickupSummary = guests.length
+      ? [...new Set(guests.map((p) => p.pickup).filter(Boolean))].join('; ')
       : details?.booking?.pickup_point || adv.meeting_point || adv.pickup_point;
 
     const coachLabel = (id) => {
@@ -222,6 +236,9 @@ exports.verify = async (req, res) => {
       upcomingDates: bookingPackage.upcomingDates,
       rewardDiscountCode: verifyResult?.reward_discount_code || details?.booking?.reward_discount_code,
       rewardDiscountExpiresAt: verifyResult?.reward_discount_expires_at,
+      guests,
+      emergencyContact: details?.booking?.emergency_contact || '',
+      bookedBy: details?.booking?.customer_name || details?.user?.name || '',
       included: parseList(adv.included),
       excluded: parseList(adv.excluded),
       confirmationPdfUrl: adv.confirmation_pdf_url || null,
@@ -246,19 +263,35 @@ exports.verify = async (req, res) => {
       deliveryWarnings.push('no_customer_phone');
     }
 
-    // Off the request path — Redis queue or inline async
+    if (!verifyResult?.reward_discount_code && !details?.booking?.reward_discount_code) {
+      logger.error(`Booking ${booking_id} confirmed without a promo code`);
+      deliveryWarnings.push('promo_code_missing');
+    }
+
+    // Send now, in this process, so a missing worker cannot drop the email or WhatsApp.
     if (customerEmail || customerPhone) {
       try {
-        await enqueue(JOBS.BOOKING_CONFIRMATION, {
+        const delivery = await runJobNow(JOBS.BOOKING_CONFIRMATION, {
           customerEmail,
           customerPhone,
           customerName,
           adventureTitle,
           confirmationDetails,
         });
+        if (customerEmail && delivery?.email && !delivery.email.sent) {
+          if (delivery.email.skipped) deliveryWarnings.push(`email_${delivery.email.reason || 'skipped'}`);
+          else deliveryWarnings.push('email_failed');
+        }
+        if (customerPhone && delivery?.whatsapp?.skipped) {
+          deliveryWarnings.push(`whatsapp_${delivery.whatsapp.reason || 'skipped'}`);
+        } else if (customerPhone && delivery?.whatsapp && delivery.whatsapp.ok === false) {
+          deliveryWarnings.push('whatsapp_failed');
+        } else if (delivery?.whatsapp?.fallback === 'template') {
+          deliveryWarnings.push('whatsapp_template_only');
+        }
       } catch (err) {
-        logger.error('Failed to enqueue booking confirmation:', err.message);
-        deliveryWarnings.push('confirmation_queue_failed');
+        logger.error('Booking confirmation failed:', err.message);
+        deliveryWarnings.push('confirmation_failed');
       }
     }
 

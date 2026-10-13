@@ -34,8 +34,13 @@ const Payments = () => {
     const verify = async (bookingId) => {
         setBusyId(bookingId);
         try {
-            await paymentsAdminAPI.verify(bookingId);
-            toast.success('Payment verified — booking confirmed');
+            const res = await paymentsAdminAPI.verify(bookingId);
+            const warnings = res.data?.warnings || [];
+            if (warnings.length) {
+                toast.error(`Booking confirmed. Message issue: ${warnings.join(', ')}`);
+            } else {
+                toast.success('Payment verified — confirmation sent with promo code');
+            }
             await load();
         } catch (err) {
             toast.error(err.response?.data?.message || 'Verify failed');

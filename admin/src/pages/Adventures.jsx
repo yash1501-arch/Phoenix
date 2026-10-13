@@ -253,6 +253,13 @@ const Adventures = () => {
                                         >
                                             <FileText size={16} />
                                         </button>
+                                        <Link
+                                            to={`/adventures/${adv._id || adv.id}/participants`}
+                                            className="btn-icon"
+                                            title="View and export bookings for a date"
+                                        >
+                                            <Download size={16} />
+                                        </Link>
                                         {isAdmin && (
                                         <Link to={`/adventures/edit/${adv._id}`} className="btn-icon" title="Edit">
                                             <Edit size={16} />

@@ -219,6 +219,45 @@ function buildBookingItineraryPackage(adventure, bookingDate) {
   };
 }
 
+function formatRewardExpiry(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function guestDetailLines(details = {}) {
+  const guests = Array.isArray(details.guests) ? details.guests : [];
+  if (!guests.length && !details.emergencyContact) return [];
+  const lines = ['— Details you gave us —'];
+  guests.forEach((guest, index) => {
+    const label = guests.length > 1 ? `${index + 1}. ${guest.name || 'Guest'}` : (guest.name || 'Guest');
+    lines.push(label);
+    if (guest.phone) lines.push(`Contact: ${guest.phone}`);
+    if (guest.pickup) lines.push(`Pickup: ${guest.pickup}`);
+    if (guest.meal) lines.push(`Meal: ${guest.meal}`);
+  });
+  if (details.emergencyContact) lines.push(`Emergency contact: ${details.emergencyContact}`);
+  if (guests.length >= 2 && details.bookedBy) {
+    lines.push(`Group booked by: ${details.bookedBy}`);
+  }
+  return lines;
+}
+
+function rewardLines(details = {}) {
+  if (!details.rewardDiscountCode) return [];
+  const until = details.rewardDiscountExpiresLabel || formatRewardExpiry(details.rewardDiscountExpiresAt);
+  return [
+    `🎁 Promo code: ${details.rewardDiscountCode}`,
+    `10% off your next booking. One-time use, only on your account${until ? `, valid until ${until}` : ', valid for 30 days'}.`,
+  ];
+}
+
 function buildBookingConfirmationText(userName, adventureTitle, details = {}) {
   const lines = [
     details.confirmationIntro || '✅ BOOKING CONFIRMED',
@@ -247,6 +286,10 @@ function buildBookingConfirmationText(userName, adventureTitle, details = {}) {
     details.travelCoachSummary ? `Train (per person): ${details.travelCoachSummary}` : null,
     details.stayNote ? `Stay: ${details.stayNote}` : null,
     '',
+    ...guestDetailLines(details),
+    guestDetailLines(details).length ? '' : null,
+    ...rewardLines(details),
+    rewardLines(details).length ? '' : null,
     Array.isArray(details.itinerary) && details.itinerary.length
       ? '— Day plan (your dates) —'
       : null,
@@ -266,9 +309,6 @@ function buildBookingConfirmationText(userName, adventureTitle, details = {}) {
       ? details.upcomingDates.map((row) => `• ${row.summary || row.departureLabel}`)
       : []),
     '',
-    details.rewardDiscountCode
-      ? `🎁 Next trip: use ${details.rewardDiscountCode} for 10% off (valid 30 days).`
-      : null,
     `Bring a valid government ID. We'll share the exact reporting time on WhatsApp before departure.`,
     '',
     `Questions? Call +91 93725 06447 / +91 77580 79726`,
@@ -314,5 +354,6 @@ module.exports = {
   formatUpcomingDateEntry,
   buildBookingItineraryPackage,
   buildBookingConfirmationText,
+  formatRewardExpiry,
   resolveMealOptions,
 };

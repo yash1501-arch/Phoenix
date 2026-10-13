@@ -10,6 +10,8 @@ router.get('/user/:userId', auth, bookingController.getUserBookings);
 
 // Admin routes before parameterized routes
 router.get('/admin/all', auth, clerkOrAdmin, bookingController.adminListAll);
+router.get('/admin/roster.xlsx', auth, clerkOrAdmin, bookingController.adminRosterXlsx);
+router.get('/admin/roster', auth, clerkOrAdmin, bookingController.adminRoster);
 router.post('/admin/:bookingId/release', auth, clerkOrAdmin, bookingController.adminRelease);
 
 router.get('/:bookingId/payment', auth, bookingController.getPaymentDetails);

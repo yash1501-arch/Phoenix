@@ -510,6 +510,7 @@ export const validateDiscountCode = internalQuery({
     if (Date.now() > Date.parse(dc.expires_at)) {
       throw new Error("This discount code has expired");
     }
+    await assertDiscountNotHeld(ctx, normalized, args.user_id);
     return {
       code: dc.code,
       percent_off: Number(dc.percent_off) || 10,
@@ -517,6 +518,27 @@ export const validateDiscountCode = internalQuery({
     };
   },
 });
+
+const DISCOUNT_BLOCKING_STATUSES = new Set([
+  "pending_payment",
+  "payment_submitted",
+  "confirmed",
+]);
+
+/** One code, one booking. Pending and confirmed bookings both hold the code. */
+async function assertDiscountNotHeld(ctx: any, code: string, userId: string) {
+  const bookings = await ctx.db
+    .query("bookings")
+    .withIndex("user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
+  for (const b of bookings) {
+    if (String(b.applied_discount_code || "").toUpperCase() !== code) continue;
+    const state = readBookingState(b);
+    if (DISCOUNT_BLOCKING_STATUSES.has(state.booking_status)) {
+      throw new Error("This discount code has already been used");
+    }
+  }
+}
 
 export const createManual = internalMutation({
   args: {
@@ -681,6 +703,7 @@ export const createManual = internalMutation({
       if (Date.now() > Date.parse(dc.expires_at)) {
         throw new Error("This discount code has expired");
       }
+      await assertDiscountNotHeld(ctx, code, args.user_id);
       const factor = 1 - (Number(dc.percent_off) || 0) / 100;
       priced = {
         ...priced,
@@ -1021,7 +1044,7 @@ export const verifyPayment = internalMutation({
       if (!existing) break;
       rewardCode = generateRewardDiscountCode();
     }
-    const rewardExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const rewardExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // one-time, 30 days, this account only
     await ctx.db.insert("discount_codes", {
       code: rewardCode,
       user_id: refreshed.user_id,
@@ -1036,11 +1059,22 @@ export const verifyPayment = internalMutation({
         .query("discount_codes")
         .withIndex("code", (q: any) => q.eq("code", refreshed.applied_discount_code))
         .first();
-      if (applied && !applied.used_at) {
-        await ctx.db.patch(applied._id, {
-          used_at: ts,
-          used_on_booking_id: refreshed._id,
-        });
+      if (applied) {
+        if (applied.user_id !== refreshed.user_id) {
+          throw new Error("This discount code does not belong to this account");
+        }
+        if (applied.used_at && applied.used_on_booking_id !== refreshed._id) {
+          throw new Error("This discount code has already been used");
+        }
+        if (Date.now() > Date.parse(applied.expires_at)) {
+          throw new Error("This discount code has expired");
+        }
+        if (!applied.used_at) {
+          await ctx.db.patch(applied._id, {
+            used_at: ts,
+            used_on_booking_id: refreshed._id,
+          });
+        }
       }
     }
 
@@ -1266,6 +1300,69 @@ export const listPendingPayments = internalQuery({
         new Date(a.payment.submitted_at || a.payment.created_at).getTime()
     );
     return results;
+  },
+});
+
+/** Confirmed participants for one adventure, optionally one departure date. */
+export const listRoster = internalQuery({
+  args: {
+    adventure_id: v.string(),
+    adventure_date: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const all = await ctx.db
+      .query("bookings")
+      .withIndex("adventure_date", (q) => q.eq("adventure_id", args.adventure_id))
+      .collect();
+
+    const dateMap = new Map<
+      string,
+      { date: string; confirmed_bookings: number; confirmed_seats: number }
+    >();
+    for (const b of all) {
+      const date = b.adventure_date;
+      if (!date) continue;
+      if (!dateMap.has(date)) {
+        dateMap.set(date, { date, confirmed_bookings: 0, confirmed_seats: 0 });
+      }
+      if (b.booking_status === "confirmed") {
+        const row = dateMap.get(date)!;
+        row.confirmed_bookings += 1;
+        row.confirmed_seats += Number(b.number_of_seats) || 0;
+      }
+    }
+
+    const selected = args.adventure_date
+      ? all.filter(
+          (b) =>
+            b.adventure_date === args.adventure_date && b.booking_status === "confirmed"
+        )
+      : [];
+
+    const bookings = [];
+    for (const b of selected) {
+      const payments = await ctx.db
+        .query("payments")
+        .withIndex("booking_id", (q) => q.eq("booking_id", b._id))
+        .collect();
+      const verified =
+        payments.find(
+          (p: any) => p.payment_status === "verified" && p.payment_kind !== "balance"
+        ) || payments.find((p: any) => p.payment_status === "verified");
+      bookings.push({
+        ...b,
+        payment_amount: verified?.amount ?? b.amount,
+        payment_status: verified?.payment_status || "confirmed",
+        payment_kind: verified?.payment_kind || b.payment_type || "full",
+      });
+    }
+
+    bookings.sort((a: any, b: any) =>
+      String(a.customer_name || "").localeCompare(String(b.customer_name || ""))
+    );
+
+    const dates = [...dateMap.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
+    return { dates, bookings };
   },
 });
 

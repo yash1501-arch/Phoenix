@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Adventures from './pages/Adventures';
+import AdventureParticipants from './pages/AdventureParticipants';
 import AddAdventure from './pages/AddAdventure';
 import AddTrekAdventure from './pages/AddTrekAdventure';
 import AddTourAdventure from './pages/AddTourAdventure';
@@ -106,6 +107,12 @@ function App() {
               <AdminOnlyRoute>
                 <AddTourAdventure />
               </AdminOnlyRoute>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/adventures/:id/participants" element={
+            <ProtectedRoute>
+              <AdventureParticipants />
             </ProtectedRoute>
           } />
 

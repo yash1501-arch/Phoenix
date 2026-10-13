@@ -67,6 +67,14 @@ async function enqueue(jobName, payload = {}) {
   return { queued: true, mode: 'inline' };
 }
 
+/** Run a job in this process and return its result. Used when the guest must get the message now. */
+async function runJobNow(jobName, payload = {}) {
+  const map = getHandlers();
+  const fn = map[jobName];
+  if (!fn) throw new Error(`Unknown job: ${jobName}`);
+  return fn(payload);
+}
+
 /**
  * Start an in-process BullMQ worker only when Redis is ready.
  */
@@ -124,6 +132,7 @@ async function closeQueue() {
 module.exports = {
   QUEUE_NAME,
   enqueue,
+  runJobNow,
   getQueue,
   startWorker,
   closeQueue,

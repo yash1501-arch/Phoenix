@@ -4,6 +4,8 @@ const { validateBookingExtras } = require('../utils/bookingFields');
 const { isBookingOpen } = require('../utils/bookingWindow');
 const { computeBookingAmounts, resolveAdvancePerPerson } = require('../utils/tourPricing');
 const { isDbStaff } = require('../middleware/auth');
+const { parseAvailableDates } = require('../utils/adventureDates');
+const { flattenParticipants, buildParticipantsWorkbook } = require('../utils/participantRoster');
 const logger = require('../utils/logger');
 
 async function getUpiSettings() {
@@ -333,6 +335,88 @@ exports.adminListAll = async (req, res) => {
     return res.json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to list bookings' });
+  }
+};
+
+async function loadRoster(adventureId, date) {
+  const adventure = await getConvexClient().getAdventureById(adventureId);
+  if (!adventure) return null;
+  const roster = await getConvexClient().listBookingRoster(adventureId, date || undefined);
+  const counts = new Map((roster?.dates || []).map((row) => [row.date, row]));
+  for (const d of parseAvailableDates(adventure)) {
+    if (!counts.has(d)) {
+      counts.set(d, { date: d, confirmed_bookings: 0, confirmed_seats: 0 });
+    }
+  }
+  const dates = [...counts.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const bookings = date ? (roster?.bookings || []) : [];
+  return {
+    adventure: {
+      id: adventure._id || adventure.id,
+      title: adventure.title || 'Adventure',
+      location: adventure.location || '',
+    },
+    dates,
+    date: date || null,
+    booking_count: bookings.length,
+    rows: flattenParticipants(bookings, adventure),
+    bookings,
+    adventureDoc: adventure,
+  };
+}
+
+exports.adminRoster = async (req, res) => {
+  try {
+    const adventureId = String(req.query.adventure_id || '').trim();
+    const date = req.query.date ? String(req.query.date).trim() : '';
+    if (!adventureId) {
+      return res.status(400).json({ success: false, message: 'adventure_id is required' });
+    }
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ success: false, message: 'date must be YYYY-MM-DD' });
+    }
+    const data = await loadRoster(adventureId, date);
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Adventure not found' });
+    }
+    return res.json({
+      success: true,
+      data: {
+        adventure: data.adventure,
+        dates: data.dates,
+        date: data.date,
+        booking_count: data.booking_count,
+        participant_count: data.rows.length,
+        rows: data.rows,
+      },
+    });
+  } catch (error) {
+    logger.error('adminRoster error:', error.message);
+    return res.status(500).json({ success: false, message: 'Failed to load participants' });
+  }
+};
+
+exports.adminRosterXlsx = async (req, res) => {
+  try {
+    const adventureId = String(req.query.adventure_id || '').trim();
+    const date = String(req.query.date || '').trim();
+    if (!adventureId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'adventure_id and date (YYYY-MM-DD) are required',
+      });
+    }
+    const data = await loadRoster(adventureId, date);
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Adventure not found' });
+    }
+    const { buffer, filename } = await buildParticipantsWorkbook(data.bookings, data.adventureDoc);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(buffer);
+  } catch (error) {
+    logger.error('adminRosterXlsx error:', error.message);
+    return res.status(500).json({ success: false, message: 'Failed to export participants' });
   }
 };
 

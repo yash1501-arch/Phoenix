@@ -2,6 +2,7 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 const logger = require('../utils/logger');
 const { escapeHtml } = require('../utils/escapeHtml');
+const { formatRewardExpiry } = require('../utils/adventureDates');
 require('dotenv').config();
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -118,6 +119,32 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
         const safeRewardCode = bookingDetails.rewardDiscountCode
             ? escapeHtml(bookingDetails.rewardDiscountCode)
             : '';
+        const rewardUntil = safeRewardCode
+            ? escapeHtml(
+                bookingDetails.rewardDiscountExpiresLabel
+                || formatRewardExpiry(bookingDetails.rewardDiscountExpiresAt)
+                || '30 days from today'
+              )
+            : '';
+        const guests = Array.isArray(bookingDetails.guests) ? bookingDetails.guests : [];
+        const guestHtml = guests.length
+            ? `
+                    <div style="background-color: #FAF7F1; padding: 18px 20px; border-radius: 8px; margin: 22px 0; border: 1px solid #ebe4d8;">
+                        <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Details you gave us</h3>
+                        <ul style="list-style: none; padding: 0; margin: 0; color: #5c5a52; font-size: 15px;">
+                          ${guests.map((guest, index) => `
+                            <li style="margin-bottom: 12px;">
+                              <strong>${guests.length > 1 ? `${index + 1}. ` : ''}${escapeHtml(guest.name || 'Guest')}</strong><br/>
+                              ${guest.phone ? `Contact: ${escapeHtml(guest.phone)}<br/>` : ''}
+                              ${guest.pickup ? `Pickup: ${escapeHtml(guest.pickup)}<br/>` : ''}
+                              ${guest.meal ? `Meal: ${escapeHtml(guest.meal)}` : ''}
+                            </li>
+                          `).join('')}
+                          ${bookingDetails.emergencyContact ? `<li style="margin-bottom: 8px;"><strong>Emergency contact:</strong> ${escapeHtml(bookingDetails.emergencyContact)}</li>` : ''}
+                          ${guests.length >= 2 && bookingDetails.bookedBy ? `<li><strong>Group booked by:</strong> ${escapeHtml(bookingDetails.bookedBy)}</li>` : ''}
+                        </ul>
+                    </div>`
+            : '';
         const safeParticipants = escapeHtml(bookingDetails.participants ?? '—');
         const safeAmount = escapeHtml(bookingDetails.amountPaid ?? '—');
         const safeTotal = bookingDetails.totalAmount != null ? escapeHtml(bookingDetails.totalAmount) : '';
@@ -171,11 +198,15 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                         </ul>
                     </div>
 
+                    ${guestHtml}
                     ${safeRewardCode ? `
                     <div style="background-color: #eef6f0; padding: 18px 20px; border-radius: 8px; margin: 22px 0; border: 1px solid #c5dcc9;">
-                        <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your 10% reward</h3>
-                        <p style="color: #5c5a52; font-size: 15px; margin: 0;">
-                            Use code <strong style="font-size: 18px; letter-spacing: 0.04em;">${safeRewardCode}</strong> on your next booking within 30 days.
+                        <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your 10% promo code</h3>
+                        <p style="color: #5c5a52; font-size: 15px; margin: 0 0 8px;">
+                            Use code <strong style="font-size: 18px; letter-spacing: 0.04em;">${safeRewardCode}</strong> on your next booking.
+                        </p>
+                        <p style="color: #5c5a52; font-size: 14px; margin: 0;">
+                            One-time use, only on your account, valid until ${rewardUntil} (30 days).
                         </p>
                     </div>` : ''}
                     ${itineraryHtml}

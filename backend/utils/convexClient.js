@@ -57,6 +57,7 @@ class ConvexClient {
     'contact:list',
     'bookings:getById', 'bookings:getByCode', 'bookings:getByUser',
     'bookings:getPaymentDetails', 'bookings:listPendingPayments', 'bookings:listAll',
+    'bookings:listRoster',
     'bookings:listDueReminders', 'bookings:validateDiscountCode',
     'dashboard:getOverview',
     'analytics:getVisitStats',
@@ -198,6 +199,12 @@ class ConvexClient {
   }
   async listPendingPayments() { return this.callFunction('bookings:listPendingPayments', {}); }
   async listAllBookings(status) { return this.callFunction('bookings:listAll', status ? { status } : {}); }
+  async listBookingRoster(adventureId, adventureDate) {
+    return this.callFunction('bookings:listRoster', {
+      adventure_id: adventureId,
+      ...(adventureDate ? { adventure_date: adventureDate } : {}),
+    });
+  }
   async getPaymentByBookingId(bookingId) {
     const details = await this.getBookingPaymentDetails(bookingId);
     return details?.payment || null;

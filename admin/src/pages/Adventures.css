@@ -63,7 +63,7 @@
 
 .th-actions,
 .td-actions {
-  width: 5.5rem;
+  width: 8.5rem;
   text-align: right;
 }
 
@@ -89,4 +89,65 @@
   .td-actions .btn-icon {
     margin-left: 0;
   }
+}
+
+.participant-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
+}
+
+.participant-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  min-width: 14rem;
+}
+
+.participant-toolbar select {
+  min-height: 2.5rem;
+}
+
+.date-groups {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.date-group h3 {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.date-chip {
+  border: 1px solid var(--line, #ebe4d8);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.date-chip.active {
+  background: var(--forest, #2f4a3d);
+  color: #faf7f1;
+  border-color: transparent;
+}
+
+.roster-summary {
+  margin: 0 0 0.75rem;
+  color: var(--ink-muted);
 }

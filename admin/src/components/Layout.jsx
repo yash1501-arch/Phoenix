@@ -51,6 +51,7 @@ const PAGE_TITLES = {
 };
 
 function pageTitle(pathname) {
+    if (pathname.includes('/participants')) return 'Participants';
     if (pathname.startsWith('/adventures/edit/')) return 'Edit adventure';
     if (pathname.startsWith('/blog/edit/')) return 'Edit post';
     if (pathname === '/blog/new') return 'New post';
