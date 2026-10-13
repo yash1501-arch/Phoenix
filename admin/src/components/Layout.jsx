@@ -18,12 +18,14 @@ import {
     ScrollText,
     Users,
     Shield,
+    History,
 } from 'lucide-react';
 import './Layout.css';
 
 const NAV = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
     { path: '/adventures', icon: Mountain, label: 'Adventures' },
+    { path: '/past-lists', icon: History, label: 'Past lists' },
     { path: '/payments', icon: CreditCard, label: 'Payments' },
     { path: '/messages', icon: Inbox, label: 'Messages', adminOnly: true },
     { path: '/reviews', icon: Star, label: 'Reviews', adminOnly: true },
@@ -38,6 +40,7 @@ const NAV = [
 const PAGE_TITLES = {
     '/': 'Dashboard',
     '/adventures': 'Adventures',
+    '/past-lists': 'Past lists',
     '/adventures/add': 'New adventure',
     '/reviews': 'Reviews',
     '/blog': 'Blog',

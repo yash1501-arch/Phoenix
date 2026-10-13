@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, History } from 'lucide-react';
 import { bookingsAdminAPI } from '../utils/api';
 import './Adventures.css';
 
@@ -34,6 +34,9 @@ const COLUMNS = [
 
 const AdventureParticipants = () => {
     const { id } = useParams();
+    const [searchParams] = useSearchParams();
+    const scope = searchParams.get('scope') === 'past' ? 'past' : 'current';
+    const requestedDate = searchParams.get('date') || '';
     const [meta, setMeta] = useState(null);
     const [dates, setDates] = useState([]);
     const [selectedDate, setSelectedDate] = useState('');
@@ -65,16 +68,19 @@ const AdventureParticipants = () => {
         load('');
     }, [id]);
 
-    const { upcoming, past } = useMemo(() => {
-        const upcomingRows = [];
-        const pastRows = [];
-        [...dates].sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach((row) => {
-            if (row.date < today) pastRows.push(row);
-            else upcomingRows.push(row);
-        });
-        pastRows.reverse();
-        return { upcoming: upcomingRows, past: pastRows };
-    }, [dates, today]);
+    const visibleDates = useMemo(() => {
+        const sorted = [...dates].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        const filtered = scope === 'past'
+            ? sorted.filter((row) => row.date < today).reverse()
+            : sorted.filter((row) => row.date >= today);
+        return filtered;
+    }, [dates, today, scope]);
+
+    useEffect(() => {
+        if (!requestedDate || selectedDate) return;
+        const allowed = visibleDates.some((row) => row.date === requestedDate);
+        if (allowed) load(requestedDate);
+    }, [requestedDate, visibleDates, selectedDate]);
 
     const download = async () => {
         if (!selectedDate) {
@@ -129,16 +135,27 @@ const AdventureParticipants = () => {
                     <p className="page-subtitle" style={{ marginTop: 0 }}>
                         {meta?.title || 'Adventure'}
                         {meta?.location ? ` · ${meta.location}` : ''}
+                        {' · '}
+                        {scope === 'past' ? 'Past departures only' : 'Current and upcoming dates only'}
                     </p>
                 </div>
                 <div className="page-actions">
+                    {scope === 'current' ? (
+                        <Link to="/past-lists" className="btn-secondary">
+                            <History size={16} /> Past lists
+                        </Link>
+                    ) : (
+                        <Link to={`/adventures/${id}/participants?scope=current`} className="btn-secondary">
+                            Current dates
+                        </Link>
+                    )}
                     <button
                         type="button"
                         className="btn-primary"
                         onClick={download}
-                        disabled={!selectedDate || exporting}
+                        disabled={!selectedDate || exporting || !visibleDates.some((row) => row.date === selectedDate)}
                     >
-                        <Download size={16} /> {exporting ? 'Preparing…' : 'Export bookings'}
+                        <Download size={16} /> {exporting ? 'Preparing…' : 'Download this date'}
                     </button>
                 </div>
             </div>
@@ -152,20 +169,22 @@ const AdventureParticipants = () => {
                 <>
                     <div className="date-groups">
                         <div className="date-group">
-                            <h3>Upcoming and today</h3>
-                            {upcoming.length ? renderChips(upcoming) : <p className="roster-summary">No upcoming dates.</p>}
-                        </div>
-                        <div className="date-group">
-                            <h3>Past departures</h3>
-                            {past.length ? renderChips(past) : <p className="roster-summary">No past departures yet.</p>}
+                            <h3>{scope === 'past' ? 'Past departures' : 'Current and upcoming'}</h3>
+                            {visibleDates.length ? renderChips(visibleDates) : (
+                                <p className="roster-summary">
+                                    {scope === 'past'
+                                        ? 'No past departures for this adventure.'
+                                        : 'No current departure. Finished trips are under Past lists.'}
+                                </p>
+                            )}
                         </div>
                     </div>
 
                     <div className="participant-toolbar">
                         <label>
-                            Departure date
+                            {scope === 'past' ? 'Past date' : 'Current date'}
                             <select
-                                value={selectedDate}
+                                value={visibleDates.some((row) => row.date === selectedDate) ? selectedDate : ''}
                                 onChange={(e) => {
                                     const next = e.target.value;
                                     setSelectedDate(next);
@@ -173,10 +192,9 @@ const AdventureParticipants = () => {
                                 }}
                             >
                                 <option value="">Select a date</option>
-                                {dates.map((row) => (
+                                {visibleDates.map((row) => (
                                     <option key={row.date} value={row.date}>
                                         {formatDate(row.date)} ({row.confirmed_bookings || 0} {Number(row.confirmed_bookings) === 1 ? 'booking' : 'bookings'})
-                                        {row.date < today ? ' — past' : ''}
                                     </option>
                                 ))}
                             </select>

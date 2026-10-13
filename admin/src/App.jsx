@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import Adventures from './pages/Adventures';
 import AdventureParticipants from './pages/AdventureParticipants';
+import PastLists from './pages/PastLists';
 import AddAdventure from './pages/AddAdventure';
 import AddTrekAdventure from './pages/AddTrekAdventure';
 import AddTourAdventure from './pages/AddTourAdventure';
@@ -83,6 +84,12 @@ function App() {
           <Route path="/adventures" element={
             <ProtectedRoute>
               <Adventures />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/past-lists" element={
+            <ProtectedRoute>
+              <PastLists />
             </ProtectedRoute>
           } />
 

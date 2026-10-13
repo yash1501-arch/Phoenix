@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
     Plus, Search, Edit, Trash2,
     MapPin, Clock, Users as UsersIcon,
-    Mountain, Download, Filter, ChevronDown, FileText
+    Mountain, Download, Filter, ChevronDown, FileText, CalendarDays
 } from 'lucide-react';
 import { adventuresAPI, getImageUrl } from '../utils/api';
 import { exportRows } from '../utils/csv';
@@ -245,31 +245,35 @@ const Adventures = () => {
                                         </span>
                                     </td>
                                     <td className="td-actions" data-label="Actions">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDownloadItinerary(adv)}
-                                            className="btn-icon"
-                                            title="Download itinerary PDF"
-                                        >
-                                            <FileText size={16} />
-                                        </button>
-                                        <Link
-                                            to={`/adventures/${adv._id || adv.id}/participants`}
-                                            className="btn-icon"
-                                            title="View and export bookings for a date"
-                                        >
-                                            <Download size={16} />
-                                        </Link>
-                                        {isAdmin && (
-                                        <Link to={`/adventures/edit/${adv._id}`} className="btn-icon" title="Edit">
-                                            <Edit size={16} />
-                                        </Link>
-                                        )}
-                                        {isAdmin && (
-                                        <button onClick={() => handleDelete(adv._id)} className="btn-icon danger" title="Delete">
-                                            <Trash2 size={16} />
-                                        </button>
-                                        )}
+                                        <div className="row-actions">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadItinerary(adv)}
+                                                className="btn-icon"
+                                                title="Itinerary PDF"
+                                                aria-label={`Download itinerary PDF for ${adv.title}`}
+                                            >
+                                                <FileText size={16} />
+                                            </button>
+                                            <Link
+                                                to={`/adventures/${adv._id || adv.id}/participants?scope=current`}
+                                                className="btn-icon"
+                                                title="Current event guest list"
+                                                aria-label={`Current guest list for ${adv.title}`}
+                                            >
+                                                <CalendarDays size={16} />
+                                            </Link>
+                                            {isAdmin && (
+                                            <Link to={`/adventures/edit/${adv._id}`} className="btn-icon" title="Edit" aria-label={`Edit ${adv.title}`}>
+                                                <Edit size={16} />
+                                            </Link>
+                                            )}
+                                            {isAdmin && (
+                                            <button onClick={() => handleDelete(adv._id)} className="btn-icon danger" title="Delete" aria-label={`Delete ${adv.title}`}>
+                                                <Trash2 size={16} />
+                                            </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
