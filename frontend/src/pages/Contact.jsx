@@ -105,8 +105,8 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="Contact Us"
-        description="Questions about a trek, a private group departure, or custom itineraries? Talk to the Phoenix Adventures team."
+        title="Contact Phoenix Adventures to Book a Trek"
+        description="Call or message Phoenix Adventures to book a Sahyadri trek, camping trip, or tour. Mumbai office, +91 93725 06447, UPI booking support."
       />
       <Navbar />
       <PageHero

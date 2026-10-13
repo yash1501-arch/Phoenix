@@ -48,8 +48,8 @@ const About = () => {
   return (
     <div id="main-content" className="min-h-screen bg-mist">
       <Seo
-        title="About Us"
-        description="Phoenix Adventures — trekking & outdoor adventure focused on Sahyadri forts. Est. 22 March 2023."
+        title="About Phoenix Adventures — Mumbai Trek Booking"
+        description="Phoenix Adventures books Sahyadri fort treks, camping, and tours from Mumbai. Established 22 March 2023 in Kandivali West."
       />
       <Navbar />
 

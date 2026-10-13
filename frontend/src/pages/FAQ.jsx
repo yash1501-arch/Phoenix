@@ -4,7 +4,7 @@ import { ChevronDown, Search } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Seo from '../components/Seo';
-import { faqPageJsonLd } from '../utils/seo';
+import { BOOKING_ANSWERS, faqPageJsonLd } from '../utils/seo';
 import PageHero from '../components/ui/PageHero';
 import Section from '../components/ui/Section';
 import { publicSettingsAPI } from '../utils/api';
@@ -47,6 +47,10 @@ const FAQ = () => {
   }, []);
 
   const groups = [
+    {
+      title: 'Trekking adventure booking',
+      items: BOOKING_ANSWERS,
+    },
     {
       title: 'Booking & payment',
       items: [
@@ -144,8 +148,8 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="FAQ"
-        description="Booking, UPI, treks vs tours, cancellation window, and waitlist — Phoenix Adventures."
+        title="Trekking Adventure Booking FAQ"
+        description="Answers on how to book a Sahyadri trek, pay by UPI, what a trek booking includes, and how cancellation works at Phoenix Adventures."
         jsonLd={faqPageJsonLd(groups)}
       />
       <Navbar />

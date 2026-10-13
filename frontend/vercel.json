@@ -38,7 +38,12 @@
       "has": [{ "type": "header", "key": "user-agent", "value": "Twitterbot" }],
       "destination": "https://api.phoenixadventures.in/api/share/adventure/:id"
     },
-    { "source": "/((?!assets/|googleabe45545923365d8\\.html|upi-merchant-qr\\.png).*)", "destination": "/index.html" }
+    {
+      "source": "/adventure/:id",
+      "has": [{ "type": "header", "key": "user-agent", "value": "Googlebot|Google-InspectionTool|Storebot-Google|bingbot|DuckDuckBot|GPTBot|ChatGPT-User|OAI-SearchBot|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|PerplexityBot|Applebot|Amazonbot" }],
+      "destination": "https://api.phoenixadventures.in/api/share/adventure/:id"
+    },
+    { "source": "/((?!assets/|googleabe45545923365d8\\.html|upi-merchant-qr\\.png|llms\\.txt|robots\\.txt|manifest\\.json).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

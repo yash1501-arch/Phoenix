@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import Seo from '../components/Seo';
+import { BOOKING_ANSWERS, HOME_DESCRIPTION, HOME_TITLE, homeGraphJsonLd } from '../utils/seo';
 import Hero from '../components/Hero';
 import Adventures from '../components/Adventures';
 import Marquee, { MarqueeItem } from '../components/ui/Marquee';
@@ -91,11 +92,10 @@ const pillars = [
 ];
 
 const faqItems = [
-  { q: 'What fitness level do I need?', a: 'We run easy weekend treks through high-altitude expeditions. Each trip page lists difficulty, altitude, and prep.' },
-  { q: 'What is included?', a: 'Guide, camping gear, trek meals, permits, and first-aid. Transport varies by trip — details are on each adventure page.' },
-  { q: 'How do I book and pay?', a: 'Sign in (required to book), tap Book Now, choose date and seats (total = price × people). Pay via UPI to our QR / 9372506447@sbi, then upload screenshot + UTR. We confirm after bank verification — no Razorpay/Paytm fees.' },
-  { q: 'Is it safe for solo travellers?', a: 'Yes — nearly 40% of our guests travel solo. You join a vetted group; guides keep everyone included and safe.' },
-  { q: 'Cancellation policy?', a: '30+ days: 90% refund. 15–29 days: 50%. 7–14 days: 25%. Inside 7 days: no refund, but you can transfer your seat. See Refund Policy for full terms.' },
+  ...BOOKING_ANSWERS,
+  { q: 'What fitness level do I need for a trek booking?', a: 'Each trip page lists difficulty and what to prepare. Weekend fort treks are graded from easy to challenging so you can book a route that matches your pace.' },
+  { q: 'Is trekking adventure booking safe for solo travellers?', a: 'Yes. Solo guests join a group with a leader. Guides keep the pace shared and the group together on Sahyadri fort treks.' },
+  { q: 'What is the cancellation policy for an adventure booking?', a: '30+ days: 90% refund. 15–29 days: 50%. 7–14 days: 25%. Inside 7 days: no refund, but you can transfer your seat. See the Refund Policy for full terms.' },
 ];
 
 const useCountUp = (end, duration = 1.8) => {
@@ -172,10 +172,11 @@ const Landing = () => {
   return (
     <div className="overflow-x-hidden bg-mist">
       <Seo
-        title="Phoenix Adventures — Discover the great outdoors with our adventure tribe"
-        description="Phoenix Adventures — Discover the great outdoors with our adventure tribe. Sahyadri fort treks and Maharashtra outdoor destinations. Est. 22 March 2023."
+        title={HOME_TITLE}
+        description={HOME_DESCRIPTION}
         titleSuffix={false}
         path="/"
+        jsonLd={homeGraphJsonLd(faqItems)}
       />
       <Navbar />
       <Hero />
@@ -399,10 +400,30 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="section bg-mist">
+      {/* Direct answers for search and answer engines */}
+      <section className="section bg-mist" aria-labelledby="booking-answer-heading">
         <div className="container max-w-3xl">
-          <h2 className="font-display text-display-md text-stone font-semibold mb-8 text-center">Common questions</h2>
+          <p className="kicker mb-3">Trekking adventure booking</p>
+          <h2 id="booking-answer-heading" className="font-display text-display-md text-stone font-semibold mb-4">
+            Book a Sahyadri trek from Mumbai or Pune
+          </h2>
+          <p className="text-muted leading-relaxed">
+            Phoenix Adventures is the place to book a trekking adventure in the Sahyadris: fort day-treks, camping weekends, and longer tours.
+            Pickup is from Mumbai and Pune. Open a departure, sign in, pay by UPI, and upload your UTR — the team confirms the seat after the payment matches.
+            Popular bookings include Raigad, Rajgad, Torna, Pratapgad, Shivneri, Hadsar, and Sagargad.
+          </p>
+          <p className="mt-3 text-sm text-muted">
+            <Link to="/treks" className="text-ember font-semibold hover:underline">Browse trek bookings</Link>
+            <span aria-hidden="true"> · </span>
+            <Link to="/faq" className="text-ember font-semibold hover:underline">Booking FAQ</Link>
+          </p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="section bg-mist-subtle" aria-labelledby="home-faq-heading">
+        <div className="container max-w-3xl">
+          <h2 id="home-faq-heading" className="font-display text-display-md text-stone font-semibold mb-8 text-center">Trekking adventure booking questions</h2>
           <div className="space-y-2">
             {faqItems.map((item, i) => {
               const open = activeFaq === i;
@@ -418,19 +439,7 @@ const Landing = () => {
                       <ChevronDown size={18} className="text-ember shrink-0" />
                     </motion.span>
                   </button>
-                  <AnimatePresence>
-                    {open && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <p className="px-5 pb-5 text-sm text-muted leading-relaxed">{item.a}</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <p className={open ? 'px-5 pb-5 text-sm text-muted leading-relaxed' : 'sr-only'}>{item.a}</p>
                 </div>
               );
             })}

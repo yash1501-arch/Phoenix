@@ -5,10 +5,14 @@
     <link rel="icon" type="image/png" href="/favicon.png?v=6" />
     <link rel="apple-touch-icon" href="/logo-mark.png?v=6" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Phoenix Adventures — Discover the great outdoors with our adventure tribe. Sahyadri fort treks and Maharashtra outdoor destinations. Est. 22 March 2023." data-rh="true" />
-    <meta name="keywords" content="Phoenix Adventures, Sahyadri treks, fort trekking, Raigad, Rajgad, Torna, camping, Maharashtra adventure, Mumbai trekking" />
+    <meta name="description" content="Book a trekking adventure in the Sahyadris — fort treks, camping, and tours from Mumbai and Pune. Pickup, guides, and UPI booking with Phoenix Adventures." data-rh="true" />
+    <meta name="keywords" content="trekking adventure booking, trek booking Mumbai, trek booking Pune, Sahyadri trek booking, fort trek booking, weekend trek Mumbai, Raigad trek booking, Rajgad trek, Torna trek, camping trip booking Maharashtra, adventure booking, Phoenix Adventures" data-rh="true" />
     <meta name="author" content="Phoenix Adventures" />
-    <meta name="robots" content="index, follow" data-rh="true" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" data-rh="true" />
+    <meta name="geo.region" content="IN-MH" />
+    <meta name="geo.placename" content="Mumbai, Maharashtra" />
+    <meta name="geo.position" content="19.2129911;72.8301628" />
+    <meta name="ICBM" content="19.2129911, 72.8301628" />
     <meta name="theme-color" content="#2F4A3D" />
     <script>
       (function () {
@@ -30,71 +34,157 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" data-rh="true" />
     <meta property="og:url" content="https://www.phoenixadventures.in/" data-rh="true" />
-    <meta property="og:title" content="Phoenix Adventures — Adventure tribe · Sahyadri treks" data-rh="true" />
-    <meta property="og:description" content="Discover the great outdoors with our adventure tribe. Fort-led treks across the Sahyadris — safety-first, own pace, end-to-end logistics." data-rh="true" />
+    <meta property="og:title" content="Book Sahyadri Treks &amp; Adventure Trips | Phoenix Adventures" data-rh="true" />
+    <meta property="og:description" content="Book a trekking adventure in the Sahyadris — fort treks, camping, and tours from Mumbai and Pune. Pickup, guides, and UPI booking with Phoenix Adventures." data-rh="true" />
+    <meta property="og:locale" content="en_IN" data-rh="true" />
     <meta property="og:image" content="https://www.phoenixadventures.in/logo-mark.png" data-rh="true" />
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" data-rh="true" />
-    <meta name="twitter:title" content="Phoenix Adventures — Adventure tribe · Sahyadri treks" data-rh="true" />
-    <meta name="twitter:description" content="Discover the great outdoors with our adventure tribe. Fort-led treks across the Sahyadris." data-rh="true" />
+    <meta name="twitter:title" content="Book Sahyadri Treks &amp; Adventure Trips | Phoenix Adventures" data-rh="true" />
+    <meta name="twitter:description" content="Book a trekking adventure in the Sahyadris — fort treks, camping, and tours from Mumbai and Pune." data-rh="true" />
     <meta name="twitter:image" content="https://www.phoenixadventures.in/logo-mark.png" data-rh="true" />
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Unbounded:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <title data-rh="true">Phoenix Adventures — Discover the great outdoors with our adventure tribe</title>
+    <title data-rh="true">Book Sahyadri Treks &amp; Adventure Trips | Phoenix Adventures</title>
     
-    <!-- Schema.org Structured Data — CONTEXT.md -->
+    <!-- Schema.org: entity, site search, booking answers, how-to. Mirrors frontend/src/utils/seo.js -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "TravelAgency",
-      "name": "Phoenix Adventures",
-      "description": "Discover the great outdoors with our adventure tribe. Trekking & outdoor adventure focused on Sahyadri range forts and Maharashtra outdoor destinations.",
-      "url": "https://www.phoenixadventures.in/",
-      "logo": "https://www.phoenixadventures.in/logo-mark.png",
-      "image": "https://www.phoenixadventures.in/logo-mark.png",
-      "email": "pheonixadventuress@gmail.com",
-      "telephone": ["+91-93725-06447", "+91-77580-79726"],
-      "foundingDate": "2023-03-22",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "Sindhudurg Building, 56/C8, Kandivali, Charkop, Sahyadri Nagar, Kandivali West",
-        "addressLocality": "Mumbai",
-        "addressRegion": "Maharashtra",
-        "postalCode": "400067",
-        "addressCountry": "IN"
-      },
-      "geo": {
-        "@type": "GeoCoordinates",
-        "latitude": 19.2129911,
-        "longitude": 72.8301628
-      },
-      "openingHours": "Mo-Su 09:00-22:00",
-      "sameAs": [
-        "https://www.instagram.com/phoenix_adventures__/",
-        "https://www.facebook.com/profile.php?id=61564975211438",
-        "https://maps.app.goo.gl/n5uUa7B6FQLKS5aZ6"
-      ],
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.9",
-        "ratingCount": "139",
-        "bestRating": "5"
-      },
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "telephone": "+91-93725-06447",
-        "email": "pheonixadventuress@gmail.com",
-        "contactType": "customer service",
-        "areaServed": "IN",
-        "availableLanguage": ["en", "hi", "mr"]
-      }
+      "@graph": [
+        {
+          "@type": "TravelAgency",
+          "@id": "https://www.phoenixadventures.in/#organization",
+          "name": "Phoenix Adventures",
+          "alternateName": "PHEONIX ADVENTURES LLP",
+          "description": "Book a trekking adventure in the Sahyadris — fort treks, camping, and tours from Mumbai and Pune. Pickup, guides, and UPI booking with Phoenix Adventures.",
+          "url": "https://www.phoenixadventures.in/",
+          "logo": "https://www.phoenixadventures.in/logo-mark.png",
+          "image": "https://www.phoenixadventures.in/logo-mark.png",
+          "email": "pheonixadventuress@gmail.com",
+          "telephone": ["+91-93725-06447", "+91-77580-79726"],
+          "foundingDate": "2023-03-22",
+          "priceRange": "₹₹",
+          "currenciesAccepted": "INR",
+          "paymentAccepted": "UPI",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Sindhudurg Building, 56/C8, Kandivali, Charkop, Sahyadri Nagar, Kandivali West",
+            "addressLocality": "Mumbai",
+            "addressRegion": "Maharashtra",
+            "postalCode": "400067",
+            "addressCountry": "IN"
+          },
+          "geo": { "@type": "GeoCoordinates", "latitude": 19.2129911, "longitude": 72.8301628 },
+          "areaServed": [
+            { "@type": "City", "name": "Mumbai" },
+            { "@type": "City", "name": "Pune" },
+            { "@type": "State", "name": "Maharashtra" }
+          ],
+          "knowsAbout": ["Sahyadri trekking", "fort trek booking", "trekking adventure booking", "camping trips", "Maharashtra outdoor tours"],
+          "openingHours": "Mo-Su 09:00-22:00",
+          "sameAs": [
+            "https://www.instagram.com/phoenix_adventures__/",
+            "https://www.facebook.com/profile.php?id=61564975211438",
+            "https://maps.app.goo.gl/n5uUa7B6FQLKS5aZ6"
+          ],
+          "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "ratingCount": "139", "bestRating": "5" },
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+91-93725-06447",
+            "email": "pheonixadventuress@gmail.com",
+            "contactType": "reservations",
+            "areaServed": "IN",
+            "availableLanguage": ["en", "hi", "mr"]
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.phoenixadventures.in/#website",
+          "name": "Phoenix Adventures",
+          "url": "https://www.phoenixadventures.in/",
+          "publisher": { "@id": "https://www.phoenixadventures.in/#organization" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://www.phoenixadventures.in/search?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://www.phoenixadventures.in/#faq",
+          "url": "https://www.phoenixadventures.in/faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How do I book a trekking adventure with Phoenix Adventures?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Phoenix Adventures takes trekking adventure bookings on www.phoenixadventures.in. Open a trek, camping trip, or tour, sign in, choose the date and number of seats, and pay the amount shown by UPI to 9372506447@sbi (PHEONIX ADVENTURES LLP). Upload the payment screenshot and UTR. The team confirms the seat after the bank credit matches."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which treks can I book from Mumbai and Pune?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You can book Sahyadri fort treks and Maharashtra outdoor trips, including Raigad, Rajgad, Torna, Pratapgad, Shivneri, Hadsar, and Sagargad. Most departures include pickup points in Mumbai and Pune."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is included when I book a trek?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Each adventure page lists what is included and excluded. A typical trek booking covers a guide, trek meals, camping gear, permits, and first aid. Transport and stay are listed on that departure."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do I pay for an adventure booking?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Payment is direct UPI only — there is no card gateway on the site. Treks and camping are paid in full at checkout. Tours usually take a per-person advance, with the remaining balance paid by UPI before departure."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Where is Phoenix Adventures, and how do I contact them?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Phoenix Adventures is based at Sindhudurg Building, 56/C8, Kandivali West, Mumbai 400067, Maharashtra. Call +91 93725 06447 or +91 77580 79726, or email pheonixadventuress@gmail.com. The company was established on 22 March 2023."
+              }
+            }
+          ]
+        },
+        {
+          "@type": "HowTo",
+          "name": "How to book a trekking adventure with Phoenix Adventures",
+          "description": "Book a Sahyadri trek, camping weekend, or tour from Mumbai or Pune and pay by UPI.",
+          "totalTime": "PT15M",
+          "step": [
+            { "@type": "HowToStep", "position": 1, "name": "Choose a departure", "text": "Open Treks, Camping, or Tours on phoenixadventures.in and pick a route." },
+            { "@type": "HowToStep", "position": 2, "name": "Sign in", "text": "Create an account or sign in. Browsing is open; booking needs a login." },
+            { "@type": "HowToStep", "position": 3, "name": "Select date and seats", "text": "Choose the departure date, pickup city, and number of people." },
+            { "@type": "HowToStep", "position": 4, "name": "Pay by UPI", "text": "Pay the amount shown to 9372506447@sbi (PHEONIX ADVENTURES LLP)." },
+            { "@type": "HowToStep", "position": 5, "name": "Upload the UTR", "text": "Upload the payment screenshot and UTR. Staff confirm the booking after the bank credit matches." }
+          ]
+        }
+      ]
     }
     </script>
   </head>
   <body>
+    <noscript>
+      <article>
+        <h1>Book a Sahyadri trekking adventure</h1>
+        <p>Phoenix Adventures books fort treks, camping weekends, and tours from Mumbai and Pune. Open a departure on www.phoenixadventures.in, sign in, pay by UPI to 9372506447@sbi, and upload the UTR. Routes include Raigad, Rajgad, Torna, Pratapgad, Shivneri, Hadsar, and Sagargad.</p>
+        <p>Kandivali West, Mumbai 400067. +91 93725 06447. Established 22 March 2023.</p>
+      </article>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

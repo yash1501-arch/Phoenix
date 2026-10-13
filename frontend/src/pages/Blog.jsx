@@ -52,8 +52,8 @@ const Blog = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="Trail Journal — Phoenix Adventures"
-        description="Field notes, route guides, and stories from the Sahyadris and Himalayas. Written by the guides who run the trips."
+        title="Sahyadri Trek Guides & Trail Notes"
+        description="Route notes and trail stories from Phoenix Adventures guides — Sahyadri fort treks you can book from Mumbai and Pune."
       />
       <Navbar />
 

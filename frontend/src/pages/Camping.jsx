@@ -52,8 +52,8 @@ const Camping = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="Camping"
-        description="Lakeside, riverside, and forest camping experiences across India — curated by Phoenix Adventures."
+        title="Camping Trip Booking in Maharashtra"
+        description="Book a camping weekend in Maharashtra with Phoenix Adventures. Overnight camps with pickup from Mumbai and Pune, guides, and UPI booking."
       />
       <Navbar />
       <PageHero

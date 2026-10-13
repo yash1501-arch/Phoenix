@@ -56,8 +56,8 @@ const Gallery = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="Gallery"
-        description="Photos from Phoenix Adventures treks, camps, and expeditions across India."
+        title="Sahyadri Trek Photos"
+        description="Photos from Phoenix Adventures trek bookings — Sahyadri forts, camping weekends, and trails led from Mumbai and Pune."
       />
       <Navbar />
       <PageHero

@@ -1,7 +1,11 @@
+# Public pages are open to search engines and answer engines
+# (Google, Bing, ChatGPT / GPTBot, Claude, Perplexity, Apple).
+# Context file: https://www.phoenixadventures.in/llms.txt
+
 User-agent: *
 Allow: /
 
-# Disallow admin and auth-gated areas
+# Private and auth-gated areas
 Disallow: /admin
 Disallow: /login
 Disallow: /register
@@ -9,7 +13,8 @@ Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /dashboard
 Disallow: /wishlist
+Disallow: /profile
+Disallow: /booking
 Disallow: /api/
 
-# Sitemap
 Sitemap: https://www.phoenixadventures.in/sitemap.xml

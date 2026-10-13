@@ -1,12 +1,12 @@
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
-import { SITE_URL, absoluteAssetUrl, canonicalUrl, socialOgImageUrl } from '../utils/seo';
+import { HOME_DESCRIPTION, HOME_TITLE, SEO_KEYWORDS, SITE_URL, absoluteAssetUrl, canonicalUrl, socialOgImageUrl } from '../utils/seo';
 
 const SEO_DEFAULTS = {
-    title: 'Phoenix Adventures — Discover the great outdoors with our adventure tribe',
-    description:
-        'Phoenix Adventures — Discover the great outdoors with our adventure tribe. Sahyadri fort treks and Maharashtra outdoor destinations. Est. 22 March 2023.',
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    keywords: SEO_KEYWORDS,
     image: `${SITE_URL}/logo-mark.png`,
     type: 'website',
 };
@@ -14,6 +14,7 @@ const SEO_DEFAULTS = {
 const Seo = ({
     title,
     description,
+    keywords,
     image,
     type = 'website',
     noindex = false,
@@ -25,6 +26,10 @@ const Seo = ({
     const pathname = path || location.pathname || '/';
     const url = canonicalUrl(pathname);
     const desc = description || SEO_DEFAULTS.description;
+    const keys = keywords || SEO_DEFAULTS.keywords;
+    const robots = noindex
+        ? 'noindex, nofollow'
+        : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
     const img = socialOgImageUrl(absoluteAssetUrl(image || SEO_DEFAULTS.image));
 
     let fullTitle = SEO_DEFAULTS.title;
@@ -50,18 +55,15 @@ const Seo = ({
             keepLast(`meta[name="${n}"]`);
             keepLast(`meta[property="${n}"]`);
         });
-    }, [url, fullTitle, desc, img, noindex, type]);
+    }, [url, fullTitle, desc, img, noindex, type, keys]);
 
     return (
         <Helmet>
             <title>{fullTitle}</title>
             <meta name="description" content={desc} />
+            <meta name="keywords" content={keys} />
             <link rel="canonical" href={url} />
-            {noindex ? (
-                <meta name="robots" content="noindex, nofollow" />
-            ) : (
-                <meta name="robots" content="index, follow" />
-            )}
+            <meta name="robots" content={robots} />
             <meta property="og:title" content={fullTitle} />
             <meta property="og:description" content={desc} />
             <meta property="og:type" content={type} />
@@ -75,6 +77,7 @@ const Seo = ({
             <meta name="twitter:title" content={fullTitle} />
             <meta name="twitter:description" content={desc} />
             <meta name="twitter:image" content={img} />
+            <meta name="twitter:url" content={url} />
             {graphs.map((node, i) => (
                 <script key={i} type="application/ld+json">
                     {JSON.stringify(node).replace(/</g, '\\u003c')}

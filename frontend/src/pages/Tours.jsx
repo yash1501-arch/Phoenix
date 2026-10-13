@@ -36,8 +36,8 @@ const Tours = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="Tours"
-        description="Curated group tours, family getaways, and business retreats across India — by Phoenix Adventures."
+        title="Adventure Tour Booking from Mumbai & Pune"
+        description="Book a group adventure tour with Phoenix Adventures. Multi-day journeys from Mumbai and Pune, with UPI advance and the balance due before departure."
       />
       <Navbar />
       <PageHero

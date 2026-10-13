@@ -69,8 +69,8 @@ const Treks = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="Treks"
-        description="Multi-day Himalayan expeditions and Sahyadri day treks handpicked by Phoenix Adventures."
+        title="Sahyadri Trek Booking from Mumbai & Pune"
+        description="Book a Sahyadri fort trek with pickup from Mumbai and Pune. Raigad, Rajgad, Torna, and weekend trekking adventures — guides and UPI booking with Phoenix Adventures."
       />
       <Navbar />
       <PageHero

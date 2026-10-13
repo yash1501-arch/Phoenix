@@ -88,8 +88,8 @@ const AdventuresPage = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="All Adventures"
-        description={`Browse ${adventures.length} curated treks, camping trips, and expeditions across the Sahyadris and Himalayas.`}
+        title="Trekking & Adventure Booking"
+        description={`Book one of ${adventures.length} Sahyadri treks, camping trips, and tours. Mumbai and Pune pickup, guides, and UPI booking with Phoenix Adventures.`}
       />
       <Navbar />
 

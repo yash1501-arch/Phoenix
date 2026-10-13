@@ -72,8 +72,8 @@ const Safety = () => {
   return (
     <div className="min-h-screen bg-mist">
       <Seo
-        title="Safety Policy"
-        description="How Phoenix Adventures runs Sahyadri treks, camping, and tours — own pace, local leaders, and honest weather calls."
+        title="Trek Booking Safety"
+        description="How Phoenix Adventures keeps Sahyadri trek, camping, and tour bookings safe — local leaders, your own pace, and honest weather calls."
       />
       <Navbar />
       <PageHero
