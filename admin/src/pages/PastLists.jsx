@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Download, Eye } from 'lucide-react';
+import { Download, Eye, Search } from 'lucide-react';
 import { adventuresAPI, bookingsAdminAPI } from '../utils/api';
 import './Adventures.css';
 
@@ -25,6 +25,7 @@ const PastLists = () => {
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [busyKey, setBusyKey] = useState('');
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
         let cancelled = false;
@@ -61,6 +62,20 @@ const PastLists = () => {
             cancelled = true;
         };
     }, []);
+
+    const filtered = useMemo(() => {
+        const term = search.trim().toLowerCase();
+        if (!term) return rows;
+        return rows.filter((row) => {
+            const when = formatDate(row.date).toLowerCase();
+            return (
+                String(row.title || '').toLowerCase().includes(term)
+                || String(row.location || '').toLowerCase().includes(term)
+                || String(row.date || '').includes(term)
+                || when.includes(term)
+            );
+        });
+    }, [rows, search]);
 
     const download = async (row) => {
         const key = `${row.adventureId}-${row.date}`;
@@ -100,6 +115,20 @@ const PastLists = () => {
                 </div>
             </div>
 
+            <div className="filters-bar">
+                <div className="search-box">
+                    <Search className="search-icon" size={18} />
+                    <input
+                        type="search"
+                        className="search-input"
+                        placeholder="Search adventure, place, or date"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        aria-label="Search past lists"
+                    />
+                </div>
+            </div>
+
             {loading ? (
                 <div className="loading-state">
                     <div className="spinner"></div>
@@ -109,6 +138,11 @@ const PastLists = () => {
                 <div className="empty-state">
                     <h3>No past participant lists</h3>
                     <p>When a departure date has passed, its guest list shows up here.</p>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="empty-state">
+                    <h3>No matches</h3>
+                    <p>Nothing in the past lists matches “{search.trim()}”.</p>
                 </div>
             ) : (
                 <div className="table-wrapper">
@@ -123,7 +157,7 @@ const PastLists = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map((row) => {
+                            {filtered.map((row) => {
                                 const key = `${row.adventureId}-${row.date}`;
                                 return (
                                     <tr key={key}>
@@ -162,7 +196,7 @@ const PastLists = () => {
                         </tbody>
                     </table>
                     <div className="table-footer">
-                        <span className="table-count">{rows.length} past departure{rows.length === 1 ? '' : 's'}</span>
+                        <span className="table-count">{filtered.length} past departure{filtered.length === 1 ? '' : 's'}</span>
                     </div>
                 </div>
             )}

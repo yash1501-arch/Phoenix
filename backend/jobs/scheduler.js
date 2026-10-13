@@ -15,6 +15,10 @@ async function startScheduledJobs() {
         repeat: { every: 60 * 60 * 1000 },
         jobId: 'repeat-trip-reminders',
       });
+      await q.add(JOBS.CUTOFF_ROSTER, {}, {
+        repeat: { every: 15 * 60 * 1000 },
+        jobId: 'repeat-cutoff-roster',
+      });
       logger.info('Repeating jobs registered on Redis queue');
       return;
     } catch (err) {
@@ -28,6 +32,10 @@ async function startScheduledJobs() {
   intervalHandles.push(setInterval(() => {
     enqueue(JOBS.TRIP_REMINDERS, {}).catch((e) => logger.warn(e.message));
   }, 60 * 60 * 1000));
+  enqueue(JOBS.CUTOFF_ROSTER, {}).catch((e) => logger.warn(e.message));
+  intervalHandles.push(setInterval(() => {
+    enqueue(JOBS.CUTOFF_ROSTER, {}).catch((e) => logger.warn(e.message));
+  }, 15 * 60 * 1000));
   logger.info('Inline reminder intervals started (no Redis repeat)');
 }
 

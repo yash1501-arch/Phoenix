@@ -288,4 +288,11 @@ export default defineSchema({
     .index("adventure_id", ["adventure_id"])
     .index("email", ["email"])
     .index("status", ["status"]),
+
+  /** One row after the guest list is sent to admin WhatsApp at booking cutoff. */
+  cutoff_roster_sends: defineTable({
+    adventure_id: v.string(),
+    adventure_date: v.string(),
+    sent_at: v.string(),
+  }).index("adventure_date", ["adventure_id", "adventure_date"]),
 });

@@ -1573,3 +1573,81 @@ export const markReminderSent = internalMutation({
     return booking._id;
   },
 });
+
+const CUTOFF_HOURS = 3;
+const CUTOFF_GRACE_MS = 6 * 60 * 60 * 1000;
+
+function istCutoffMs(adventureDate: string, startTime?: string) {
+  const match = String(startTime || "08:00").trim().match(/^(\d{1,2}):(\d{2})$/);
+  const hh = match ? String(Math.min(23, Number(match[1]))).padStart(2, "0") : "08";
+  const mm = match ? String(Math.min(59, Number(match[2]))).padStart(2, "0") : "00";
+  const start = new Date(`${adventureDate}T${hh}:${mm}:00+05:30`).getTime();
+  if (Number.isNaN(start)) return null;
+  return start - CUTOFF_HOURS * 60 * 60 * 1000;
+}
+
+/** Departures whose booking window just closed, and whose list has not been sent yet. */
+export const listDueCutoffRosters = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const adventures = await ctx.db.query("adventures").collect();
+    const due = [];
+    for (const adventure of adventures) {
+      if (adventure.status && adventure.status !== "active") continue;
+      const dates = Array.isArray(adventure.available_dates) ? adventure.available_dates : [];
+      for (const adventureDate of dates) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(adventureDate))) continue;
+        const cutoff = istCutoffMs(String(adventureDate), adventure.start_time);
+        if (cutoff == null || now < cutoff || now > cutoff + CUTOFF_GRACE_MS) continue;
+        const already = await ctx.db
+          .query("cutoff_roster_sends")
+          .withIndex("adventure_date", (q) =>
+            q.eq("adventure_id", adventure._id).eq("adventure_date", String(adventureDate))
+          )
+          .first();
+        if (already) continue;
+        const bookings = await ctx.db
+          .query("bookings")
+          .withIndex("adventure_date", (q) =>
+            q.eq("adventure_id", adventure._id).eq("adventure_date", String(adventureDate))
+          )
+          .collect();
+        const confirmed = bookings.filter((b) => b.booking_status === "confirmed");
+        due.push({
+          adventure: {
+            _id: adventure._id,
+            title: adventure.title,
+            start_time: adventure.start_time || "08:00",
+          },
+          adventure_date: String(adventureDate),
+          bookings: confirmed,
+          booking_count: confirmed.length,
+          seats: confirmed.reduce((sum, b) => sum + (Number(b.number_of_seats) || 0), 0),
+        });
+      }
+    }
+    return due;
+  },
+});
+
+export const markCutoffRosterSent = internalMutation({
+  args: {
+    adventure_id: v.string(),
+    adventure_date: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("cutoff_roster_sends")
+      .withIndex("adventure_date", (q) =>
+        q.eq("adventure_id", args.adventure_id).eq("adventure_date", args.adventure_date)
+      )
+      .first();
+    if (existing) return existing._id;
+    return await ctx.db.insert("cutoff_roster_sends", {
+      adventure_id: args.adventure_id,
+      adventure_date: args.adventure_date,
+      sent_at: nowIso(),
+    });
+  },
+});

@@ -58,7 +58,7 @@ class ConvexClient {
     'bookings:getById', 'bookings:getByCode', 'bookings:getByUser',
     'bookings:getPaymentDetails', 'bookings:listPendingPayments', 'bookings:listAll',
     'bookings:listRoster',
-    'bookings:listDueReminders', 'bookings:validateDiscountCode',
+    'bookings:listDueReminders', 'bookings:listDueCutoffRosters', 'bookings:validateDiscountCode',
     'dashboard:getOverview',
     'analytics:getVisitStats',
     'waitlist:listWaitingForAdventure',

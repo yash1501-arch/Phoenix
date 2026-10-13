@@ -374,6 +374,65 @@ async function wishlistDates(payload) {
   }
 }
 
+async function cutoffRoster() {
+  const { getConvexClient } = require('../utils/convexClient');
+  const { sendAdminWhatsAppText, sendWhatsAppDocument } = require('../services/whatsappService');
+  const { buildParticipantsWorkbook, uploadRosterExcel } = require('../utils/participantRoster');
+  const due = await getConvexClient().callFunction('bookings:listDueCutoffRosters', {});
+  const lists = Array.isArray(due) ? due : [];
+  const adminPhone = process.env.ADMIN_WHATSAPP || process.env.ADMIN_PHONE;
+  if (!adminPhone) {
+    logger.warn('ADMIN_WHATSAPP not set — cutoff guest list not sent');
+    return;
+  }
+  if (!process.env.WHATSAPP_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (lists.length) {
+      logger.warn(`Cutoff guest lists waiting (${lists.length}) — WhatsApp Cloud API is not configured`);
+    }
+    return;
+  }
+
+  for (const item of lists) {
+    const adventure = item.adventure || {};
+    const date = item.adventure_date;
+    const bookings = item.bookings || [];
+    try {
+      const { buffer, rowCount, filename } = await buildParticipantsWorkbook(bookings, adventure);
+      const fileUrl = await uploadRosterExcel(buffer, filename);
+      const summary = [
+        'Bookings are now closed (3 hours before start).',
+        '',
+        `${adventure.title || 'Adventure'} · ${date}`,
+        `Start: ${adventure.start_time || '08:00'} IST`,
+        `Confirmed bookings: ${item.booking_count ?? bookings.length}`,
+        `People: ${item.seats ?? rowCount}`,
+        fileUrl ? `Excel: ${fileUrl}` : 'Guest sheet is attached.',
+      ].join('\n');
+
+      const textResult = await sendAdminWhatsAppText(summary);
+      let docOk = false;
+      if (fileUrl) {
+        const doc = await sendWhatsAppDocument(adminPhone, {
+          link: fileUrl,
+          filename,
+          caption: `Guest list — ${adventure.title || 'Adventure'} (${date}). Bookings closed.`,
+        });
+        docOk = Boolean(doc?.ok);
+      }
+      if (textResult?.ok || docOk || textResult?.messageId) {
+        await getConvexClient().callFunction('bookings:markCutoffRosterSent', {
+          adventure_id: String(adventure._id),
+          adventure_date: date,
+        });
+      } else {
+        logger.warn(`Cutoff roster not delivered for ${adventure.title} ${date}`);
+      }
+    } catch (err) {
+      logger.error(`Cutoff roster failed for ${adventure.title} ${date}:`, err.message);
+    }
+  }
+}
+
 module.exports = {
   'booking.confirmation': bookingConfirmation,
   'payment.rejected': paymentRejected,
@@ -384,4 +443,5 @@ module.exports = {
   'newsletter.blast': newsletterBlast,
   'waitlist.notify': waitlistNotify,
   'wishlist.dates': wishlistDates,
+  'bookings.cutoff_roster': cutoffRoster,
 };

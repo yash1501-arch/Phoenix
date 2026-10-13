@@ -143,6 +143,7 @@ module.exports = {
     PARTICIPANTS_ROSTER_FULL: 'participants.roster_full',
     SEATS_EXPIRE_HOLDS: 'seats.expire_holds',
     TRIP_REMINDERS: 'trip.reminders',
+    CUTOFF_ROSTER: 'bookings.cutoff_roster',
     NEWSLETTER_BLAST: 'newsletter.blast',
     WAITLIST_NOTIFY: 'waitlist.notify',
     WISHLIST_DATES: 'wishlist.dates',
