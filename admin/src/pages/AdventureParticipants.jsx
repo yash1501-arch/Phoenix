@@ -113,7 +113,7 @@ const AdventureParticipants = () => {
                     className={`date-chip${selectedDate === row.date ? ' active' : ''}`}
                     onClick={() => load(row.date)}
                 >
-                    {formatDate(row.date)} · {row.confirmed_bookings || 0} booking{(row.confirmed_bookings || 0) === 1 ? '' : 's'}
+                    {formatDate(row.date)} · {row.confirmed_bookings || 0} {Number(row.confirmed_bookings) === 1 ? 'booking' : 'bookings'}
                 </button>
             ))}
         </div>
@@ -175,7 +175,7 @@ const AdventureParticipants = () => {
                                 <option value="">Select a date</option>
                                 {dates.map((row) => (
                                     <option key={row.date} value={row.date}>
-                                        {formatDate(row.date)} ({row.confirmed_bookings || 0} bookings)
+                                        {formatDate(row.date)} ({row.confirmed_bookings || 0} {Number(row.confirmed_bookings) === 1 ? 'booking' : 'bookings'})
                                         {row.date < today ? ' — past' : ''}
                                     </option>
                                 ))}

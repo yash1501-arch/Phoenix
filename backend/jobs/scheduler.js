@@ -1,5 +1,5 @@
 const { enqueue, JOBS, getQueue } = require('../utils/jobQueue');
-const logger = require('./utils/logger');
+const logger = require('../utils/logger');
 
 let intervalHandles = [];
 
