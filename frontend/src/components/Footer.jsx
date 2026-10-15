@@ -33,7 +33,7 @@ const Footer = () => {
     maps: 'https://maps.app.goo.gl/n5uUa7B6FQLKS5aZ6',
   });
   const [contact, setContact] = useState({
-    email: 'pheonixadventuress@gmail.com',
+    email: 'phoenixadventuress@gmail.com',
     phone: '+91 93725 06447',
     phoneSecondary: '+91 77580 79726',
     address: 'Sindhudurg Building, 56/C8, Kandivali, Charkop, Sahyadri Nagar, Kandivali West, Mumbai, Maharashtra 400067, India',
