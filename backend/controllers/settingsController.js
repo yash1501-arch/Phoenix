@@ -7,6 +7,29 @@ const {
 } = require('../utils/cache');
 
 const PUBLIC_CACHE_TTL = Number(process.env.CACHE_TTL_SETTINGS || 120);
+const CONTACT_EMAIL = 'phoenixadventuress@gmail.com';
+
+function correctContactEmail(value) {
+    if (String(value || '').toLowerCase() === 'pheonixadventuress@gmail.com') return CONTACT_EMAIL;
+    return value;
+}
+
+function withCorrectContactEmail(payload) {
+    if (!payload?.data) return payload;
+    if (Object.prototype.hasOwnProperty.call(payload.data, 'contact_email')) {
+        return {
+            ...payload,
+            data: { ...payload.data, contact_email: correctContactEmail(payload.data.contact_email) },
+        };
+    }
+    if (payload.data.key === 'contact_email') {
+        return {
+            ...payload,
+            data: { ...payload.data, value: correctContactEmail(payload.data.value) },
+        };
+    }
+    return payload;
+}
 
 // Public keys (also writable by admin)
 const PUBLIC_KEYS = new Set([
@@ -31,6 +54,9 @@ const ALLOWED_WRITE_KEYS = new Set([...PUBLIC_KEYS, ...ADMIN_ONLY_KEYS]);
 exports.getAll = async (req, res) => {
     try {
         const data = await getConvexClient().getSettings();
+        if (data && Object.prototype.hasOwnProperty.call(data, 'contact_email')) {
+            data.contact_email = correctContactEmail(data.contact_email);
+        }
         res.set('Cache-Control', 'private, no-store');
         return res.json({ success: true, data });
     } catch (error) {
@@ -64,7 +90,7 @@ exports.getPublic = async (req, res) => {
         if (cached) {
             res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
             res.set('X-Cache', 'HIT');
-            return res.json(cached);
+            return res.json(withCorrectContactEmail(cached));
         }
 
         if (!key) {
@@ -73,7 +99,7 @@ exports.getPublic = async (req, res) => {
             for (const k of PUBLIC_KEYS) {
                 if (all && all[k] != null) filtered[k] = all[k];
             }
-            const payload = { success: true, data: filtered };
+            const payload = withCorrectContactEmail({ success: true, data: filtered });
             await cacheSet(cacheKey, payload, PUBLIC_CACHE_TTL);
             res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
             res.set('X-Cache', 'MISS');
@@ -84,7 +110,7 @@ exports.getPublic = async (req, res) => {
         }
         const all = await getConvexClient().getSettings();
         const value = all && all[key] != null ? all[key] : null;
-        const payload = { success: true, data: { key, value } };
+        const payload = withCorrectContactEmail({ success: true, data: { key, value } });
         await cacheSet(cacheKey, payload, PUBLIC_CACHE_TTL);
         res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
         res.set('X-Cache', 'MISS');

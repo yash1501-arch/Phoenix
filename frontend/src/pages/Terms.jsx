@@ -12,7 +12,7 @@ import { StaggerContainer, StaggerItem } from '../components/ui/Motion';
 const lastUpdated = '12 September 2026';
 
 const DEFAULTS = {
-  email: 'pheonixadventuress@gmail.com',
+  email: 'phoenixadventuress@gmail.com',
   phone: '+91 93725 06447',
   phoneSecondary: '+91 77580 79726',
   cancelDays: 14,

@@ -43,7 +43,7 @@ export const BOOKING_ANSWERS = [
     },
     {
         q: 'Where is Phoenix Adventures, and how do I contact them?',
-        a: 'Phoenix Adventures is based at Sindhudurg Building, 56/C8, Kandivali West, Mumbai 400067, Maharashtra. Call +91 93725 06447 or +91 77580 79726, or email pheonixadventuress@gmail.com. The company was established on 22 March 2023.',
+        a: 'Phoenix Adventures is based at Sindhudurg Building, 56/C8, Kandivali West, Mumbai 400067, Maharashtra. Call +91 93725 06447 or +91 77580 79726, or email phoenixadventuress@gmail.com. The company was established on 22 March 2023.',
     },
 ];
 
@@ -258,7 +258,7 @@ export function organizationJsonLd() {
         url: `${SITE_URL}/`,
         logo: `${SITE_URL}/logo-mark.png`,
         image: `${SITE_URL}/logo-mark.png`,
-        email: 'pheonixadventuress@gmail.com',
+        email: 'phoenixadventuress@gmail.com',
         telephone: ['+91-93725-06447', '+91-77580-79726'],
         foundingDate: '2023-03-22',
         priceRange: '₹₹',
@@ -304,7 +304,7 @@ export function organizationJsonLd() {
         contactPoint: {
             '@type': 'ContactPoint',
             telephone: '+91-93725-06447',
-            email: 'pheonixadventuress@gmail.com',
+            email: 'phoenixadventuress@gmail.com',
             contactType: 'reservations',
             areaServed: 'IN',
             availableLanguage: ['en', 'hi', 'mr'],

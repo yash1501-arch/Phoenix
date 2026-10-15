@@ -759,8 +759,8 @@ async function buildItineraryPdf(adventure, options = {}) {
         doc,
         audience === 'customer'
           ? tour
-            ? 'Save this itinerary for the day plan, pickups, train class, and stay notes. Our team will share the exact reporting time on WhatsApp before departure. Bring a valid government ID. For help call +91 93725 06447 / +91 77580 79726 or email pheonixadventuress@gmail.com.'
-            : 'Save this itinerary for pickup points, packing, and day-wise plans. Our team will share the exact reporting time on WhatsApp before departure. Bring a valid government ID. For help call +91 93725 06447 / +91 77580 79726 or email pheonixadventuress@gmail.com.'
+            ? 'Save this itinerary for the day plan, pickups, train class, and stay notes. Our team will share the exact reporting time on WhatsApp before departure. Bring a valid government ID. For help call +91 93725 06447 / +91 77580 79726 or email phoenixadventuress@gmail.com.'
+            : 'Save this itinerary for pickup points, packing, and day-wise plans. Our team will share the exact reporting time on WhatsApp before departure. Bring a valid government ID. For help call +91 93725 06447 / +91 77580 79726 or email phoenixadventuress@gmail.com.'
           : 'This document is generated from the adventure package in Phoenix Adventures Admin. ' +
               'Share with trip leaders and ops for pickup timings and day-wise execution. ' +
               'Customer confirmations attach this itinerary PDF automatically when payment is verified.'

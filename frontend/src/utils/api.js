@@ -160,7 +160,12 @@ export const publicSettingsAPI = {
     getAll: async () => {
         try {
             const res = await api.get('/settings/public');
-            return res.data?.data || {};
+            const data = res.data?.data || {};
+            // Live settings still store the old misspelling; show the real inbox.
+            if (String(data.contact_email || '').toLowerCase() === 'pheonixadventuress@gmail.com') {
+                data.contact_email = 'phoenixadventuress@gmail.com';
+            }
+            return data;
         } catch {
             return {};
         }

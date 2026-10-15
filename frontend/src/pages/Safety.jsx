@@ -11,7 +11,7 @@ import { Reveal, StaggerContainer, StaggerItem, IconMotion, Pop } from '../compo
 const CONTACT_DEFAULTS = {
   phone: '+91 93725 06447',
   phoneSecondary: '+91 77580 79726',
-  email: 'pheonixadventuress@gmail.com',
+  email: 'phoenixadventuress@gmail.com',
 };
 
 const sections = [

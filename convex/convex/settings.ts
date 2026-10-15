@@ -6,7 +6,7 @@ const DEFAULTS = {
     site_name: "Phoenix Adventures",
     site_tagline: "Discover the great outdoors with our adventure tribe",
     tagline: "Discover the great outdoors with our adventure tribe",
-    contact_email: "pheonixadventuress@gmail.com",
+    contact_email: "phoenixadventuress@gmail.com",
     contact_phone: "+91 93725 06447",
     contact_phone_secondary: "+91 77580 79726",
     contact_address: "Sindhudurg Building, 56/C8, Kandivali, Charkop, Sahyadri Nagar, Kandivali West, Mumbai, Maharashtra 400067, India",
@@ -38,7 +38,11 @@ export const getAll = internalQuery({
         const settings = await ctx.db.query("settings").collect();
         const map = {};
         for (const s of settings) map[s.key] = s.value;
-        return { ...DEFAULTS, ...map };
+        const merged = { ...DEFAULTS, ...map };
+        if (String(merged.contact_email || "").toLowerCase() === "pheonixadventuress@gmail.com") {
+            merged.contact_email = "phoenixadventuress@gmail.com";
+        }
+        return merged;
     },
 });
 

@@ -232,7 +232,7 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                     <p style="color: #5c5a52; font-size: 14px; line-height: 1.55; margin-top: 28px;">
                         Bring a valid government ID. Our team will share the exact reporting time on WhatsApp before departure.
                         Questions? Call <strong>+91 93725 06447</strong> / <strong>+91 77580 79726</strong>
-                        or email <strong>pheonixadventuress@gmail.com</strong>.
+                        or email <strong>phoenixadventuress@gmail.com</strong>.
                     </p>
                     <p style="color: #5c5a52; font-size: 14px; line-height: 1.55;">
                         ${isTour ? 'See you on the journey,' : 'See you on the ridge,'}<br><strong>Team Phoenix Adventures</strong>
