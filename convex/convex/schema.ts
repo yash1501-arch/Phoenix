@@ -206,8 +206,10 @@ export default defineSchema({
     balance_reminder_sent_at: v.optional(v.string()),
     /** pending | submitted | paid — remaining tour balance after advance */
     balance_status: v.optional(v.string()),
-    /** 10% reward code issued after this booking is confirmed */
+    /** Reward code issued after this booking is confirmed */
     reward_discount_code: v.optional(v.string()),
+    /** Percent off stored on that reward code at issue time */
+    reward_discount_percent: v.optional(v.number()),
     /** Discount code applied when creating this booking */
     applied_discount_code: v.optional(v.string()),
     discount_percent: v.optional(v.number()),

@@ -40,6 +40,17 @@ async function getAdvancePerPerson(ctx: any) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1000;
 }
 
+async function getRewardDiscountPercent(ctx: any) {
+  const row = await ctx.db
+    .query("settings")
+    .withIndex("key", (q: any) => q.eq("key", "reward_discount_percent"))
+    .first();
+  const parsed = parseFloat(row?.value ?? "10");
+  if (!Number.isFinite(parsed) || parsed < 0) return 10;
+  if (parsed > 100) return 100;
+  return Math.round(parsed);
+}
+
 async function getCancellationWindowDays(ctx: any) {
   const row = await ctx.db
     .query("settings")
@@ -464,13 +475,14 @@ function resolveMealOptions(adventure: any) {
   return filtered.length ? filtered : ALL_MEAL_OPTIONS;
 }
 
-function generateRewardDiscountCode() {
+function generateRewardDiscountCode(percent: number) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let suffix = "";
   for (let i = 0; i < 6; i++) {
     suffix += chars[Math.floor(Math.random() * chars.length)];
   }
-  return `PHOENIX10-${suffix}`;
+  const rate = Math.round(Number(percent) || 0);
+  return `PHOENIX${rate}-${suffix}`;
 }
 
 function buildPickupOptions(adventure: {
@@ -1034,25 +1046,30 @@ export const verifyPayment = internalMutation({
     }
 
     const ts = nowIso();
+    const rewardPercent = await getRewardDiscountPercent(ctx);
 
-    let rewardCode = generateRewardDiscountCode();
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const existing = await ctx.db
-        .query("discount_codes")
-        .withIndex("code", (q: any) => q.eq("code", rewardCode))
-        .first();
-      if (!existing) break;
-      rewardCode = generateRewardDiscountCode();
+    let rewardCode: string | undefined;
+    let rewardExpiresAt: string | undefined;
+    if (rewardPercent > 0) {
+      rewardCode = generateRewardDiscountCode(rewardPercent);
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const existing = await ctx.db
+          .query("discount_codes")
+          .withIndex("code", (q: any) => q.eq("code", rewardCode))
+          .first();
+        if (!existing) break;
+        rewardCode = generateRewardDiscountCode(rewardPercent);
+      }
+      rewardExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // one-time, 30 days, this account only
+      await ctx.db.insert("discount_codes", {
+        code: rewardCode,
+        user_id: refreshed.user_id,
+        source_booking_id: refreshed._id,
+        percent_off: rewardPercent,
+        expires_at: rewardExpiresAt,
+        created_at: ts,
+      });
     }
-    const rewardExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // one-time, 30 days, this account only
-    await ctx.db.insert("discount_codes", {
-      code: rewardCode,
-      user_id: refreshed.user_id,
-      source_booking_id: refreshed._id,
-      percent_off: 10,
-      expires_at: rewardExpiresAt,
-      created_at: ts,
-    });
 
     if (refreshed.applied_discount_code) {
       const applied = await ctx.db
@@ -1088,7 +1105,9 @@ export const verifyPayment = internalMutation({
       booking_status: "confirmed",
       balance_status:
         Number(refreshed.balance_due || 0) > 0 ? "pending" : "paid",
-      reward_discount_code: rewardCode,
+      ...(rewardCode
+        ? { reward_discount_code: rewardCode, reward_discount_percent: rewardPercent }
+        : {}),
       updated_at: ts,
     });
 
@@ -1119,6 +1138,8 @@ export const verifyPayment = internalMutation({
       confirmed_bookings: confirmedList,
       adventure,
       reward_discount_code: rewardCode,
+      reward_discount_percent: rewardPercent > 0 ? rewardPercent : undefined,
+      reward_discount_disabled: rewardPercent <= 0,
       reward_discount_expires_at: rewardExpiresAt,
       kind: "deposit",
     };

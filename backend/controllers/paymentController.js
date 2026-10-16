@@ -235,6 +235,7 @@ exports.verify = async (req, res) => {
       itinerary: bookingPackage.itinerary.length ? bookingPackage.itinerary : rawItinerary,
       upcomingDates: bookingPackage.upcomingDates,
       rewardDiscountCode: verifyResult?.reward_discount_code || details?.booking?.reward_discount_code,
+      rewardDiscountPercent: verifyResult?.reward_discount_percent ?? details?.booking?.reward_discount_percent,
       rewardDiscountExpiresAt: verifyResult?.reward_discount_expires_at,
       guests,
       emergencyContact: details?.booking?.emergency_contact || '',
@@ -263,7 +264,11 @@ exports.verify = async (req, res) => {
       deliveryWarnings.push('no_customer_phone');
     }
 
-    if (!verifyResult?.reward_discount_code && !details?.booking?.reward_discount_code) {
+    if (
+      !verifyResult?.reward_discount_disabled
+      && !verifyResult?.reward_discount_code
+      && !details?.booking?.reward_discount_code
+    ) {
       logger.error(`Booking ${booking_id} confirmed without a promo code`);
       deliveryWarnings.push('promo_code_missing');
     }

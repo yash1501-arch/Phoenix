@@ -38,6 +38,9 @@ const BookingModal = ({ adventure, onClose }) => {
     const { isAuthenticated, user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [holdMinutes, setHoldMinutes] = useState(15);
+    const [rewardPercentHint, setRewardPercentHint] = useState(10);
+    const [appliedDiscountPercent, setAppliedDiscountPercent] = useState(0);
+    const [discountNote, setDiscountNote] = useState('');
     const [advancePerPerson, setAdvancePerPerson] = useState(() =>
         resolveAdvancePerPerson(adventure, 1000)
     );
@@ -51,6 +54,8 @@ const BookingModal = ({ adventure, onClose }) => {
         publicSettingsAPI.getAll().then((all) => {
             const mins = parseInt(all.seat_hold_minutes, 10);
             if (Number.isFinite(mins) && mins > 0) setHoldMinutes(mins);
+            const reward = parseInt(all.reward_discount_percent, 10);
+            if (Number.isFinite(reward) && reward >= 0 && reward <= 100) setRewardPercentHint(reward);
             const settingsAdv = parseFloat(all.advance_per_person);
             const adv = resolveAdvancePerPerson(
                 adventure,
@@ -99,6 +104,34 @@ const BookingModal = ({ adventure, onClose }) => {
         emergency_contact: '',
         discount_code: '',
     });
+
+    useEffect(() => {
+        const code = form.discount_code.trim();
+        if (!code || !isAuthenticated || code.length < 8) {
+            setAppliedDiscountPercent(0);
+            setDiscountNote('');
+            return undefined;
+        }
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            try {
+                const res = await bookingsAPI.previewDiscount(code);
+                if (cancelled) return;
+                const pct = Number(res.data?.data?.percent_off) || 0;
+                setAppliedDiscountPercent(pct > 0 ? pct : 0);
+                setDiscountNote(pct > 0 ? '' : 'This code has no discount');
+            } catch (err) {
+                if (cancelled) return;
+                setAppliedDiscountPercent(0);
+                setDiscountNote(err.response?.data?.message || 'Invalid discount code');
+            }
+        }, 400);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [form.discount_code, isAuthenticated]);
+
     const [participants, setParticipants] = useState([
         emptyParticipant(defaultPickup, defaultCoach, defaultMeal),
     ]);
@@ -146,7 +179,7 @@ const BookingModal = ({ adventure, onClose }) => {
         }),
         [adventure, form.number_of_seats, optionSelections, participantTravelCoaches, advancePerPerson, paymentPreference],
     );
-    const discountPercent = form.discount_code.trim() ? 10 : 0;
+    const discountPercent = appliedDiscountPercent;
     const discountFactor = discountPercent > 0 ? 1 - discountPercent / 100 : 1;
     const tripTotal = Math.round(priced.total_amount * discountFactor * 100) / 100;
     const payAmount = Math.round(priced.amount * discountFactor * 100) / 100;
@@ -600,7 +633,14 @@ const BookingModal = ({ adventure, onClose }) => {
                                 value={form.discount_code}
                                 onChange={(e) => setForm({ ...form, discount_code: e.target.value.toUpperCase() })}
                             />
-                            <p className="text-xs text-muted mt-1.5">Use a reward code from a previous confirmed booking (10% off, valid 30 days).</p>
+                            <p className="text-xs text-muted mt-1.5">
+                                {rewardPercentHint > 0
+                                    ? `One-time reward from a confirmed booking. New codes are ${rewardPercentHint}% off and last 30 days. A code keeps the percent it was issued with.`
+                                    : 'One-time reward from a confirmed booking, valid 30 days. A code keeps the percent it was issued with.'}
+                            </p>
+                            {discountNote && (
+                                <p className="text-xs text-red-700 mt-1">{discountNote}</p>
+                            )}
                         </div>
 
                         {/* ── Pricing summary ── */}

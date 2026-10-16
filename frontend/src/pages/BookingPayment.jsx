@@ -713,7 +713,9 @@ const BookingPayment = () => {
                         <p className="text-sm text-muted">Your seats are locked. See you on the trail.</p>
                         {booking?.reward_discount_code && (
                             <div className="mt-4 rounded-lg border border-moss/30 bg-mist-subtle px-4 py-3 text-left">
-                                <p className="text-xs uppercase tracking-wide text-muted mb-1">Your 10% reward code</p>
+                                <p className="text-xs uppercase tracking-wide text-muted mb-1">
+                                    Your {Number(booking.reward_discount_percent) > 0 ? booking.reward_discount_percent : 10}% reward code
+                                </p>
                                 <p className="font-display text-xl font-semibold text-stone tracking-wide">{booking.reward_discount_code}</p>
                                 <p className="text-xs text-muted mt-1">Valid for 30 days on your next booking.</p>
                             </div>

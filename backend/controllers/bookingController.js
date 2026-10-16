@@ -17,6 +17,29 @@ async function getUpiSettings() {
   };
 }
 
+exports.previewDiscount = async (req, res) => {
+  try {
+    const code = String(req.body?.code || '').trim();
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Discount code is required' });
+    }
+    const discount = await getConvexClient().validateDiscountCode(code, req.user.id);
+    return res.json({
+      success: true,
+      data: {
+        code: discount.code,
+        percent_off: Number(discount.percent_off) || 0,
+        expires_at: discount.expires_at,
+      },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'Invalid discount code',
+    });
+  }
+};
+
 exports.createManual = async (req, res) => {
   try {
     const {

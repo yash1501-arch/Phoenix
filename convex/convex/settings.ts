@@ -30,6 +30,7 @@ const DEFAULTS = {
     upi_id: "9372506447@sbi",
     upi_payee_name: "PHEONIX ADVENTURES LLP",
     seat_hold_minutes: "15",
+    reward_discount_percent: "10",
 };
 
 export const getAll = internalQuery({

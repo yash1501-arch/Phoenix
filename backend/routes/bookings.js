@@ -4,6 +4,7 @@ const { auth, clerkOrAdmin } = require('../middleware/auth');
 const bookingController = require('../controllers/bookingController');
 
 router.post('/manual', auth, bookingController.createManual);
+router.post('/discount-preview', auth, bookingController.previewDiscount);
 router.post('/:bookingId/cancel', auth, bookingController.cancelByUser);
 router.get('/:bookingId/itinerary.pdf', auth, bookingController.downloadCustomerItinerary);
 router.get('/user/:userId', auth, bookingController.getUserBookings);

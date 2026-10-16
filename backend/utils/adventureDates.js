@@ -249,12 +249,18 @@ function guestDetailLines(details = {}) {
   return lines;
 }
 
+function rewardPercentOf(details = {}) {
+  const n = Number(details.rewardDiscountPercent);
+  if (Number.isFinite(n) && n > 0) return n;
+  return details.rewardDiscountCode ? 10 : 0;
+}
+
 function rewardLines(details = {}) {
   if (!details.rewardDiscountCode) return [];
   const until = details.rewardDiscountExpiresLabel || formatRewardExpiry(details.rewardDiscountExpiresAt);
   return [
     `🎁 Promo code: ${details.rewardDiscountCode}`,
-    `10% off your next booking. One-time use, only on your account${until ? `, valid until ${until}` : ', valid for 30 days'}.`,
+    `${rewardPercentOf(details)}% off your next booking. One-time use, only on your account${until ? `, valid until ${until}` : ', valid for 30 days'}.`,
   ];
 }
 

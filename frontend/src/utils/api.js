@@ -109,6 +109,7 @@ export const contactAPI = {
 
 export const bookingsAPI = {
     createManual: (data) => api.post('/bookings/manual', data),
+    previewDiscount: (code) => api.post('/bookings/discount-preview', { code }),
     getPaymentDetails: (bookingId, params) => api.get(`/bookings/${bookingId}/payment`, { params }),
     getById: (bookingId) => api.get(`/bookings/${bookingId}`),
     getUserBookings: (userId) => api.get(`/bookings/user/${userId}`),

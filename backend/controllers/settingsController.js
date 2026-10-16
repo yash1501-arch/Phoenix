@@ -40,7 +40,7 @@ const PUBLIC_KEYS = new Set([
     'site_name', 'site_tagline', 'tagline', 'contact_email', 'contact_phone',
     'contact_phone_secondary', 'contact_address', 'contact_hours', 'whatsapp',
     'maps_url', 'established', 'cancellation_window_days', 'advance_per_person',
-    'upi_id', 'upi_payee_name', 'seat_hold_minutes',
+    'upi_id', 'upi_payee_name', 'seat_hold_minutes', 'reward_discount_percent',
 ]);
 
 // Admin-only keys (not exposed via public read)
@@ -71,7 +71,25 @@ exports.set = async (req, res) => {
         if (!ALLOWED_WRITE_KEYS.has(key)) {
             return res.status(400).json({ success: false, message: `Setting key "${key}" is not allowed` });
         }
-        await getConvexClient().setSetting(key, String(value ?? ''));
+        let stored = String(value ?? '');
+        if (key === 'reward_discount_percent') {
+            const raw = stored.trim();
+            if (!/^\d{1,3}$/.test(raw)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Reward discount must be a whole number from 0 to 100',
+                });
+            }
+            const percent = parseInt(raw, 10);
+            if (percent > 100) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Reward discount must be a whole number from 0 to 100',
+                });
+            }
+            stored = String(percent);
+        }
+        await getConvexClient().setSetting(key, stored);
         await invalidateSettingsCache();
         return res.json({ success: true });
     } catch (error) {

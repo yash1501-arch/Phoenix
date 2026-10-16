@@ -116,6 +116,11 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
         const safeBookingHeadline = bookingDetails.bookingHeadline
             ? escapeHtml(bookingDetails.bookingHeadline)
             : safeDeparture;
+        const rewardPercent = (() => {
+            const n = Number(bookingDetails.rewardDiscountPercent);
+            if (Number.isFinite(n) && n > 0) return n;
+            return bookingDetails.rewardDiscountCode ? 10 : 0;
+        })();
         const safeRewardCode = bookingDetails.rewardDiscountCode
             ? escapeHtml(bookingDetails.rewardDiscountCode)
             : '';
@@ -201,9 +206,9 @@ const sendBookingConfirmation = async (userEmail, userName, adventureTitle, book
                     ${guestHtml}
                     ${safeRewardCode ? `
                     <div style="background-color: #eef6f0; padding: 18px 20px; border-radius: 8px; margin: 22px 0; border: 1px solid #c5dcc9;">
-                        <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your 10% promo code</h3>
+                        <h3 style="margin-top: 0; color: #2F4A3D; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your ${rewardPercent}% promo code</h3>
                         <p style="color: #5c5a52; font-size: 15px; margin: 0 0 8px;">
-                            Use code <strong style="font-size: 18px; letter-spacing: 0.04em;">${safeRewardCode}</strong> on your next booking.
+                            Use code <strong style="font-size: 18px; letter-spacing: 0.04em;">${safeRewardCode}</strong> for ${rewardPercent}% off your next booking.
                         </p>
                         <p style="color: #5c5a52; font-size: 14px; margin: 0;">
                             One-time use, only on your account, valid until ${rewardUntil} (30 days).

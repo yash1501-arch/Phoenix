@@ -16,6 +16,7 @@ const SETTINGS_FIELDS = [
     { key: 'advance_per_person', label: 'Tour advance per person (₹)', type: 'number', help: 'Default UPI advance per seat for tours. A tour can override this. Treks/camping pay in full.' },
     { key: 'cancellation_window_days', label: 'Cancellation window (days)', type: 'number', help: 'Minimum days before departure for travellers to self-cancel a confirmed booking. Default 14. Used in the app and shown on Refund Policy / Terms / FAQ.' },
     { key: 'seat_hold_minutes', label: 'Seat hold (minutes)', type: 'number', help: 'How long unpaid checkout holds a seat. Default 15. Shown on the UPI payment page.' },
+    { key: 'reward_discount_percent', label: 'Reward discount (%)', type: 'number', min: 0, max: 100, step: 1, help: 'Percent off on the one-time code issued after a booking is confirmed. Whole number from 0 to 100. Set 0 to stop issuing new codes. Codes already sent keep the percent they were created with. Default 10.' },
     { key: 'upi_id', label: 'UPI ID (FAQ / legal copy only)', type: 'text', help: 'Shown on FAQ and policies. Checkout always pays 9372506447@sbi — changing this field does not change the QR or Open UPI App.' },
     { key: 'upi_payee_name', label: 'UPI payee name (FAQ / legal copy only)', type: 'text', help: 'Checkout payee is always PHEONIX ADVENTURES LLP in code. Public brand remains Phoenix Adventures.' },
     { key: 'maintenance_mode', label: 'Maintenance mode (true/false)', type: 'text' },
@@ -240,6 +241,9 @@ const Settings = () => {
                             <div className="settings-field-row">
                                 <input
                                     type={field.type}
+                                    min={field.min}
+                                    max={field.max}
+                                    step={field.step}
                                     value={values[field.key] ?? ''}
                                     onChange={(e) => onChange(field.key, e.target.value)}
                                     className="form-input"
